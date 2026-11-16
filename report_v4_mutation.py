@@ -144,6 +144,9 @@ def grounded_take(view, snap):
             "judge": {
                 "status": "ok",
                 "model": AT.JUDGE_MODEL,
+                "raw_verdicts": [
+                    {"point_id": w, "verdict": "supported", "note": "ok"} for w, _ in AT.parts(rec)
+                ],
                 "verdicts": [
                     {"point_id": w, "verdict": "supported", "note": "ok"} for w, _ in AT.parts(rec)
                 ],
@@ -213,6 +216,14 @@ def _analyst_mutations(snap, view, proven, unproven):
         tpl("bull_points", "The figure, {{%s}}, is the highest on record." % fid),
     )
     prove("ANALYST_NO_FREE_DIRECTION", tpl("bear_points", "The figure fell to {{%s}}." % fid))
+    # Movement verbs by stem, a size word and a judgement word.
+    prove(
+        "ANALYST_NO_FREE_DIRECTION", tpl("bear_points", "The figure skyrocketed to {{%s}}." % fid)
+    )
+    prove("ANALYST_NO_FREE_NUMBERS", tpl("bull_points", "The figure {{%s}} is several-fold." % fid))
+    prove(
+        "ANALYST_NO_FREE_DIRECTION", tpl("bull_points", "At {{%s}}, the outlook is bright." % fid)
+    )
     # Advice.
     prove(
         "ANALYST_NO_ADVICE",
@@ -236,10 +247,12 @@ def _analyst_mutations(snap, view, proven, unproven):
 
     def m_length(t):
         t["bull_points"] = t["bull_points"] * 6
-        t["meta"]["judge"]["verdicts"] += [
+        more = [
             {"point_id": "bull_points[%d]" % i, "verdict": "supported", "note": "ok"}
             for i in range(2, 7)
         ]
+        t["meta"]["judge"]["verdicts"] += more
+        t["meta"]["judge"]["raw_verdicts"] += copy.deepcopy(more)
 
     prove("ANALYST_LENGTH_CAPS", m_length)
 
@@ -274,11 +287,51 @@ def _analyst_mutations(snap, view, proven, unproven):
 
         prove("ANALYST_RENDER_MATCHES_DATA", m_direction, retext=False)
 
+    # A value the source states only as a bound ("crossed $1 billion")
+    # printed as an exact figure ("$1.00B" instead of "at least $1.00B").
+    bnd = next((f for f in facts if f.get("bound", "exact") != "exact"), None)
+    if bnd is not None:
+        bid = bnd["fact_id"]
+
+        def m_bound(t):
+            p = t["bull_points"][0]
+            p["template"] = "The company reports {{%s}} for this metric." % bid
+            p["fact_ids"] = [bid]
+            p["text"] = AT.render(p["template"], by_id).replace(
+                AT.fmt_value(bnd), AT.fmt_value(bnd, bnd["value"])
+            )
+
+        prove("ANALYST_RENDER_MATCHES_DATA", m_bound, retext=False)
+
     # The judge did not clear a point.
     def m_judge(t):
         t["meta"]["judge"]["verdicts"][1]["verdict"] = "unsupported"
+        t["meta"]["judge"]["raw_verdicts"][1]["verdict"] = "unsupported"
 
     prove("ANALYST_JUDGE_PASSED", m_judge)
+
+    # The judge answered twice for one point ("supported", then
+    # "unsupported"); the cleaned list kept only the first. The gate reads
+    # the raw answer.
+    def m_judge_contradiction(t):
+        t["meta"]["judge"]["raw_verdicts"].append(
+            {"point_id": "summary", "verdict": "unsupported", "note": "not shown"}
+        )
+
+    prove("ANALYST_JUDGE_PASSED", m_judge_contradiction)
+
+    # A verdict for a point that does not exist; a missing raw list.
+    def m_judge_unexpected(t):
+        t["meta"]["judge"]["raw_verdicts"].append(
+            {"point_id": "bull_points[9]", "verdict": "supported", "note": "ok"}
+        )
+
+    prove("ANALYST_JUDGE_PASSED", m_judge_unexpected)
+
+    def m_judge_no_raw(t):
+        del t["meta"]["judge"]["raw_verdicts"]
+
+    prove("ANALYST_JUDGE_PASSED", m_judge_no_raw)
 
     # Printed pages that differ from the record: unchecked text appended to
     # the page; stale analyst content printed when the take was withheld;

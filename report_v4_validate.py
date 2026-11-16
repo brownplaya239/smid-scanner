@@ -599,16 +599,17 @@ ANALYST_CHECKS = (
 _EXPECT = {
     "ANALYST_FACT_IDS": "every point cites facts that exist, and its placeholders use only "
     "those facts, in forms they allow",
-    "ANALYST_NO_FREE_NUMBERS": "no digit, number word, fraction, unit, date or month outside "
-    "placeholders",
-    "ANALYST_NO_FREE_DIRECTION": "no direction, comparison or superlative word outside "
-    "placeholders",
+    "ANALYST_NO_FREE_NUMBERS": "no digit, number word, fraction, size or bound word, unit, "
+    "date or month outside placeholders",
+    "ANALYST_NO_FREE_DIRECTION": "no direction, movement, comparison, superlative or judgement "
+    "word outside placeholders",
     "ANALYST_NO_ADVICE": "no advice, rating, target or position wording",
     "ANALYST_NO_FOREIGN_TICKERS": "no ticker outside this report's data",
     "ANALYST_LENGTH_CAPS": "2-3 sentence summary, 1-3 points per list, every part within its cap",
     "ANALYST_RENDER_MATCHES_DATA": "every printed value, unit and direction word equals what "
     "the facts rebuilt from this view render to",
-    "ANALYST_JUDGE_PASSED": "the independent judge marked every point supported",
+    "ANALYST_JUDGE_PASSED": "the judge's raw answer holds exactly one verdict per point, "
+    "no other ids, and every verdict is supported",
 }
 
 

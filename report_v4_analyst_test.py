@@ -15,6 +15,8 @@ Uses the committed fixtures_v4/mutation_base.pkl, like the mutation suite.
 
 import copy
 import json
+import threading
+import time
 from types import SimpleNamespace
 
 import anthropic
@@ -678,3 +680,249 @@ def test_a_section_too_long_for_one_page_is_retried_then_omitted(base, facts):
     fake = FakeClient(writer=[_msg(json.dumps(long_take))] * 2)
     at = AT.generate(copy.deepcopy(view), snap, client=fake)
     assert at["available"] is False and at["meta"]["status"] == "invalid"
+
+
+# ── re-check 2: bounded facts keep their bound ──────────────────────────
+
+
+def test_a_floor_prints_with_its_bound_and_never_as_exact(base, facts):
+    by_id = {f["fact_id"]: f for f in facts}
+    f = by_id["kpi_ai_acv"]  # the release says AI ACV "crossed $1 billion"
+    assert f["bound"] == "at_least" and "floor" in f["basis"]
+    assert AT.fmt_value(f) == "at least $1.00B"
+    assert AT.render("AI annual contract value was {{kpi_ai_acv}}.", by_id) == (
+        "AI annual contract value was at least $1.00B."
+    )
+    # no form can print it as an exact figure, a change or a sign
+    assert AT.forms_for(f, by_id) == ["plain"]
+    # every other fact states how exactly it is known
+    assert all(g["bound"] in AT.BOUNDS and g["basis"] for g in facts)
+    assert by_id["eps_estimate_1"]["basis"].startswith("analysts' consensus estimate")
+    assert "annualises" in by_id["ev_to_revenue"]["basis"]
+
+
+@pytest.mark.parametrize(
+    "row,bound",
+    [
+        ({"kind": "money_floor", "basis": "crossed (floor)"}, "at_least"),
+        ({"kind": "money", "basis": "more than"}, "over"),
+        ({"kind": "money", "basis": "less than"}, "under"),
+        ({"kind": "money", "basis": "approximately"}, "approx"),
+        ({"kind": "money", "basis": None}, "exact"),
+    ],
+)
+def test_bound_of_reads_the_kind_and_basis(row, bound):
+    assert AT.bound_of(row) == bound
+
+
+def test_writer_and_judge_both_see_the_bound(base):
+    snap, view, _ = base
+    good = _with_text(
+        _good(view, snap),
+        "bull_points",
+        "The company reports AI annual contract value of {{kpi_ai_acv}}.",
+        ["kpi_ai_acv"],
+    )
+    fake = FakeClient(writer=[_msg(good)], judge=[_judge_msg(_all_supported())])
+    at = AT.generate(copy.deepcopy(view), snap, client=fake)
+    assert at["available"] is True, at["meta"]
+    assert at["bull_points"][0]["text"].endswith("of at least $1.00B.")
+    wf = {
+        f["fact_id"]: f
+        for f in json.loads(fake.writer_calls[0]["messages"][0]["content"][0]["text"])["facts"]
+    }
+    assert wf["kpi_ai_acv"]["bound"] == "at_least"
+    assert wf["kpi_ai_acv"]["value_as_printed"] == "at least $1.00B"
+    assert "floor" in wf["kpi_ai_acv"]["basis"]
+    jf = {
+        f["fact_id"]: f
+        for f in json.loads(fake.judge_calls[0]["messages"][0]["content"][0]["text"])["facts"]
+    }
+    assert jf["kpi_ai_acv"]["bound"] == "at_least"
+    assert jf["kpi_ai_acv"]["value_as_printed"] == "at least $1.00B"
+    assert "bound" in fake.writer_calls[0]["system"] and "bound" in fake.judge_calls[0]["system"]
+
+
+def test_an_exact_value_in_place_of_a_bound_fails_the_gate(base):
+    snap, view, _ = base
+    good = MUT.grounded_take(view, snap)
+    facts = AT.fact_list(view, snap)
+    by_id = {f["fact_id"]: f for f in facts}
+    p = good["bull_points"][0]
+    p["template"], p["fact_ids"] = "AI annual contract value is {{kpi_ai_acv}}.", ["kpi_ai_acv"]
+    p["text"] = AT.render(p["template"], by_id)
+    v = copy.deepcopy(view)
+    v["analyst_take"] = good
+    assert all(c["status"] == "PASS" for c in VV.check_analyst_take(v, snap))
+    p["text"] = "AI annual contract value is $1.00B."  # the bound dropped
+    (r,) = [
+        c for c in VV.check_analyst_take(v, snap) if c["check_id"] == "ANALYST_RENDER_MATCHES_DATA"
+    ]
+    assert r["status"] == "FAIL" and "at least $1.00B" in r["observed"]
+
+
+def test_free_bound_words_are_rejected(facts):
+    for text in (
+        "AI annual contract value is exactly {{kpi_ai_acv}}.",
+        "AI annual contract value is approximately {{kpi_ai_acv}}.",
+        "AI annual contract value is at most {{kpi_ai_acv}}.",
+    ):
+        assert "ANALYST_NO_FREE_NUMBERS" in _check(text, facts, ["kpi_ai_acv"]), text
+
+
+# ── re-check 2: free direction, size and judgement words ────────────────
+
+
+@pytest.mark.parametrize(
+    "text,ids,want",
+    [
+        ("Revenue skyrocketed to {{revenue_q}}.", ["revenue_q"], "ANALYST_NO_FREE_DIRECTION"),
+        ("Revenue is several-fold.", ["revenue_q"], "ANALYST_NO_FREE_NUMBERS"),
+        ("The outlook is bright.", ["revenue_q"], "ANALYST_NO_FREE_DIRECTION"),
+        ("Margins are robust at {{gross_margin}}.", ["gross_margin"], "ANALYST_NO_FREE_DIRECTION"),
+        ("Cash is x times debt.", ["cash", "debt"], "ANALYST_NO_FREE_NUMBERS"),
+        ("The balance sheet is healthy.", ["cash", "debt"], "ANALYST_NO_FREE_DIRECTION"),
+        (
+            "Free cash flow tanked to {{free_cash_flow}}.",
+            ["free_cash_flow"],
+            "ANALYST_NO_FREE_DIRECTION",
+        ),
+        ("The shares look undervalued at {{trailing_pe}}.", ["trailing_pe"], "ANALYST_NO_ADVICE"),
+    ],
+)
+def test_reviewer_recheck_examples_are_rejected(facts, text, ids, want):
+    assert want in _check(text, facts, ids), text
+
+
+# ── re-check 3: a stalled stream cannot outlive the deadline ────────────
+
+
+class _StalledStream:
+    """Sends one event after `first` seconds, then blocks in a 'read' for
+    `second` more seconds, the way a socket read on a stalled connection
+    does. close() ends the read early, as closing the HTTP response does."""
+
+    def __init__(self, first, second, msg):
+        self.first, self.second, self.msg = first, second, msg
+        self.closed = threading.Event()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def __iter__(self):
+        if self.closed.wait(self.first):
+            raise httpx2.ReadError("closed")
+        yield SimpleNamespace(type="ping")
+        if self.closed.wait(self.second):
+            raise httpx2.ReadError("closed")
+        yield SimpleNamespace(type="ping")
+
+    def close(self):
+        self.closed.set()
+
+    def get_final_message(self):
+        return self.msg
+
+
+class _DeafStream(_StalledStream):
+    def close(self):  # a blocked read that closing cannot interrupt
+        pass
+
+
+# Real seconds, scaled down 100x from the incident: a 150 s budget, one
+# event at 120 s, the next only at 240 s. Must finish by ~150, not ~240.
+SCALE = 0.01
+
+
+@pytest.mark.parametrize("cls", [_StalledStream, _DeafStream])
+def test_stalled_stream_is_cut_at_the_deadline_not_at_the_next_event(base, cls):
+    snap, view, _ = base
+    s = cls(120 * SCALE, 120 * SCALE, _msg(_good(view, snap)))
+    t0 = time.monotonic()
+    with pytest.raises(AT.DeadlineExceeded):
+        AT._stream(lambda **kw: s, AT._now() + 150 * SCALE)
+    took = time.monotonic() - t0
+    assert took < 185 * SCALE, took
+    if cls is _StalledStream:
+        assert s.closed.is_set()  # closed from the waiting thread
+
+
+def test_generate_with_a_stalled_writer_finishes_by_the_deadline(base, monkeypatch):
+    snap, view, _ = base
+    monkeypatch.setattr(AT, "JUDGE_RESERVE_S", 0.0)
+    monkeypatch.setattr(AT, "MIN_CALL_S", 0.01)
+    s = _StalledStream(120 * SCALE, 120 * SCALE, _msg(_good(view, snap)))
+    fake = FakeClient()
+    fake.beta = SimpleNamespace(messages=SimpleNamespace(stream=lambda **kw: s))
+    t0 = time.monotonic()
+    at = AT.generate(copy.deepcopy(view), snap, client=fake, deadline_s=150 * SCALE)
+    took = time.monotonic() - t0
+    assert at["available"] is False and at["meta"]["status"] == "timeout", at["meta"]
+    assert took < 185 * SCALE, took
+    assert at["meta"]["calls"][0]["error"] == "deadline"
+    assert at["meta"]["cost_complete"] is False
+
+
+def test_a_stream_error_in_the_worker_reaches_the_caller():
+    class Boom:
+        def __enter__(self):
+            raise anthropic.APIConnectionError(request=httpx2.Request("POST", "https://x"))
+
+        def __exit__(self, *a):
+            return False
+
+    with pytest.raises(anthropic.APIConnectionError):
+        AT._stream(lambda **kw: Boom(), AT._now() + 5)
+
+
+# ── re-check 4: exactly one judge verdict per point ─────────────────────
+
+
+@pytest.mark.parametrize(
+    "verdicts,why",
+    [
+        # "supported" then "unsupported" for the same point
+        (
+            _all_supported() + [{"point_id": "summary", "verdict": "unsupported", "note": "no"}],
+            "summary: 2 verdicts (supported/unsupported)",
+        ),
+        # the same point twice, even when both agree
+        (_all_supported() + _all_supported(1), "summary: 2 verdicts"),
+        # a verdict for a point that does not exist
+        (
+            _all_supported() + [{"point_id": "bull_points[7]", "verdict": "supported", "note": ""}],
+            "unexpected point ids: bull_points[7]",
+        ),
+        # one missing
+        (_all_supported(3), "watch_next[1]: no verdict"),
+    ],
+)
+def test_judge_needs_exactly_one_verdict_per_point(base, verdicts, why):
+    snap, view, _ = base
+    fake = FakeClient(writer=[_msg(_good(view, snap))], judge=[_judge_msg(verdicts)])
+    at = AT.generate(copy.deepcopy(view), snap, client=fake)
+    assert at["available"] is False and at["meta"]["status"] == "judge_rejected"
+    assert why in at["meta"]["reason"], at["meta"]["reason"]
+    # the raw answer is on record exactly as given
+    assert at["meta"]["judge"]["raw_verdicts"] == [
+        {"point_id": v["point_id"], "verdict": v["verdict"], "note": v["note"]} for v in verdicts
+    ]
+
+
+def test_the_gate_rechecks_the_raw_verdict_list(base):
+    snap, view, _ = base
+    good = MUT.grounded_take(view, snap)
+    v = copy.deepcopy(view)
+    v["analyst_take"] = good
+    assert AT.judge_record_problems(good) == []
+    # the cleaned list says all supported; the raw answer says otherwise
+    good["meta"]["judge"]["raw_verdicts"].append(
+        {"point_id": "summary", "verdict": "unsupported", "note": "not shown"}
+    )
+    (r,) = [c for c in VV.check_analyst_take(v, snap) if c["check_id"] == "ANALYST_JUDGE_PASSED"]
+    assert r["status"] == "FAIL" and "2 verdicts" in r["observed"]
+    del good["meta"]["judge"]["raw_verdicts"]
+    assert AT.judge_record_problems(good) == ["the judge's raw verdict list is not on record"]

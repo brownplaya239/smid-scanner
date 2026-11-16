@@ -9,7 +9,9 @@ allowed to write numbers at all:
 
   1. FACTS. fact_list() turns the report's validated view into a list of
      structured facts (fact_id, label, metric, entity, period, signed
-     value, unit, source). The model sees ONLY this list, as JSON in its
+     value, unit, bound, basis, source). `bound` keeps a qualifier the
+     source states ("crossed $1 billion" -> at_least), and code prints it
+     with the value ("at least $1.00B"). The model sees ONLY this list, as JSON in its
      own content block, and the system prompt marks it as untrusted data.
      The Street rating, the consensus target and the scenario prices are
      not in it, so the section cannot echo a recommendation.
@@ -18,17 +20,22 @@ allowed to write numbers at all:
      "fell 24.0%", chosen by code from the sign). render_token() fills
      every number, unit and direction word from the data.
   3. CODE CHECKS (take_problems, before substitution). Outside tokens the
-     text may contain no digit, number word, fraction, month or date, no
-     direction verb or superlative, no advice wording and no ticker that
+     text may contain no digit, number word, fraction, size or bound word,
+     month or date, no direction or movement word (matched by stem), no
+     superlative or judgement word, no advice wording and no ticker that
      is not in the data; a token may only use a fact the same point cites,
      in a form that fact allows; and every part has a length cap. A failed
      draft gets one retry with the complaints, then the section is omitted.
   4. JUDGE. After substitution, Claude Haiku 5.5 checks each rendered
      point against the facts it cites (supported / unsupported / advice).
-     Anything but "supported" for every point, or any error, refusal or
-     empty answer, omits the section.
-  5. DEADLINE. The whole section has DEADLINE_S seconds; past that it is
-     omitted and the report ships.
+     The answer must hold exactly one verdict per point and no other ids;
+     anything else (a duplicate, even an agreeing one, a missing or an
+     unknown id, a verdict other than "supported", an error, refusal or
+     empty answer) omits the section. The raw answer is kept for the gate.
+  5. DEADLINE. The whole section has DEADLINE_S seconds of wall-clock
+     time; each call runs in a worker thread, and when the time runs out
+     the stream is closed and the section omitted even if the connection
+     has stalled mid-read. The report ships either way.
 
 The gate in report_v4_validate rebuilds the facts independently, re-runs
 the code checks, re-renders every token and compares the result with the
@@ -43,7 +50,10 @@ import json
 import math
 import os
 import re
+import threading
 import time
+
+import report_v4_lexicon as LX
 
 MODEL = "claude-opus-5-5"
 # medium: a short summary written from ~60 facts, not open research. It is
@@ -287,6 +297,84 @@ _FIN = (
 )
 
 
+# How exactly a value is known. A fact whose source states only a bound
+# ("crossed $1 billion") keeps that bound, and code prints it with the value
+# ("at least $1.00B"); printing the bare value would turn a floor into an
+# exact figure.
+BOUNDS = ("exact", "at_least", "over", "under", "approx")
+BOUND_WORDS = {
+    "exact": "",
+    "at_least": "at least ",
+    "over": "over ",
+    "under": "under ",
+    "approx": "about ",
+}
+BOUND_NOUN = {
+    "at_least": "floor",
+    "over": "lower limit",
+    "under": "upper limit",
+    "approx": "approximation",
+}
+
+
+def bound_of(row):
+    """The bound a KPI row states, from its kind ("money_floor") or its
+    basis text ("crossed (floor)", "more than", "approximately" ...)."""
+    kind = str(row.get("kind") or "").lower()
+    basis = str(row.get("basis") or "").lower()
+    if kind.endswith("_floor") or re.search(r"floor|crossed|at least|or more", basis):
+        return "at_least"
+    if kind.endswith("_ceiling") or re.search(r"ceiling|at most|or less", basis):
+        return "under"
+    if re.search(r"more than|over|exceed|above", basis):
+        return "over"
+    if re.search(r"less than|under|below", basis):
+        return "under"
+    if re.search(r"approx|about|roughly|around|estimat|~", basis):
+        return "approx"
+    return "exact"
+
+
+# Where each value comes from, in words, for the writer and the judge.
+_BASIS = {
+    "reported": "reported in the company's latest filing",
+    "kpi": "stated in the company's filed earnings release",
+    "actual": "reported EPS for that quarter",
+    "estimate": "analysts' consensus estimate made before the result (a forecast, not a result)",
+    "surprise": "computed by this report: reported EPS versus the consensus estimate",
+    "valuation": "computed by this report from reported figures and the share price",
+    "annualised": "computed by this report; annualises the latest quarter (an extrapolation, "
+    "not a reported annual figure)",
+    "level": "computed by this report from daily closing prices",
+    "price": "last closing share price used in this report",
+    "event": "date listed in this report's event calendar",
+    "insider": "count of SEC Form 4 filings in the window",
+    "report": "this report's own classification",
+    "text": "as listed in this report's data",
+}
+
+
+def _basis_for(source):
+    s = str(source)
+    for prefix, key in (
+        ("view.financials.reported", "reported"),
+        ("view.financials.saas_kpis", "kpi"),
+        ("view.valuation.ev_to_revenue", "annualised"),
+        ("view.valuation.fcf_yield", "annualised"),
+        ("view.valuation", "valuation"),
+        ("snapshot.levels", "level"),
+        ("view.price", "price"),
+        ("view.catalysts", "event"),
+        ("view.monitoring", "event"),
+        ("view.insiders", "insider"),
+        ("view.ratings", "report"),
+        ("view.data_confidence", "report"),
+    ):
+        if s.startswith(prefix):
+            return _BASIS[key]
+    return _BASIS["text"]
+
+
 def fact_list(view, snap=None):
     """The report's validated view as structured facts — the only material
     the model sees and the only source of every number it prints.
@@ -301,7 +389,20 @@ def fact_list(view, snap=None):
     seen = set()
     tk = str(view.get("ticker") or snap.get("ticker") or "").upper()
 
-    def add(fid, label, metric, value, unit, source, period="", entity=None, kind=None, name=None):
+    def add(
+        fid,
+        label,
+        metric,
+        value,
+        unit,
+        source,
+        period="",
+        entity=None,
+        kind=None,
+        name=None,
+        bound="exact",
+        basis=None,
+    ):
         if fid in seen:
             return
         if unit in ("date",):
@@ -325,6 +426,8 @@ def fact_list(view, snap=None):
             "period": period,
             "value": value,
             "unit": unit,
+            "bound": bound if unit not in ("date", "text") else "exact",
+            "basis": basis or _basis_for(source),
             "source": source,
         }
         if kind:
@@ -391,6 +494,7 @@ def fact_list(view, snap=None):
             src,
             period,
             kind="signed",
+            basis=_BASIS["actual"],
         )
         add(
             "eps_estimate_%d" % i,
@@ -400,6 +504,7 @@ def fact_list(view, snap=None):
             "usd_per_share",
             src,
             period,
+            basis=_BASIS["estimate"],
         )
         add(
             "eps_surprise_%d" % i,
@@ -410,6 +515,7 @@ def fact_list(view, snap=None):
             src,
             period,
             kind="surprise",
+            basis=_BASIS["surprise"],
         )
         if per:
             add(
@@ -427,6 +533,7 @@ def fact_list(view, snap=None):
             continue
         k = _slug(r.get("key"))
         money = "money" in str(r.get("kind") or "")
+        bound = bound_of(r)
         add(
             "kpi_%s" % k,
             r.get("label") or k,
@@ -435,6 +542,14 @@ def fact_list(view, snap=None):
             "usd" if money else "count",
             "view.financials.saas_kpis.%s" % k,
             "latest reported quarter",
+            bound=bound,
+            basis=_BASIS["kpi"]
+            + (
+                ""
+                if bound == "exact"
+                else "; the release gives a %s, not an exact figure (%s)"
+                % (BOUND_NOUN[bound], plain(r.get("basis") or r.get("kind")))
+            ),
         )
         add(
             "kpi_%s_growth" % k,
@@ -613,9 +728,16 @@ def _money(v):
 
 
 def fmt_value(f, v=None):
-    """The value of fact f (or v in f's unit), with its unit, as printed."""
+    """The value of fact f, with its bound and unit, as printed ("at least
+    $1.00B" for a floor). With v: v in f's unit, without a bound (the
+    change/beat/sign forms print magnitudes; bounded facts have none)."""
+    if v is None:
+        return BOUND_WORDS[f.get("bound") or "exact"] + _fmt(f, f["value"])
+    return _fmt(f, v)
+
+
+def _fmt(f, v):
     u = f["unit"]
-    v = f["value"] if v is None else v
     if u in ("date", "text"):
         return str(v)
     if u == "usd":
@@ -640,6 +762,10 @@ def forms_for(f, by_id):
     out = ["plain"]
     if f.get("name"):
         out.append("named")
+    if (f.get("bound") or "exact") != "exact":
+        # A bounded value prints only with its bound; no form may compare,
+        # sign or move it as if it were exact.
+        return out
     k = f.get("kind")
     if k == "change" and f["unit"] == "pct":
         out.append("change")
@@ -706,143 +832,11 @@ def free_text(template):
     return re.sub(r"\s+", " ", TOKEN_RX.sub(" X ", template or "")).strip()
 
 
-# ── the lexicons (applied to free_text only) ────────────────────────────
-
-_W = r"(?<![A-Za-z])(?:%s)(?![A-Za-z])"
-
-_NUMBER_WORDS = (
-    r"zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|"
-    r"fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|"
-    r"sixty|seventy|eighty|ninety|hundreds?|thousands?|millions?|billions?|trillions?|"
-    r"dozens?|percent|percents|percentage|percentages|pct|bps|basis\s+points?|"
-    r"half|halves|halved|halving|thirds?|"
-    r"doubl\w*|twice|tripl\w*|quadrupl\w*|\w+fold|times|"
-    r"first|second|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|"
-    r"\w+teenth|twentieth|"
-    r"dollars?|cents?|usd|"
-    r"(?:a|one|two|three)[\s-]+quarters?|quarters?\s+of"
-)
-_NUMBER_RX = re.compile(_W % _NUMBER_WORDS, re.IGNORECASE)
-_DIGIT_RX = re.compile(r"[0-9$%£¥€¼½¾²³¹]")
-# Month and weekday names are matched capitalised (so the verb "may" and
-# the noun "march" in lower case are not), plus relative day words.
-_MONTH_RX = re.compile(
-    r"(?<![A-Za-z])(?:January|February|March|April|May|June|July|August|September|"
-    r"October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|"
-    r"Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?![A-Za-z])"
-    r"|(?<![A-Za-z])(?:yesterday|tomorrow)(?![A-Za-z])",
-    0,
-)
-_DATE_RX = re.compile(r"\b\d{1,4}[-/.]\d{1,2}(?:[-/.]\d{1,4})?\b")
-
-_DIRECTION = (
-    r"rose|rise|rises|rising|risen|fell|fall|falls|falling|fallen|"
-    r"grew|grow|grows|growing|grown|declin\w*|increas\w*|decreas\w*|"
-    r"jump\w*|slump\w*|gain\w*|lost|lose|loses|losing|loss|losses|"
-    r"up|down|upward\w*|downward\w*|upturn\w*|downturn\w*|"
-    r"beat|beats|beating|missed|miss|misses|outperform\w*|underperform\w*|"
-    r"climb\w*|drop\w*|slid|slide|slides|sliding|surg\w*|soar\w*|plung\w*|plummet\w*|"
-    r"tumbl\w*|rall(?:y|ied|ies|ying)|sank|sink\w*|sunk|slip\w*|"
-    r"expand\w*|expansion\w*|shrink\w*|shrank|shrunk|contract(?:ed|ing|ion|ions)|"
-    r"accelerat\w*|decelerat\w*|improv\w*|worsen\w*|deteriorat\w*|recover\w*|"
-    r"rebound\w*|spik\w*|higher|lower|above|below|exceed\w*|outpac\w*|"
-    r"trail|trails|trailed|lag|lags|lagged|lagging|topp(?:ed|ing)|"
-    r"profit|profits|profitab\w*|unprofitab\w*|deficits?|surplus\w*|"
-    r"positive|negative|ahead|behind|"
-    r"more\s+than|less\s+than|fewer\s+than|greater|smaller|larger|bigger|cheaper|pricier|"
-    # superlatives and records
-    r"highest|lowest|largest|smallest|biggest|fastest|slowest|strongest|weakest|"
-    r"best|worst|greatest|record\w*|all[\s-]time|ever|peak\w*|most|least|"
-    r"unprecedented|never|always"
-)
-_DIRECTION_RX = re.compile(_W % _DIRECTION, re.IGNORECASE)
-
-_ADVICE = (
-    r"buy|buys|buying|buyers?|sell|sells|selling|sellers?|sell[\s-]side|"
-    r"hold|holds|holding|invest|invests|invested|investing|"
-    r"accumulat\w*|allocat\w*|position|positions|positioned|positioning|"
-    r"portfolios?|savings?|should|must|ought|recommend\w*|advis\w*|advice|"
-    r"consider\w*|entry|entries|exit|exits|exiting|targets?|targeted|targeting|"
-    r"stop|stops|stop[\s-]loss|trim\w*|add(?:s|ed|ing)?\s+(?:to|more)|"
-    r"upside|downside|ratings?|rated|fair\s+value|undervalu\w*|overvalu\w*|"
-    r"cheap|expensive|bargain\w*|attractive\w*|compelling|opportunit\w*|worth|"
-    r"overweight|underweight|market[\s-]perform|"
-    r"short(?:s|ed|ing)?(?![\s-](?:term|run|sentences?))|go(?:es|ing)?\s+long|long\s+position|"
-    r"owning|own\s+(?:the|these|this|its)\s+(?:stock|shares)|"
-    r"you|your|yours|yourself|"
-    r"time\s+to|act\s+now|avoid\w*|guarantee\w*|speculat\w*|risk[\s-]free|"
-    r"take\s+profits?|bet|bets|betting|wager\w*"
-)
-# "buyback(s)" is a corporate action, not advice.
-_ADVICE_RX = re.compile(
-    r"(?<![A-Za-z])(?:%s)(?![A-Za-z])(?![\s-]?backs?(?![A-Za-z]))" % _ADVICE, re.IGNORECASE
-)
-
-# Capitalised abbreviations that are vocabulary, not tickers.
-_ACRONYMS = frozenset(
-    [
-        "AI",
-        "ACV",
-        "ARR",
-        "CRPO",
-        "RPO",
-        "EPS",
-        "GAAP",
-        "SEC",
-        "XBRL",
-        "FCF",
-        "EV",
-        "PE",
-        "YOY",
-        "QOQ",
-        "TTM",
-        "LTM",
-        "RSI",
-        "SMA",
-        "EMA",
-        "ETF",
-        "US",
-        "UK",
-        "EU",
-        "CEO",
-        "CFO",
-        "COO",
-        "CTO",
-        "IPO",
-        "FDA",
-        "EBIT",
-        "EBITDA",
-        "SAAS",
-        "IT",
-        "AND",
-        "OR",
-        "OK",
-        "FY",
-        "NA",
-        "EMEA",
-        "APAC",
-        "GA",
-        "ROE",
-        "ROIC",
-        "ROA",
-        "ESG",
-        "ET",
-        "UTC",
-        "NYSE",
-        "NASDAQ",
-        "NOTE",
-        "II",
-        "III",
-        "IV",
-        "DATA",
-        "P/E",
-    ]
-)
-_TICKER_RX = re.compile(r"\$?(?<![A-Za-z])[A-Z]{2,5}(?:\.[A-Z])?(?![A-Za-z])")
+# ── the word lists live in report_v4_lexicon (applied to free_text only) ─
 
 
 def _allowed_upper(facts, ticker):
-    ok = set(_ACRONYMS)
+    ok = set(LX.ACRONYMS)
     if ticker:
         ok.add(ticker.upper())
     for f in facts:
@@ -972,21 +966,23 @@ def take_problems(take, facts, ticker):
 
         # Numbers, dates, units: only from tokens.
         bad = sorted(
-            {m.group(0) for rx in (_DIGIT_RX, _DATE_RX) for m in rx.finditer(free)}
-            | {m.group(0).lower() for m in _NUMBER_RX.finditer(free)}
-            | {m.group(0) for m in _MONTH_RX.finditer(free)}
+            set(LX.hits(LX.DIGIT_RX, free, lower=False))
+            | set(LX.hits(LX.DATE_RX, free, lower=False))
+            | set(LX.hits(LX.NUMBER_RX, free))
+            | set(LX.hits(LX.MONTH_RX, free, lower=False))
         )
         if bad:
             probs.append(
                 (
                     "ANALYST_NO_FREE_NUMBERS",
-                    "%s writes numbers, units or dates outside placeholders: %s"
+                    "%s writes numbers, sizes, bounds, units or dates outside placeholders: %s"
                     % (where, ", ".join(bad)),
                 )
             )
 
-        # Directions, comparisons, superlatives: only from tokens.
-        dirs = sorted({m.group(0).lower() for m in _DIRECTION_RX.finditer(free)})
+        # Directions, comparisons, superlatives and judgements: only from
+        # tokens (directions), or not at all (judgements).
+        dirs = LX.hits(LX.DIRECTION_RX, free)
         if dirs:
             probs.append(
                 (
@@ -995,9 +991,18 @@ def take_problems(take, facts, ticker):
                     % (where, ", ".join(dirs)),
                 )
             )
+        judged = LX.hits(LX.EVALUATIVE_RX, free)
+        if judged:
+            probs.append(
+                (
+                    "ANALYST_NO_FREE_DIRECTION",
+                    "%s uses judgement words the data does not state: %s"
+                    % (where, ", ".join(judged)),
+                )
+            )
 
         # Advice.
-        adv = sorted({m.group(0).lower() for m in _ADVICE_RX.finditer(free)})
+        adv = LX.hits(LX.ADVICE_RX, free)
         if adv:
             probs.append(
                 (
@@ -1008,7 +1013,7 @@ def take_problems(take, facts, ticker):
 
         # Tickers outside the data.
         foreign = sorted(
-            {m.group(0).lstrip("$") for m in _TICKER_RX.finditer(free)} - allowed_upper
+            {m.group(0).lstrip("$") for m in LX.TICKER_RX.finditer(free)} - allowed_upper
         )
         if foreign:
             probs.append(
@@ -1142,6 +1147,7 @@ or "fell 24.0%", {{eps_surprise_1:beat_miss}} prints "beat the estimate by 4.0%"
 {{level_ma200:position}} prints "below the 200-day moving average of $126.70", and \
 {{level_ma200:named}} prints "200-day moving average of $126.70".
 Write the sentence so it reads correctly around the preview.
+Some values are known only as a bound: their "bound" is not "exact" and their value_as_printed already carries it, e.g. "at least $1.00B" for a figure the company says it "crossed". Never present such a value as exact, and never add, drop or change a bound yourself. Each fact's "basis" says where it comes from; an estimate is a forecast, not a result, and an annualised figure is an extrapolation.
 
 Write:
 - summary: 2 or 3 short sentences on what the data says about the business and the stock.
@@ -1158,9 +1164,17 @@ An automatic checker rejects the whole section if, outside placeholders, you wri
 third, "a quarter of", double, twice, triple, first, second, times ...), currency or \
 percent sign, date, month or weekday name. Write "the latest quarter", not "a quarter" \
 or "Q3". Use "might" instead of the word "May". Do not use "one" as a pronoun.
-- any direction or comparison word: rose, fell, grew, declined, increased, gained, lost, \
-loss, profit, up, down, beat, missed, higher, lower, above, below, exceeded, more than, \
-improved, positive, negative ... Directions only ever come from placeholders.
+- any size or bound word: several-fold, tenfold, "x times", several, numerous, exactly, \
+approximately, roughly, nearly, almost, "at least", "at most", "in excess of".
+- any direction or movement word, in any form: rose, fell, grew, declined, increased, \
+gained, lost, loss, profit, up, down, beat, missed, higher, lower, above, below, exceeded, \
+more than, improved, positive, negative, soared, surged, jumped, spiked, rallied, climbed, \
+skyrocketed, plunged, plummeted, crashed, sank, slid, slumped, collapsed, tanked, \
+ballooned, shrank, rebounded, recovered, accelerated, slowed, expanded, contracted, \
+widened, narrowed ... Directions only ever come from placeholders.
+- any judgement word: bright, strong, weak, robust, solid, impressive, stellar, dismal, \
+poor, healthy, excellent, terrible, promising, concerning, good, bad, great, stable, \
+risky ... State what the values are, not how good or bad they are.
 - any superlative or record: highest, lowest, best, worst, strongest, record, all-time, \
 ever, most, least, never.
 - anything that sounds like advice: buy, sell, hold, invest, position, portfolio, \
@@ -1187,6 +1201,9 @@ def _fact_payload(facts):
                 "period": f["period"],
                 "value": f["value"],
                 "unit": f["unit"],
+                "bound": f["bound"],
+                "basis": f["basis"],
+                "value_as_printed": fmt_value(f),
                 "forms": {form: render_token(f, form, by_id) for form in forms_for(f, by_id)},
             }
         )
@@ -1255,10 +1272,12 @@ For every point, give exactly one verdict:
 position, or gives a rating, price target or valuation verdict (cheap, expensive, \
 undervalued ...).
 - otherwise "unsupported" if anything in it is not established by the facts it cites: a \
-value described as a different metric, period or company than its fact names; a \
-characterisation the cited values do not plainly show; or any claim about products, \
-competition, management, demand, guidance, causes, history or the future that the cited \
-facts do not state.
+value described as a different metric, period or company than its fact names; a value \
+whose fact has a bound (bound not "exact", e.g. "at least") presented as exact, or an \
+estimate or annualised figure presented as a reported result; an opinion or judgement \
+(strong, weak, healthy, bright, impressive, concerning ...) or a characterisation the \
+cited values do not plainly show; or any claim about products, competition, management, \
+demand, guidance, causes, history or the future that the cited facts do not state.
 - otherwise "supported". Plain interpretation that follows directly from the cited \
 values (for example, that cash is larger than debt when both are cited) is supported.
 When unsure, choose "unsupported". The note is one short sentence naming the problem, \
@@ -1279,6 +1298,8 @@ def _judge_messages(take, facts):
             "metric": by_id[i]["metric"],
             "entity": by_id[i]["entity"],
             "period": by_id[i]["period"],
+            "bound": by_id[i]["bound"],
+            "basis": by_id[i]["basis"],
             "value_as_printed": fmt_value(by_id[i]),
         }
         for i in cited
@@ -1373,17 +1394,57 @@ def usage_entries(msg, requested_model):
     return out
 
 
+def _close_stream(stream):
+    """Close a stream (and its HTTP response) from another thread, so a
+    read blocked on a stalled connection returns. Best effort."""
+    for obj in (stream, getattr(stream, "response", None)):
+        close = getattr(obj, "close", None)
+        if callable(close):
+            try:
+                close()
+            except Exception:  # pragma: no cover - already closed / broken
+                pass
+
+
 def _stream(fn, deadline, **kw):
-    """Run one streaming request and return the final message. Stops (and
-    closes the connection) as soon as the deadline passes."""
-    with fn(**kw) as stream:
-        for _ev in stream:
-            if _now() > deadline:
-                raise DeadlineExceeded()
-        msg = stream.get_final_message()
+    """Run one streaming request and return the final message, enforcing
+    the deadline on the wall clock, independent of stream events.
+
+    A stream that stalls (no event for minutes) blocks inside a socket
+    read, where no event-loop check can run. So the request runs in a
+    worker thread and this thread waits only the time that is left; when
+    it runs out, the stream is closed from here (which ends the blocked
+    read) and DeadlineExceeded is raised at once. The worker is a daemon:
+    if a close cannot interrupt it, it is abandoned, never waited for. The
+    worker also checks the clock on every event, so a stream that keeps
+    sending stops at the first event past the deadline."""
+    box = {}
+    finished = threading.Event()
+
+    def work():
+        try:
+            with fn(**kw) as stream:
+                box["stream"] = stream
+                for _ev in stream:
+                    if box.get("cancelled") or _now() > deadline:
+                        raise DeadlineExceeded()
+                box["msg"] = stream.get_final_message()
+        except BaseException as e:  # handed to the waiting thread
+            box["error"] = e
+        finally:
+            finished.set()
+
+    worker = threading.Thread(target=work, name="analyst-take-stream", daemon=True)
+    worker.start()
+    if not finished.wait(timeout=max(0.0, deadline - _now())):
+        box["cancelled"] = True
+        _close_stream(box.get("stream"))
+        raise DeadlineExceeded()
+    if "error" in box:
+        raise box["error"]
     if _now() > deadline:
         raise DeadlineExceeded()
-    return msg
+    return box["msg"]
 
 
 def _transient(e):
@@ -1529,47 +1590,76 @@ def judge(client, take, facts, deadline, meta):
 
     msg = _request(client, "judge", JUDGE_MODEL, deadline, meta, build)
     status, data = _parse(msg)
-    rec = {"model": _g(msg, "model") or JUDGE_MODEL, "status": status, "verdicts": []}
+    rec = {
+        "model": _g(msg, "model") or JUDGE_MODEL,
+        "status": status,
+        "raw_verdicts": [],
+        "verdicts": [],
+    }
     meta["judge"] = rec
-    if status != "ok":
+    if status != "ok" or data is None:
         return False, "judge returned %s" % status.replace("_", " ")
-    want = [w for w, _ in parts(take)]
-    got = {}
-    for v in data.get("verdicts") or []:
-        if isinstance(v, dict) and v.get("point_id") in want and v.get("point_id") not in got:
-            got[v["point_id"]] = {
-                "point_id": v["point_id"],
-                "verdict": str(v.get("verdict")),
-                "note": plain(v.get("note"))[:200],
-            }
-    rec["verdicts"] = [got[w] for w in want if w in got]
-    missing = [w for w in want if w not in got]
-    if missing:
-        return False, "judge gave no verdict for %s" % ", ".join(missing)
-    bad = [v for v in rec["verdicts"] if v["verdict"] != "supported"]
-    if bad:
-        return False, "judge: " + "; ".join(
-            "%s %s (%s)" % (v["point_id"], v["verdict"], v["note"]) for v in bad[:4]
-        )
+    raw = data.get("verdicts")
+    # Every verdict exactly as returned (in order, duplicates and unknown
+    # ids included), so the gate can re-check the judge's actual answer.
+    rec["raw_verdicts"] = [
+        {
+            "point_id": str(_g(v, "point_id")),
+            "verdict": str(_g(v, "verdict")),
+            "note": plain(_g(v, "note"))[:200],
+        }
+        if isinstance(v, dict)
+        else {"point_id": None, "verdict": None, "note": plain(repr(v))[:200]}
+        for v in (raw if isinstance(raw, list) else [])
+    ]
+    probs = verdict_problems(rec["raw_verdicts"], [w for w, _ in parts(take)])
+    if not probs:
+        rec["verdicts"] = list(rec["raw_verdicts"])
+    if probs:
+        return False, "judge: " + "; ".join(probs[:4])
     return True, ""
+
+
+def verdict_problems(raw, want):
+    """Why a raw verdict list does not clear the points `want` ([] = it
+    does). It must hold exactly one verdict per expected point id, no
+    other ids, and every verdict must be 'supported'. A point judged twice
+    is rejected even when both verdicts agree: the answer is malformed,
+    and with contradictory verdicts there is no honest way to pick one."""
+    if not isinstance(raw, list):
+        return ["no verdict list"]
+    ids = [v.get("point_id") if isinstance(v, dict) else None for v in raw]
+    out = []
+    unexpected = sorted({str(i) for i in ids if i not in want})
+    if unexpected:
+        out.append("verdicts for unexpected point ids: %s" % ", ".join(unexpected))
+    for w in want:
+        n = ids.count(w)
+        if n == 0:
+            out.append("%s: no verdict" % w)
+        elif n > 1:
+            vs = [
+                str(v.get("verdict")) for v in raw if isinstance(v, dict) and v.get("point_id") == w
+            ]
+            out.append("%s: %d verdicts (%s), not exactly one" % (w, n, "/".join(vs)))
+    for v in raw:
+        if isinstance(v, dict) and v.get("point_id") in want and v.get("verdict") != "supported":
+            out.append(
+                "%s %s (%s)" % (v.get("point_id"), v.get("verdict"), v.get("note") or "no note")
+            )
+    return out
 
 
 def judge_record_problems(at):
     """Why the stored judge record does not clear this take ([] = it
-    does): every part needs exactly one 'supported' verdict from the
-    judge model."""
+    does). Re-checks the judge's RAW verdict list: exactly one verdict
+    per part, no other ids, all 'supported', from the judge model."""
     j = (at.get("meta") or {}).get("judge") or {}
     if j.get("status") != "ok" or not j.get("model"):
         return ["no completed judge review on record"]
-    got = {}
-    for v in j.get("verdicts") or []:
-        got.setdefault(v.get("point_id"), []).append(v.get("verdict"))
-    out = []
-    for where, _ in parts(at):
-        vs = got.get(where) or []
-        if vs != ["supported"]:
-            out.append("%s: judge verdict %s" % (where, "/".join(map(str, vs)) or "missing"))
-    return out
+    if "raw_verdicts" not in j:
+        return ["the judge's raw verdict list is not on record"]
+    return verdict_problems(j.get("raw_verdicts"), [w for w, _ in parts(at)])
 
 
 def _unavailable(status, meta, reason):
