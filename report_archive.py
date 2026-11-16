@@ -241,7 +241,7 @@ def upload_user_report(pdf_bytes, filename, user_id, ticker, kind, link=True):
         with urllib.request.urlopen(req, timeout=45) as r:
             r.read()
     except Exception as e:
-        print(f"  Private upload failed ({e}); falling back to public archive.")
+        print(f"  Private upload failed ({e}).")
         return False
     if link:
         try:

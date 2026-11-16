@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="See what a TickerDesk AI research report looks like: an 8–12 page deep dive with bull/bear case, options flow, key levels, filings and catalysts — generated on demand for any ticker in minutes." />
+<meta name="description" content="See what a TickerDesk research report looks like: normally a 5-6 page equity report plus an evidence appendix on any ticker, built from market data and SEC filings, usually ready in about a minute." />
 <link rel="icon" href="favicon.png" />
 <link rel="canonical" href="https://tickerdesk.io/sample-report" />
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="TickerDesk" />
-<meta property="og:title" content="Sample AI Stock Research Report — What You Get | TickerDesk" />
-<meta property="og:description" content="A section-by-section look at a TickerDesk AI research report: bull/bear case, options flow, key levels, filings, catalysts and a clear takeaway — generated on demand for any ticker." />
+<meta property="og:title" content="Sample Stock Research Report — What You Get | TickerDesk" />
+<meta property="og:description" content="A page-by-page look at a TickerDesk research report: investment summary, business, latest quarter, valuation, price and technicals, catalysts and risks, plus an evidence appendix." />
 <meta property="og:url" content="https://tickerdesk.io/sample-report" />
 <meta property="og:image" content="https://tickerdesk.io/og-image.jpg" />
-<title>Sample AI Stock Research Report — What You Get | TickerDesk</title>
+<title>Sample Stock Research Report — What You Get | TickerDesk</title>
 <style>
   body { margin:0; padding:48px 20px 80px; background:#000; color:#e8e8e8;
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
@@ -62,72 +62,73 @@
     <a href="/#adhoc">Generate a report &rarr;</a>
   </div>
   <h1>What a research report looks like</h1>
-  <p class="sub">Every TickerDesk report is an 8–12 page PDF generated on demand
-    by Claude, structured the same way. Below is an annotated walkthrough of the
-    sections — the layout is real; the example content is illustrative.</p>
+  <!-- WHAT A RESEARCH REPORT IS: the full description for this page. Keep
+       it in step with the Research tab in index.html and the
+       ai-stock-research-reports page in landing_pages.py. Source of truth:
+       report_v4.py (build_core: the _pageN functions + the appendix). -->
+  <p class="sub">A TickerDesk report is normally a 5-6 page equity research
+    PDF plus an evidence appendix, built on demand from market data and SEC
+    filings. The valuation page appears when there is enough data for it.
+    If the data needed for a full report is temporarily unavailable, you get
+    a short one-page notice instead. No AI model writes it. Below is a page-by-page walkthrough &mdash; the
+    layout is real; the example content is illustrative.</p>
 
   <div class="banner"><b>This is a format sample, not live analysis.</b> Your
-    report is generated fresh at request time against current market data,
-    filings and flow for the ticker you choose. It is educational research, not
-    investment advice — nothing here is a recommendation to buy or sell.</div>
+    report is built fresh at request time from current market data and
+    filings for the ticker you choose. It is educational research, not
+    investment advice &mdash; nothing here is a recommendation to buy or
+    sell.</div>
 
   <div class="doc">
-    <p class="rtitle">Research Report · [Your Ticker]</p>
-    <p class="rmeta">Generated on demand · current market data (15-min delayed)
-      · TickerDesk × Claude</p>
+    <p class="rtitle">Equity Research · [Your Ticker]</p>
+    <p class="rmeta">Built on demand · market data about 15 minutes delayed
+      · every figure sourced in the appendix</p>
 
-    <h3>Executive takeaway</h3>
-    <p>A two-to-three sentence synthesis up top: the setup in plain language,
-      the single most important thing to watch, and where the thesis breaks.
-      No hedging essay — the decision-relevant read first.</p>
-    <p class="ann">Illustrative: "Momentum leader consolidating above the 50-day
-      after an earnings gap; bulls want the gap held, bears point to a rich
-      multiple into a decelerating growth print."</p>
+    <h3>Page 1 &middot; Investment summary</h3>
+    <p>A fundamental rating and a separate tactical (price-trend) rating,
+      the Street consensus where it is available, the thesis in a few
+      sentences, and the key risks. A figure the sources can't support is
+      shown as &ldquo;unavailable&rdquo; with the reason, never guessed.</p>
 
-    <h3>Bull &amp; bear case</h3>
-    <div class="cols">
-      <div class="box bull"><h4>Bull case</h4>
-        <p>The strongest arguments for upside — catalyst path, relative
-          strength, positioning and valuation support — each stated as a
-          specific, checkable point.</p></div>
-      <div class="box bear"><h4>Bear case</h4>
-        <p>The strongest arguments against — the risks that would invalidate the
-          setup, competitive or macro headwinds, and what the skeptics see.</p></div>
-    </div>
-    <p class="ann">A report that only argues one side isn't research. Both cases
-      are built to be genuinely strong.</p>
+    <h3>Page 2 &middot; Business model and competitive position</h3>
+    <p>Who the customer is, how the company makes money and where it
+      competes, taken from cited filings rather than a generic profile.</p>
 
-    <h3>Recent options flow</h3>
-    <p>The notable unusual options activity in the name: sweeps, volume vs open
-      interest, opening-buyer premium tilt, and whether the flow confirmed on
-      next-day open interest — pulled from the same engine as the live
-      <a href="/options-flow-scanner">flow scanner</a>.</p>
+    <h3>Page 3 &middot; Latest quarter and estimate context</h3>
+    <p>The most recent reported quarter from the 10-Q or 10-K, and how it
+      compares with estimates where those are available.</p>
 
-    <h3>Key levels</h3>
-    <div class="lvl"><span>Prior-day high / resistance</span><span>—</span></div>
-    <div class="lvl"><span>50-day moving average</span><span>—</span></div>
-    <div class="lvl"><span>Volume point of control</span><span>—</span></div>
-    <div class="lvl"><span>Expected-move band (options-implied)</span><span>—</span></div>
-    <p class="ann">Real reports fill these with the ticker's actual levels and a
-      short read on which matter into the current setup.</p>
+    <h3>Page 4 &middot; Valuation</h3>
+    <p>Valuation on real inputs only &mdash; for example trailing P/E and
+      enterprise value &mdash; each with the formula it came from. When the
+      sources don't support any honest valuation figure, this page is left
+      out rather than padded, and the report runs five pages.</p>
 
-    <h3>Filings &amp; catalysts</h3>
-    <p>A read on recent SEC filings (via EDGAR) and the upcoming catalyst
-      calendar — earnings date, expected move into the print, and any scheduled
-      events that could move the stock.</p>
+    <h3>Page 5 &middot; Price and technicals</h3>
+    <div class="lvl"><span>Chart with 20/50/200-day averages and volume</span><span>&mdash;</span></div>
+    <div class="lvl"><span>Relative strength vs SPY</span><span>&mdash;</span></div>
+    <div class="lvl"><span>Support and resistance levels</span><span>&mdash;</span></div>
+    <p class="ann">Real reports fill these with the ticker's actual chart and
+      levels, plus a short technical read.</p>
 
-    <h3>Bottom line</h3>
-    <p>A closing paragraph that ties the flow, levels, and fundamentals into one
-      clear statement of where the edge is and what would change the view — the
-      same discipline as the rest of the desk: say what's actionable, and where
-      it isn't.</p>
+    <h3>Page 6 &middot; Catalysts, risks and monitoring</h3>
+    <p>Upcoming catalysts, the risks ranked by the filing evidence, the key
+      debate on the stock, and the price levels that would confirm or
+      invalidate the tactical view.</p>
+
+    <h3>Appendix &middot; Evidence and methodology</h3>
+    <p>Everything the report pages cite but don't print: the source inventory,
+      the estimates ledger, the valuation method and derived-figure formulas,
+      Form 4 insider transactions, institutional filings, options data,
+      evidence that was rejected and why, and a sample of social posts.
+      Any number in the report can be traced to where it came from.</p>
   </div>
 
   <p style="margin-top:26px"><a class="cta" href="/#adhoc">Generate a report on
     any ticker &rarr;</a></p>
   <p style="font-size:13px;color:#9a9a9a">Free accounts get 3 lifetime reports;
-    Pro 10/month; Premium 100/month. Typically 2–3 minutes.
-    <a href="/ai-stock-research-reports">More about AI research reports &rarr;</a></p>
+    Pro 10/month; Premium 100/month. Usually ready in about a minute.
+    <a href="/ai-stock-research-reports">More about research reports &rarr;</a></p>
 
   <footer>
     <a href="/">TickerDesk</a> &middot; <a href="/glossary">Glossary</a> &middot;
