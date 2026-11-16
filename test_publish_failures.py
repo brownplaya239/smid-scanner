@@ -137,8 +137,16 @@ GIT = shutil.which("git")
 needs_bash = pytest.mark.skipif(BASH is None or GIT is None, reason="bash/git not installed")
 
 
+def _scratch_env():
+    """os.environ minus every GIT_* variable. Git hooks (lefthook's
+    pre-push runs these tests) export GIT_DIR and friends, which would
+    point every git command here at the REAL repository instead of the
+    scratch one."""
+    return {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
+
+
 def _git(cwd, *args):
-    subprocess.run([GIT, *args], cwd=cwd, check=True, capture_output=True)
+    subprocess.run([GIT, *args], cwd=cwd, env=_scratch_env(), check=True, capture_output=True)
 
 
 def _publish(tmp_path, reject):
@@ -181,7 +189,18 @@ def _publish(tmp_path, reject):
     (work / "docs" / "reports").mkdir()
     (work / "docs" / "reports" / "smid_scanner_2026-11-16_1000.pdf").write_bytes(b"%PDF-stub")
 
-    env = dict(os.environ)
+    # belt and braces: the script must see the scratch clone, nothing else
+    top = subprocess.run(
+        [GIT, "rev-parse", "--show-toplevel"],
+        cwd=work,
+        env=_scratch_env(),
+        check=True,
+        capture_output=True,
+        encoding="utf-8",
+    ).stdout.strip()
+    assert work.samefile(top), top
+
+    env = _scratch_env()
     env["PATH"] = str(stubs) + os.pathsep + env.get("PATH", "")
     return subprocess.run(
         [BASH, "scripts/publish_reports.sh"],
