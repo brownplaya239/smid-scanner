@@ -566,3 +566,23 @@ def test_brief_pane_matches_the_site_comparison():
     b = {x["ticker"]: x for x in late["records"]}["BBB"]
     assert b["implied_move_pct"] is None and b["verdict"] == ""
     assert "after the report" in b["why"]
+
+
+def test_every_idea_family_needs_a_pre_report_read():
+    swing = {"XYZ": {"grade": "A"}}
+    flow = {"n": 3, "bull": 3, "bear": 0}
+    mom = ei.generate([_name(drift_5d=2.0, flow_into=flow)], swing, {})
+    assert [i["type"] for i in mom] == ["momentum_into_print"]
+    # read at the close of the BMO report day: the reaction is already in
+    log = {"ideas": []}
+    assert ei.log_new_ideas(log, mom, "2026-11-10", read_date="2026-11-10") == 0
+    # a read from the close before the report is fine
+    assert ei.log_new_ideas(log, mom, "2026-11-09", read_date="2026-11-09") == 1
+    # AMC on D: D's close is still before the report; D+1 is not
+    amc = [dict(mom[0], t="AMC1", session="AMC")]
+    assert ei.log_new_ideas({"ideas": []}, amc, "2026-11-10", read_date="2026-11-10") == 1
+    assert ei.log_new_ideas({"ideas": []}, amc, "2026-11-11", read_date="2026-11-11") == 0
+    # drift ideas too
+    drift = ei.generate([_name(drift_5d=-2.5, n_reports=8)], {}, {})
+    assert [i["type"] for i in drift] == ["post_report_drift"]
+    assert ei.log_new_ideas({"ideas": []}, drift, "2026-11-10", read_date="2026-11-10") == 0

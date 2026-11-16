@@ -652,14 +652,27 @@ def apply_read(entry, row):
     return True
 
 
-def log_new_ideas(log, ideas, today, edge_rows=None):
+def log_new_ideas(log, ideas, today, edge_rows=None, read_date=None):
     """Append today's new ideas to the log (once per ticker/date/type).
-    Vol ideas carry their read; returns the number added."""
+    Vol ideas carry their read; returns the number added.
+
+    read_date: the session the inputs belong to (main passes
+    EM.read_session_date(); defaults to `today`). EVERY idea family is
+    logged only when that session's close is before the report — a
+    momentum or drift idea built from a read taken after a before-the-open
+    report already knows the reaction it would be graded on. Vol ideas
+    additionally need their own option read to be pre-report."""
+    read_date = read_date or today
     seen = {(i.get("t"), i.get("date"), i.get("type")) for i in log["ideas"]}
     added = 0
     for i in ideas:
         key = (i["t"], i["date"], i["type"])
         if key in seen or i["type"] == "binary_caution":
+            continue
+        try:
+            if not EM.is_pre_event(read_date, i["date"], i.get("session")):
+                continue  # read taken after the report: nothing honest to grade
+        except TypeError, ValueError:
             continue
         e = {
             "t": i["t"],
@@ -814,7 +827,7 @@ def main():
     log = _load(LOG_PATH, {"ideas": []})
     today = datetime.now(UTC).date().isoformat()
     refreshed = refresh_pending_reads(log, edge_rows)
-    added = log_new_ideas(log, ideas, today, edge_rows)
+    added = log_new_ideas(log, ideas, today, edge_rows, read_date=EM.read_session_date())
 
     cutoff = (datetime.now(UTC).date() - timedelta(days=GRADE_AFTER_SESSIONS + 4)).isoformat()
     graded, regraded, voided = grade_log(log, cutoff)
