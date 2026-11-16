@@ -28,10 +28,12 @@ CLEAN = "Fed’s Warsh says “patience”"
 
 
 def _const(src, name):
-    """Source of a top-level `const NAME = ...;` statement (may span lines,
-    may end in a // comment)."""
+    """Source of a `const NAME = ...;` statement at the start of a line (may
+    be indented, may span lines, may end in a // comment)."""
     m = re.search(
-        r"^const " + name + r" = .*?;[ \t]*(?://[^\n]*)?\r?\n", src, re.DOTALL | re.MULTILINE
+        r"^[ \t]*const " + name + r" = .*?;[ \t]*(?://[^\n]*)?\r?\n",
+        src,
+        re.DOTALL | re.MULTILINE,
     )
     assert m, name
     return m.group(0)
@@ -46,7 +48,11 @@ def _fn(src, name):
 def _node(path, names, body, consts=()):
     with open(path, encoding="utf-8") as f:
         src = f.read()
-    js = "\n".join([_const(src, c) for c in consts] + [_fn(src, n) for n in names])
+    # ALL_CAPS entries in `names` are constants too
+    js = "\n".join(
+        [_const(src, c) for c in consts]
+        + [_const(src, n) if n.isupper() else _fn(src, n) for n in names]
+    )
     # a UTF-8 file, not `node -e`: the Windows command line mangles non-ASCII
     with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8", delete=False) as f:
         f.write(js + "\n" + body)
@@ -64,7 +70,14 @@ def _ms(iso):
 
 
 # ── Site: "Live" only when the newest headline is recent ──────────────
-SITE_FNS = ["tdNewsEtParts", "tdNewsFreshness", "tdFixMojibake", "tdNewsLegacyJunk"]
+SITE_FNS = [
+    "TD_NEWS_FUTURE_SLACK_MS",
+    "tdNewsEtParts",
+    "tdNewsNewest",
+    "tdNewsFreshness",
+    "tdFixMojibake",
+    "tdNewsLegacyJunk",
+]
 
 # (case, newest headline, now, expected live?) — Nov dates are EST (UTC-5),
 # the July one EDT (UTC-4).
@@ -174,10 +187,44 @@ def test_site_label_goes_stale_while_fetches_fail():
     assert got["never"]["live"] is False
 
 
+@needs_node
+def test_site_ignores_a_future_dated_headline():
+    # A tomorrow-dated story used to keep the wire "Live" all day (any
+    # negative age passed) and, once cached as "newest", it never let go.
+    body = r"""
+    let NOW = Date.parse("2026-11-16T18:30:00Z");   // Mon 1:30 PM ET
+    Date.now = () => NOW;
+    globalThis.setInterval = () => 0;
+    const TOMORROW = "2026-11-17T18:00:00Z", OLD = "2026-11-16T15:00:00Z";
+    const labels = [];
+    const clock = tdNewsClock((f) => labels.push(f), 30000);
+    clock.seen([TOMORROW, OLD]);
+    const withBad = labels[labels.length - 1];
+    clock.seen(["2026-11-16T18:28:00Z", OLD]);
+    const fresh = labels[labels.length - 1];
+    clock.seen([OLD]);                     // bad / newer rows gone: recomputed
+    const fixed = labels[labels.length - 1];
+    clock.seen(["2026-11-16T18:33:00Z"]);  // 3 min ahead: clock skew, allowed
+    const skew = labels[labels.length - 1];
+    process.stdout.write(JSON.stringify({ withBad, fixed, fresh, skew,
+      direct: tdNewsFreshness(TOMORROW, NOW),
+      newest: tdNewsNewest([TOMORROW, OLD, "junk", null], NOW) }));
+    """
+    got = _node(HTML, [*SITE_FNS, "tdNewsClock"], body)
+    stale = {"live": False, "label": "Last headline Mon, Nov 16, 10:00 AM ET"}
+    assert got["withBad"] == stale
+    assert got["fresh"] == {"live": True, "label": "Live · 1:28 PM ET"}
+    assert got["fixed"] == stale  # the cache no longer holds the newer time
+    assert got["skew"]["live"] is True
+    assert got["direct"]["live"] is False
+    assert got["newest"] == "2026-11-16T15:00:00Z"
+
+
 def test_site_wires_the_independent_timers():
     with open(HTML, encoding="utf-8") as f:
         src = f.read()
     assert ".catch(function () { wireClock.failed(); });" in src
+    assert "wireClock.seen(rows.map(" in src  # every row, not just rows[0]
     assert "setInterval(setLiveStatus, 30000);" in src
     assert "stampFreshness" not in src
 
@@ -197,6 +244,7 @@ WORKER_CONSTS = ["NEWS_STALL_MIN", "NEWS_ALERT_EVERY_MS", "CP1252_BYTE"]
 WIRE_FNS = [
     *WORKER_FNS,
     "newsPollStart",
+    "newsKeyCmp",
     "newsCursorAfter",
     "newsFetchRetry",
     "readNewsCursor",
@@ -290,6 +338,7 @@ function world(o) {
         throttleMode: o.throttleMode || "ok", patchDelay: o.patchDelay || 0,
         alpacaFails: o.alpacaFails || 0, upsertFails: o.upsertFails || 0,
         upsertStatus: o.upsertStatus || 500, alpacaCalls: 0, patches: 0,
+        readFails: o.readFails || 0, tokenFails: o.tokenFails || 0,
         insertAt: NOW };
   if (o.cursor) W.r2.set(NEWS_CURSOR_KEY, JSON.stringify(o.cursor));
   (o.rows || []).forEach((r) => W.table.set(r.id, r));
@@ -297,8 +346,10 @@ function world(o) {
     SUPABASE_URL: "https://supa.test", SUPABASE_SERVICE_KEY: "svc",
     SUPABASE_ANON_KEY: "anon", ALPACA_KEY: "k", ALPACA_SECRET: "s",
     SLACK_BOT_TOKEN: "xoxb", SLACK_ALERT_CHANNEL: "C1",
-    DATA: { get: async (k) => W.r2.has(k)
-              ? { json: async () => JSON.parse(W.r2.get(k)) } : null,
+    DATA: { get: async (k) => {
+              if (W.readFails > 0) { W.readFails--; throw new Error("R2 503"); }
+              return W.r2.has(k)
+                ? { json: async () => JSON.parse(W.r2.get(k)) } : null; },
             put: async (k, v) => { W.r2.set(k, v); } },
   }, o.env || {});
   return W;
@@ -313,6 +364,9 @@ globalThis.fetch = async function (url, init) {
   if (u.host === "data.alpaca.markets") {
     W.alpacaCalls++;
     if (W.alpacaFails > 0) { W.alpacaFails--; return J({ message: "slow" }, 429); }
+    if (u.searchParams.get("page_token") && W.tokenFails > 0) {
+      W.tokenFails--; return J({ message: "invalid page token" }, 422);
+    }
     const start = Date.parse(u.searchParams.get("start"));
     const lim = +u.searchParams.get("limit"), off = +(u.searchParams.get("page_token") || 0);
     const all = W.items.filter((i) => Date.parse(i.created_at) >= start)
@@ -380,30 +434,119 @@ def test_worker_poll_pages_through_a_burst():
     """)
     assert got["r"]["pages"] == 3 and got["r"]["wrote"] == 120
     assert got["stored"] == 120
-    assert got["cursor"]["published_at"] == got["newest"]
+    assert got["cursor"]["watermark_ts"] == got["newest"]
+    assert got["cursor"]["watermark_id"] == "1119"
+    assert got["cursor"]["next_page_token"] is None and got["cursor"]["pass_start"] is None
 
 
 @needs_node
 def test_worker_poll_recovers_after_downtime_without_losing_stories():
     got = _wire("""
-      const cur = { published_at: iso(NOW - 10 * 3600000) };
+      const cur = { watermark_ts: iso(NOW - 10 * 3600000), watermark_id: "1" };
       world({ items: items(400, NOW - 10 * 3600000 + 60000, 90000), cursor: cur });
       const r1 = await pollAlpacaNews(W.env, NOW, 0);
       const after1 = W.table.size, c1 = cursorOf();
       const r2 = await pollAlpacaNews(W.env, NOW + 60000, 0);
-      out({ r1, after1, c1, r2, after2: W.table.size,
-            item299: W.items[299].created_at });
+      out({ r1, after1, c1, r2, after2: W.table.size, c2: cursorOf(),
+            item299: W.items[299].created_at, item399: W.items[399].created_at });
     """)
     # bounded: one run reads at most 6 pages x 50, then the next run resumes
     assert got["r1"]["pages"] == 6 and got["after1"] == 300
-    assert got["c1"]["published_at"] == got["item299"]
+    assert got["c1"]["watermark_ts"] == got["item299"] and got["c1"]["next_page_token"]
+    assert got["after2"] == 400 and got["r2"]["pages"] == 2
+    assert got["c2"]["watermark_ts"] == got["item399"] and got["c2"]["next_page_token"] is None
+
+
+@needs_node
+def test_worker_poll_drains_a_dense_backlog_in_two_runs():
+    # 600 stories one second apart: the old "restart 5 min before the
+    # bookmark" logic re-read the same 300 every run and never got further.
+    got = _wire("""
+      world({ items: items(600, NOW - 1800000, 1000) });
+      await pollAlpacaNews(W.env, NOW, 0);
+      const after1 = W.table.size;
+      await pollAlpacaNews(W.env, NOW + 60000, 0);
+      out({ after1, after2: W.table.size, c: cursorOf(),
+            last: W.items[599].created_at });
+    """)
+    assert got["after1"] == 300 and got["after2"] == 600
+    assert got["c"]["watermark_ts"] == got["last"] and got["c"]["watermark_id"] == "1599"
+    assert got["c"]["next_page_token"] is None
+
+
+@needs_node
+def test_worker_poll_drains_stories_that_share_one_timestamp():
+    got = _wire("""
+      world({ items: items(400, NOW - 600000, 0) });   // all at the same second
+      await pollAlpacaNews(W.env, NOW, 0);
+      const after1 = W.table.size, c1 = cursorOf();
+      await pollAlpacaNews(W.env, NOW + 60000, 0);
+      const after2 = W.table.size;
+      // a later story still arrives on the following (fresh) pass
+      W.items.push({ id: 5000, headline: "Later", created_at: iso(NOW + 60000) });
+      await pollAlpacaNews(W.env, NOW + 120000, 0);
+      await pollAlpacaNews(W.env, NOW + 180000, 0);
+      out({ after1, c1, after2, after4: W.table.size, c4: cursorOf() });
+    """)
+    assert got["after1"] == 300 and got["c1"]["watermark_id"] == "1299"
     assert got["after2"] == 400
+    assert got["after4"] == 401 and got["c4"]["watermark_id"] == "5000"
+
+
+@needs_node
+def test_worker_poll_recovers_from_an_expired_page_token():
+    got = _wire("""
+      world({ items: items(400, NOW - 3600000, 5000) });
+      await pollAlpacaNews(W.env, NOW, 0);
+      const c1 = cursorOf();
+      W.tokenFails = 1;      // Alpaca no longer accepts the saved token
+      const r2 = await pollAlpacaNews(W.env, NOW + 60000, 0);
+      await pollAlpacaNews(W.env, NOW + 120000, 0);
+      out({ token1: c1.next_page_token, r2, stored: W.table.size, c: cursorOf(),
+            last: W.items[399].created_at });
+    """)
+    assert got["token1"]
+    assert got["r2"]["wrote"] > 0  # restarted from the watermark in the same run
+    assert got["stored"] == 400
+    assert got["c"]["watermark_ts"] == got["last"] and got["c"]["next_page_token"] is None
+
+
+@needs_node
+def test_worker_poll_skips_the_run_when_the_bookmark_cannot_be_read():
+    # A failed R2 read used to look like "no bookmark": the poll restarted 2 h
+    # back and overwrote the bookmark, losing the older backlog for good.
+    got = _wire("""
+      const cur = { watermark_ts: iso(NOW - 10 * 3600000), watermark_id: "1" };
+      world({ items: items(400, NOW - 10 * 3600000 + 60000, 90000), cursor: cur,
+              readFails: 1 });
+      const r1 = await pollAlpacaNews(W.env, NOW, 0);
+      const s1 = W.table.size, c1 = cursorOf(), calls1 = W.alpacaCalls;
+      await pollAlpacaNews(W.env, NOW + 60000, 0);
+      await pollAlpacaNews(W.env, NOW + 120000, 0);
+      out({ r1, s1, c1, calls1, stored: W.table.size, start: cur.watermark_ts });
+    """)
+    assert got["r1"]["aborted"] is True
+    assert got["s1"] == 0 and got["calls1"] == 0
+    assert got["c1"]["watermark_ts"] == got["start"]  # untouched
+    assert got["stored"] == 400  # the whole 10-hour backlog
+
+
+@needs_node
+def test_worker_poll_starts_two_hours_back_only_when_no_bookmark_exists():
+    got = _wire("""
+      const old = items(5, NOW - 3 * 3600000, 60000);
+      const recent = items(5, NOW - 3600000, 60000).map((x) => ({ ...x, id: x.id + 100 }));
+      world({ items: [...old, ...recent] });
+      await pollAlpacaNews(W.env, NOW, 0);
+      out({ stored: W.table.size, saved: !!cursorOf() });
+    """)
+    assert got == {"stored": 5, "saved": True}
 
 
 @needs_node
 def test_worker_poll_keeps_the_bookmark_when_the_save_fails():
     got = _wire("""
-      const cur = { published_at: iso(NOW - 3600000) };
+      const cur = { watermark_ts: iso(NOW - 3600000), watermark_id: "1" };
       // non-retryable 400: the run stops, the bookmark stays put
       world({ items: items(30, NOW - 3000000, 60000), cursor: cur,
               upsertFails: 1, upsertStatus: 400 });
@@ -416,11 +559,11 @@ def test_worker_poll_keeps_the_bookmark_when_the_save_fails():
       const c2 = cursorOf();
       // storage back: everything lands
       const r3 = await pollAlpacaNews(W.env, NOW + 60000, 0);
-      out({ r1, c1, s1, threw, c2, r3, s3: W.table.size, start: cur.published_at });
+      out({ r1, c1, s1, threw, c2, r3, s3: W.table.size, start: cur.watermark_ts });
     """)
     assert got["r1"]["wrote"] == 0 and got["s1"] == 0
-    assert got["c1"]["published_at"] == got["start"]
-    assert got["threw"] is True and got["c2"]["published_at"] == got["start"]
+    assert got["c1"]["watermark_ts"] == got["start"]
+    assert got["threw"] is True and got["c2"]["watermark_ts"] == got["start"]
     assert got["s3"] == 30
 
 
@@ -437,18 +580,28 @@ def test_worker_poll_retries_alpaca_rate_limits():
 @needs_node
 def test_worker_poll_start_and_bookmark_bounds():
     got = _wire("""
+      const after = (prev, rows) => newsCursorAfter(prev, rows, NOW);
       out({
         none: newsPollStart(NOW, null) === NOW - 7200000,
-        overlap: newsPollStart(NOW, { published_at: iso(NOW - 600000) }) === NOW - 900000,
-        capped: newsPollStart(NOW, { published_at: iso(NOW - 10 * 86400000) })
+        overlap: newsPollStart(NOW, { watermark_ts: iso(NOW - 600000) }) === NOW - 900000,
+        capped: newsPollStart(NOW, { watermark_ts: iso(NOW - 10 * 86400000) })
           === NOW - 3 * 86400000,
-        future: newsCursorAfter(null, [{ published_at: iso(NOW + 86400000) }], NOW)
-          .published_at === iso(NOW),
-        keeps: newsCursorAfter({ published_at: iso(NOW - 60000) },
-          [{ published_at: iso(NOW - 600000) }], NOW).published_at === iso(NOW - 60000),
+        future: after(null, [{ id: "9", published_at: iso(NOW + 86400000) }])
+          .watermark_ts === iso(NOW),
+        keeps: after({ watermark_ts: iso(NOW - 60000), watermark_id: "5" },
+          [{ id: "7", published_at: iso(NOW - 600000) }]).watermark_id === "5",
+        tie: after({ watermark_ts: iso(NOW - 60000), watermark_id: "5" },
+          [{ id: "12", published_at: iso(NOW - 60000) }]).watermark_id === "12",
       });
     """)
-    assert got == {"none": True, "overlap": True, "capped": True, "future": True, "keeps": True}
+    assert got == {
+        "none": True,
+        "overlap": True,
+        "capped": True,
+        "future": True,
+        "keeps": True,
+        "tie": True,
+    }
 
 
 @needs_node

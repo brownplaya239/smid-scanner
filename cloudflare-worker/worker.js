@@ -3939,27 +3939,53 @@ function newsSupaHeaders(env, extra) {
   }, extra || {});
 }
 
-// Where a poll starts reading: a few minutes before the saved bookmark (for
-// stories Alpaca indexes late), never older than the prune window, and the
-// last 2 hours when there is no bookmark yet.
+// The bookmark in R2 (NEWS_CURSOR_KEY):
+//   watermark_ts, watermark_id  the newest story saved so far, as
+//                               (published_at, id); ties on time go by id
+//   pass_start                  the `start` the current pass was opened with
+//   next_page_token             where the current pass stopped (null when no
+//                               pass is open); resumed as-is next run
+//   polled_at                   the last poll that saved a page (alert text)
+// A "pass" reads Alpaca oldest-first from one `start` to the end. Only a new
+// pass re-reads the 5 minutes before the watermark (stories Alpaca indexes
+// late); a pass the page cap cut short resumes from its saved page token.
+
+// Where a new pass starts reading: a few minutes before the watermark,
+// never older than the prune window, and the last 2 hours when there is no
+// bookmark at all yet.
 function newsPollStart(nowMs, cursor) {
-  const saved = cursor ? Date.parse(cursor.published_at || "") : NaN;
+  const saved = cursor ? Date.parse(cursor.watermark_ts || "") : NaN;
   const start = isNaN(saved) ? nowMs - NEWS_FIRST_LOOKBACK_MS
     : saved - NEWS_OVERLAP_MS;
   return Math.max(start, nowMs - NEWS_KEEP_MS);
 }
 
-// The bookmark after a page of rows was saved: the newest published_at seen
-// so far, never in the future (a mis-dated story must not skip real ones).
+// -1 / 0 / 1 ordering of two (time ms, id) keys; numeric ids compare as
+// numbers.
+function newsKeyCmp(aMs, aId, bMs, bId) {
+  if (aMs !== bMs) return aMs < bMs ? -1 : 1;
+  const an = Number(aId), bn = Number(bId);
+  if (!isNaN(an) && !isNaN(bn) && an !== bn) return an < bn ? -1 : 1;
+  const as = String(aId == null ? "" : aId), bs = String(bId == null ? "" : bId);
+  return as === bs ? 0 : (as < bs ? -1 : 1);
+}
+
+// The bookmark after a page of rows was saved: the watermark moves to the
+// newest (published_at, id) seen, never into the future (a mis-dated story
+// must not make the next pass skip real ones). Other fields are kept.
 function newsCursorAfter(prev, rows, nowMs) {
-  let best = prev ? Date.parse(prev.published_at || "") || 0 : 0;
+  const next = Object.assign({ watermark_ts: null, watermark_id: null,
+    pass_start: null, next_page_token: null }, prev || {});
+  let bestMs = Date.parse(next.watermark_ts || "") || 0;
+  let bestId = next.watermark_id;
   rows.forEach(function (r) {
-    const t = Date.parse(r.published_at || "") || 0;
-    if (t > best) best = t;
+    const t = Math.min(Date.parse(r.published_at || "") || 0, nowMs);
+    if (t && newsKeyCmp(t, r.id, bestMs, bestId) > 0) { bestMs = t; bestId = r.id; }
   });
-  best = Math.min(best, nowMs);
-  return { published_at: best ? new Date(best).toISOString() : null,
-           polled_at: new Date(nowMs).toISOString() };
+  next.watermark_ts = bestMs ? new Date(bestMs).toISOString() : null;
+  next.watermark_id = bestMs ? bestId : null;
+  next.polled_at = new Date(nowMs).toISOString();
+  return next;
 }
 
 // fetch that retries network errors, 429 and 5xx with backoff
@@ -3982,15 +4008,13 @@ async function newsFetchRetry(url, init, sleepMs) {
   throw last;
 }
 
+// The saved bookmark, or null when there is none yet (or no R2 binding).
+// A failed read THROWS: treating it as "no bookmark" would restart from 2
+// hours ago and overwrite the real bookmark, skipping the backlog.
 async function readNewsCursor(env) {
   if (!env.DATA) return null;
-  try {
-    const o = await env.DATA.get(NEWS_CURSOR_KEY);
-    return o ? await o.json() : null;
-  } catch (e) {
-    console.log("[news] bookmark read failed: " + ((e && e.message) || e));
-    return null;
-  }
+  const o = await env.DATA.get(NEWS_CURSOR_KEY);
+  return o ? await o.json() : null;
 }
 
 async function writeNewsCursor(env, cursor) {
@@ -3999,24 +4023,39 @@ async function writeNewsCursor(env, cursor) {
     await env.DATA.put(NEWS_CURSOR_KEY, JSON.stringify(cursor),
       { httpMetadata: { contentType: "application/json" } });
   } catch (e) {
-    // next run re-reads from the older bookmark; upserts ignore duplicates
+    // next run resumes from the older bookmark; upserts ignore duplicates
     console.log("[news] bookmark write failed: " + ((e && e.message) || e));
   }
 }
 
-// Read Alpaca news oldest-first from the bookmark, up to NEWS_MAX_PAGES
-// pages, upserting each page before moving the bookmark past it. Whatever
-// is left (a burst, or catching up after downtime) is picked up next run.
-// A failure stops the run with the bookmark at the last saved page.
+// Read Alpaca news oldest-first, up to NEWS_MAX_PAGES pages per run,
+// upserting each page before the bookmark moves past it. A pass the page
+// cap cuts short saves its page token and the next run carries on from it,
+// so a backlog of any size (even hundreds of stories with the same
+// timestamp) drains a few hundred a run. If Alpaca rejects a saved token
+// (expired), a new pass starts from the watermark. Any failure stops the
+// run with the bookmark at the last saved page; if the bookmark can't be
+// read at all, the run does nothing.
 async function pollAlpacaNews(env, nowMs, sleepMs) {
-  const cursor = await readNewsCursor(env);
-  const start = new Date(newsPollStart(nowMs, cursor)).toISOString();
+  let cursor;
+  try {
+    cursor = await readNewsCursor(env);
+  } catch (e) {
+    console.log("[news] bookmark read failed; skipping this run: " +
+      ((e && e.message) || e));
+    return { pages: 0, wrote: 0, aborted: true };
+  }
   const alpacaHdrs = { "APCA-API-KEY-ID": String(env.ALPACA_KEY).trim(),
                        "APCA-API-SECRET-KEY": String(env.ALPACA_SECRET).trim(),
                        "Accept": "application/json" };
   const upsertUrl = env.SUPABASE_URL.replace(/\/+$/, "") +
     "/rest/v1/news_live?on_conflict=id";
-  let mark = cursor, token = null, pages = 0, wrote = 0;
+  let mark = cursor;
+  let token = cursor && cursor.next_page_token && cursor.pass_start
+    ? cursor.next_page_token : null;
+  let start = token ? cursor.pass_start
+    : new Date(newsPollStart(nowMs, cursor)).toISOString();
+  let pages = 0, wrote = 0, restarted = false;
   while (pages < NEWS_MAX_PAGES) {
     const r = await newsFetchRetry("https://data.alpaca.markets/v1beta1/news" +
         "?sort=asc&limit=" + NEWS_PAGE_LIMIT +
@@ -4024,6 +4063,15 @@ async function pollAlpacaNews(env, nowMs, sleepMs) {
         (token ? "&page_token=" + encodeURIComponent(token) : ""),
       { headers: alpacaHdrs }, sleepMs);
     if (!r.ok) {
+      if (token && !restarted && r.status >= 400 && r.status < 500) {
+        // a saved token Alpaca no longer accepts: new pass from the watermark
+        console.log("[news] alpaca rejected the saved page token (HTTP " +
+          r.status + "); starting a new pass");
+        restarted = true;
+        token = null;
+        start = new Date(newsPollStart(nowMs, mark)).toISOString();
+        continue;
+      }
       console.log("[news] alpaca HTTP " + r.status);
       break;
     }
@@ -4043,9 +4091,11 @@ async function pollAlpacaNews(env, nowMs, sleepMs) {
       wrote += rows.length;
     }
     // only after the page is safely in news_live
+    token = (j && j.next_page_token) || null;
     mark = newsCursorAfter(mark, rows, nowMs);
+    mark.pass_start = token ? start : null;      // pass still open?
+    mark.next_page_token = token;
     await writeNewsCursor(env, mark);
-    token = j && j.next_page_token;
     if (!token) break;
   }
   return { pages: pages, wrote: wrote, cursor: mark };
@@ -4118,7 +4168,8 @@ async function checkNewsStall(env, nowMs) {
       { timeZone: "America/New_York", weekday: "short", month: "short",
         day: "numeric", hour: "numeric", minute: "2-digit" }) + " ET";
   };
-  const cursor = await readNewsCursor(env);
+  let cursor = null;
+  try { cursor = await readNewsCursor(env); } catch (_) { /* text only */ }
   const polledMs = cursor ? Date.parse(cursor.polled_at || "") || 0 : 0;
   const feeder = !(env.ALPACA_KEY && env.ALPACA_SECRET)
     ? "NOT configured (ALPACA_KEY / ALPACA_SECRET missing)"
