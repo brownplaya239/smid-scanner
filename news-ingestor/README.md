@@ -80,6 +80,27 @@ should pop in at the top with a brief highlight within a second or two of the
 ingestor logging them. (The frontend subscription degrades gracefully: if this
 worker is down, the tape just falls back to the 30-second Polygon poll.)
 
+## Backstop and health check (since 2026-11-16)
+This ingestor died silently on 2026-07-31 and nobody noticed for months. The
+Cloudflare worker now backs it up (`newsCronTick` in
+`cloudflare-worker/worker.js`, cron `* * * * *`):
+- When the worker has `ALPACA_KEY` + `ALPACA_SECRET` secrets, it polls Alpaca's
+  REST news API every minute 4 AM-8 PM ET on weekdays (every 15 min otherwise)
+  and upserts into `news_live` with the same ids, so both can run at once.
+  It reads oldest-first from a bookmark saved in R2
+  (`diag/news_wire_cursor.json`), up to 6 pages of 50 per run, and moves the
+  bookmark only after a page is saved, so bursts and outages lose nothing.
+  Copy the keys from GitHub with the `r2_probe.yml` workflow
+  (`sync_news_secrets`), or add them in the Cloudflare dashboard.
+- It prunes rows older than 3 days hourly.
+- It logs an alert when the newest headline (by `published_at`) is 20+ minutes
+  old during market hours, and posts it to Slack only if `SLACK_ALERT_CHANNEL`
+  in `wrangler.toml` is set (empty by default). "Once an hour" is an atomic
+  claim on the `ops_alert_throttle` row (`sql/2026-11-16_news_alert_throttle.sql`);
+  if that table is missing, it only logs.
+- The site shows "Live" only while the newest headline is recent; otherwise
+  "Last headline <when> ET".
+
 ## Notes
 - Retention: the ingestor deletes rows older than 3 days hourly. RLS blocks anon
   writes; only the service role (used here) can insert/delete.

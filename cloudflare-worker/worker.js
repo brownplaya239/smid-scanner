@@ -2254,8 +2254,7 @@ function simplifyArticle(a) {
  *  uses so every consumer (tape, brief, badges) works unchanged. */
 async function fetchFinnhubMacroNews(env, limit) {
   if (!env.FINNHUB_API_KEY) {
-    return { error: "FINNHUB_API_KEY not configured in worker environment.",
-             articles: [] };
+    return { error: "macro feed unavailable", articles: [] };
   }
   try {
     // Header auth + explicit UA: Finnhub 401s bare fetches from edge
@@ -2274,8 +2273,10 @@ async function fetchFinnhubMacroNews(env, limit) {
       }
     );
     if (!r.ok) {
-      return { error: "finnhub " + r.status, status: r.status,
-               keylen: key.length, articles: [] };
+      // Generic message only: this response is public, so nothing about the
+      // key (not even its length) goes in it. The status stays in the logs.
+      console.log("[news] finnhub macro HTTP " + r.status);
+      return { error: "macro feed unavailable", articles: [] };
     }
     const j = await r.json();
     const lim = Math.min(Math.max(parseInt(limit) || 60, 1), 200);
@@ -2302,9 +2303,8 @@ async function fetchFinnhubMacroNews(env, limit) {
       }).filter(Boolean);
     return { count: articles.length, articles: articles, source: "finnhub" };
   } catch (e) {
-    const msg = e && e.name === "TimeoutError"
-      ? "Finnhub news upstream timeout" : String(e);
-    return { error: msg, articles: [] };
+    console.log("[news] finnhub macro failed: " + ((e && e.name) || e));
+    return { error: "macro feed unavailable", articles: [] };
   }
 }
 
@@ -3805,6 +3805,409 @@ function handleShareCard(request) {
   });
 }
 
+// ── News wire: Alpaca REST poll + stall alert (2026-11-16) ─────────────
+// The Railway websocket ingestor (news-ingestor/) is the only thing that
+// wrote Benzinga headlines into Supabase news_live, and its newest row is
+// from 2026-07-31: it died without anyone noticing. This cron-driven poller
+// is the backstop: every minute from 4 AM to 8 PM ET on weekdays (every 15
+// minutes otherwise) it reads Alpaca's REST news API forward from a saved
+// bookmark (R2 NEWS_CURSOR_KEY), page by page, and upserts into news_live,
+// deduped on the same article id the ingestor uses, so the two can run side
+// by side and a burst or an outage never drops headlines. It also prunes
+// rows older than 3 days (the ingestor's other job) and alerts when the
+// newest headline is 20+ minutes old during market hours, at most once an
+// hour (an atomic claim on the ops_alert_throttle row, see
+// sql/2026-11-16_news_alert_throttle.sql).
+// Needs worker secrets ALPACA_KEY + ALPACA_SECRET (poll) and
+// SUPABASE_SERVICE_KEY (write/prune/throttle); SLACK_BOT_TOKEN + the
+// SLACK_ALERT_CHANNEL var to post the alert (empty = log only). Anything
+// missing just skips that part.
+const NEWS_CRON = "* * * * *";
+const NEWS_STALL_MIN = 20;               // alert threshold, market hours
+const NEWS_ALERT_EVERY_MS = 3600000;     // at most one alert an hour
+const NEWS_THROTTLE_KEY = "news_stall";  // row in ops_alert_throttle
+const NEWS_CURSOR_KEY = "diag/news_wire_cursor.json";  // R2 poll bookmark
+const NEWS_PAGE_LIMIT = 50;              // Alpaca's max page size
+const NEWS_MAX_PAGES = 6;                // per run: up to 300 headlines
+const NEWS_OVERLAP_MS = 300000;          // re-read 5 min before the bookmark
+const NEWS_FIRST_LOOKBACK_MS = 7200000;  // no bookmark yet: the last 2 h
+const NEWS_KEEP_MS = 3 * 86400000;       // prune window; never read older
+
+// ET weekday (0 = Sun) and minute-of-day for a timestamp.
+function newsEtParts(ms) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", hour12: false, weekday: "short",
+    hour: "2-digit", minute: "2-digit",
+  }).formatToParts(new Date(ms));
+  const get = function (t) {
+    return (parts.find(function (x) { return x.type === t; }) || {}).value;
+  };
+  let hh = parseInt(get("hour"), 10);
+  if (hh === 24) hh = 0;
+  return {
+    dow: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(get("weekday")),
+    min: hh * 60 + parseInt(get("minute"), 10),
+  };
+}
+
+// Poll every minute 04:00-20:00 ET on weekdays, every 15 minutes otherwise.
+function newsPollDue(ms) {
+  const p = newsEtParts(ms);
+  const busy = p.dow >= 1 && p.dow <= 5 && p.min >= 240 && p.min < 1200;
+  return busy || p.min % 15 === 0;
+}
+
+// Regular session, 09:30-16:00 ET on weekdays (holidays not modelled:
+// Benzinga still publishes on market holidays).
+function newsMarketHours(ms) {
+  const p = newsEtParts(ms);
+  return p.dow >= 1 && p.dow <= 5 && p.min >= 570 && p.min < 960;
+}
+
+// Is the wire stalled? newestMs = publish time of the newest headline in
+// news_live (0 if none). Judged on published_at, the same field the site
+// labels use, so a late insert of old stories can't hide a dead wire.
+// Market holidays and early closes are not modelled (the worker has no
+// exchange calendar): Benzinga still publishes on those days, so a false
+// alert is unlikely, and it is capped at one an hour.
+function newsStallAlertDue(nowMs, newestMs) {
+  if (!newsMarketHours(nowMs)) return false;
+  return !(newestMs && nowMs - newestMs < NEWS_STALL_MIN * 60000);
+}
+
+// Text saved as UTF-8 but read back as Windows-1252 turns "Fed’s" into
+// "Fedâ€™s" and "·" into "Â·". Undo it when the whole string round-trips;
+// leave anything else untouched. (Same logic as tdFixMojibake in
+// docs/index.html and fix_mojibake in macro_news_relay.py.)
+const CP1252_BYTE = { 0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84,
+  0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87, 0x02C6: 0x88, 0x2030: 0x89,
+  0x0160: 0x8A, 0x2039: 0x8B, 0x0152: 0x8C, 0x017D: 0x8E, 0x2018: 0x91,
+  0x2019: 0x92, 0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96,
+  0x2014: 0x97, 0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B,
+  0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F };
+function fixMojibake(s) {
+  s = String(s == null ? "" : s);
+  if (!/[Â-ô][\u0080-¿Œ-™]/.test(s)) return s;
+  const bytes = [];
+  for (const ch of s) {
+    const c = ch.codePointAt(0);
+    if (c < 0x100) bytes.push(c);
+    else if (CP1252_BYTE[c] !== undefined) bytes.push(CP1252_BYTE[c]);
+    else return s;
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true })
+      .decode(new Uint8Array(bytes));
+  } catch (_) { return s; }
+}
+
+// Benzinga text arrives HTML-entity-encoded ("What&#39;s"); &amp; last so
+// nothing is decoded twice. Mirrors decodeEntities in news-ingestor.
+function decodeNewsText(s) {
+  if (!s) return "";
+  return fixMojibake(String(s)
+    .replace(/&#(\d+);/g, function (_, d) { return String.fromCodePoint(+d); })
+    .replace(/&#x([0-9a-fA-F]+);/g,
+      function (_, h) { return String.fromCodePoint(parseInt(h, 16)); })
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&"));
+}
+
+// One Alpaca REST news item -> a news_live row (same shape and id as the
+// websocket ingestor writes, so the two dedupe against each other).
+function alpacaToNewsRow(n) {
+  if (!n || n.id == null) return null;
+  const headline = decodeNewsText(n.headline).slice(0, 500);
+  if (!headline) return null;
+  return {
+    id:           String(n.id),
+    headline:     headline,
+    summary:      decodeNewsText(n.summary).slice(0, 1000),
+    source:       String(n.source || "benzinga").slice(0, 100),
+    url:          String(n.url || "").slice(0, 1000),
+    symbols:      Array.isArray(n.symbols) ? n.symbols.slice(0, 20) : [],
+    published_at: n.created_at || n.updated_at || new Date().toISOString(),
+  };
+}
+
+function newsSupaHeaders(env, extra) {
+  return Object.assign({
+    "apikey": env.SUPABASE_SERVICE_KEY,
+    "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+    "Content-Type": "application/json",
+  }, extra || {});
+}
+
+// The bookmark in R2 (NEWS_CURSOR_KEY):
+//   watermark_ts, watermark_id  the newest story saved so far, as
+//                               (published_at, id); ties on time go by id
+//   pass_start                  the `start` the current pass was opened with
+//   next_page_token             where the current pass stopped (null when no
+//                               pass is open); resumed as-is next run
+//   polled_at                   the last poll that saved a page (alert text)
+// A "pass" reads Alpaca oldest-first from one `start` to the end. Only a new
+// pass re-reads the 5 minutes before the watermark (stories Alpaca indexes
+// late); a pass the page cap cut short resumes from its saved page token.
+
+// Where a new pass starts reading: a few minutes before the watermark,
+// never older than the prune window, and the last 2 hours when there is no
+// bookmark at all yet.
+function newsPollStart(nowMs, cursor) {
+  const saved = cursor ? Date.parse(cursor.watermark_ts || "") : NaN;
+  const start = isNaN(saved) ? nowMs - NEWS_FIRST_LOOKBACK_MS
+    : saved - NEWS_OVERLAP_MS;
+  return Math.max(start, nowMs - NEWS_KEEP_MS);
+}
+
+// -1 / 0 / 1 ordering of two (time ms, id) keys; numeric ids compare as
+// numbers.
+function newsKeyCmp(aMs, aId, bMs, bId) {
+  if (aMs !== bMs) return aMs < bMs ? -1 : 1;
+  const an = Number(aId), bn = Number(bId);
+  if (!isNaN(an) && !isNaN(bn) && an !== bn) return an < bn ? -1 : 1;
+  const as = String(aId == null ? "" : aId), bs = String(bId == null ? "" : bId);
+  return as === bs ? 0 : (as < bs ? -1 : 1);
+}
+
+// The bookmark after a page of rows was saved: the watermark moves to the
+// newest (published_at, id) seen, never into the future (a mis-dated story
+// must not make the next pass skip real ones). Other fields are kept.
+function newsCursorAfter(prev, rows, nowMs) {
+  const next = Object.assign({ watermark_ts: null, watermark_id: null,
+    pass_start: null, next_page_token: null }, prev || {});
+  let bestMs = Date.parse(next.watermark_ts || "") || 0;
+  let bestId = next.watermark_id;
+  rows.forEach(function (r) {
+    const t = Math.min(Date.parse(r.published_at || "") || 0, nowMs);
+    if (t && newsKeyCmp(t, r.id, bestMs, bestId) > 0) { bestMs = t; bestId = r.id; }
+  });
+  next.watermark_ts = bestMs ? new Date(bestMs).toISOString() : null;
+  next.watermark_id = bestMs ? bestId : null;
+  next.polled_at = new Date(nowMs).toISOString();
+  return next;
+}
+
+// fetch that retries network errors, 429 and 5xx with backoff
+// (sleepMs, then 2x). Other HTTP errors come straight back to the caller.
+async function newsFetchRetry(url, init, sleepMs) {
+  let last = null;
+  for (let i = 0; i < 3; i++) {
+    if (i) {
+      await new Promise(function (res) {
+        setTimeout(res, sleepMs * Math.pow(2, i - 1));
+      });
+    }
+    try {
+      const r = await fetch(url, Object.assign(
+        { signal: AbortSignal.timeout(10000) }, init));
+      if (r.ok || (r.status !== 429 && r.status < 500)) return r;
+      last = new Error("HTTP " + r.status);
+    } catch (e) { last = e; }
+  }
+  throw last;
+}
+
+// The saved bookmark, or null when there is none yet (or no R2 binding).
+// A failed read THROWS: treating it as "no bookmark" would restart from 2
+// hours ago and overwrite the real bookmark, skipping the backlog.
+async function readNewsCursor(env) {
+  if (!env.DATA) return null;
+  const o = await env.DATA.get(NEWS_CURSOR_KEY);
+  return o ? await o.json() : null;
+}
+
+async function writeNewsCursor(env, cursor) {
+  if (!env.DATA) return;
+  try {
+    await env.DATA.put(NEWS_CURSOR_KEY, JSON.stringify(cursor),
+      { httpMetadata: { contentType: "application/json" } });
+  } catch (e) {
+    // next run resumes from the older bookmark; upserts ignore duplicates
+    console.log("[news] bookmark write failed: " + ((e && e.message) || e));
+  }
+}
+
+// Read Alpaca news oldest-first, up to NEWS_MAX_PAGES pages per run,
+// upserting each page before the bookmark moves past it. A pass the page
+// cap cuts short saves its page token and the next run carries on from it,
+// so a backlog of any size (even hundreds of stories with the same
+// timestamp) drains a few hundred a run. If Alpaca rejects a saved token
+// (expired), a new pass starts from the watermark. Any failure stops the
+// run with the bookmark at the last saved page; if the bookmark can't be
+// read at all, the run does nothing.
+async function pollAlpacaNews(env, nowMs, sleepMs) {
+  let cursor;
+  try {
+    cursor = await readNewsCursor(env);
+  } catch (e) {
+    console.log("[news] bookmark read failed; skipping this run: " +
+      ((e && e.message) || e));
+    return { pages: 0, wrote: 0, aborted: true };
+  }
+  const alpacaHdrs = { "APCA-API-KEY-ID": String(env.ALPACA_KEY).trim(),
+                       "APCA-API-SECRET-KEY": String(env.ALPACA_SECRET).trim(),
+                       "Accept": "application/json" };
+  const upsertUrl = env.SUPABASE_URL.replace(/\/+$/, "") +
+    "/rest/v1/news_live?on_conflict=id";
+  let mark = cursor;
+  let token = cursor && cursor.next_page_token && cursor.pass_start
+    ? cursor.next_page_token : null;
+  let start = token ? cursor.pass_start
+    : new Date(newsPollStart(nowMs, cursor)).toISOString();
+  let pages = 0, wrote = 0, restarted = false;
+  while (pages < NEWS_MAX_PAGES) {
+    const r = await newsFetchRetry("https://data.alpaca.markets/v1beta1/news" +
+        "?sort=asc&limit=" + NEWS_PAGE_LIMIT +
+        "&start=" + encodeURIComponent(start) +
+        (token ? "&page_token=" + encodeURIComponent(token) : ""),
+      { headers: alpacaHdrs }, sleepMs);
+    if (!r.ok) {
+      if (token && !restarted && r.status >= 400 && r.status < 500) {
+        // a saved token Alpaca no longer accepts: new pass from the watermark
+        console.log("[news] alpaca rejected the saved page token (HTTP " +
+          r.status + "); starting a new pass");
+        restarted = true;
+        token = null;
+        start = new Date(newsPollStart(nowMs, mark)).toISOString();
+        continue;
+      }
+      console.log("[news] alpaca HTTP " + r.status);
+      break;
+    }
+    const j = await r.json();
+    pages++;
+    const rows = ((j && j.news) || []).map(alpacaToNewsRow).filter(Boolean);
+    if (rows.length) {
+      const w = await newsFetchRetry(upsertUrl,
+        { method: "POST", body: JSON.stringify(rows),
+          headers: newsSupaHeaders(env,
+            { "Prefer": "resolution=ignore-duplicates,return=minimal" }) },
+        sleepMs);
+      if (!w.ok) {
+        console.log("[news] upsert HTTP " + w.status);
+        break;
+      }
+      wrote += rows.length;
+    }
+    // only after the page is safely in news_live
+    token = (j && j.next_page_token) || null;
+    mark = newsCursorAfter(mark, rows, nowMs);
+    mark.pass_start = token ? start : null;      // pass still open?
+    mark.next_page_token = token;
+    await writeNewsCursor(env, mark);
+    if (!token) break;
+  }
+  return { pages: pages, wrote: wrote, cursor: mark };
+}
+
+async function pruneNewsLive(env) {
+  const cutoff = new Date(Date.now() - NEWS_KEEP_MS).toISOString();
+  const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/news_live?published_at=lt." + encodeURIComponent(cutoff),
+    { method: "DELETE",
+      headers: newsSupaHeaders(env, { "Prefer": "return=minimal" }),
+      signal: AbortSignal.timeout(10000) });
+  if (!r.ok) console.log("[news] prune HTTP " + r.status);
+}
+
+// "May I post the alert?" as ONE conditional UPDATE in Postgres: it only
+// matches while last_alert_at is over an hour old, so when two runs overlap
+// exactly one gets the row back. Any storage problem (table not created
+// yet, network, auth) means no post; the alert was already logged.
+async function claimNewsAlert(env, nowMs) {
+  if (!env.SUPABASE_SERVICE_KEY) {
+    console.log("[news] alert throttle needs SUPABASE_SERVICE_KEY; not posting");
+    return false;
+  }
+  const cutoff = new Date(nowMs - NEWS_ALERT_EVERY_MS).toISOString();
+  try {
+    const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+        "/rest/v1/ops_alert_throttle?key=eq." + NEWS_THROTTLE_KEY +
+        "&last_alert_at=lt." + encodeURIComponent(cutoff),
+      { method: "PATCH",
+        body: JSON.stringify({ last_alert_at: new Date(nowMs).toISOString() }),
+        headers: newsSupaHeaders(env, { "Prefer": "return=representation" }),
+        signal: AbortSignal.timeout(10000) });
+    if (!r.ok) {
+      console.log("[news] alert throttle HTTP " + r.status +
+        " (has sql/2026-11-16_news_alert_throttle.sql been run?); not posting");
+      return false;
+    }
+    const rows = await r.json();
+    return Array.isArray(rows) && rows.length === 1;
+  } catch (e) {
+    console.log("[news] alert throttle failed: " + ((e && e.message) || e) +
+      "; not posting");
+    return false;
+  }
+}
+
+// Returns what it did, for the logs and tests: "closed", "error", "fresh",
+// "log-only", "throttled", "posted" or "post-failed".
+async function checkNewsStall(env, nowMs) {
+  if (!newsMarketHours(nowMs)) return "closed";
+  const key = env.SUPABASE_SERVICE_KEY || env.SUPABASE_ANON_KEY;
+  // newest by publish time; ignore mis-dated rows from the future
+  const ceiling = new Date(nowMs + 300000).toISOString();
+  const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/news_live?select=published_at&published_at=lte." +
+      encodeURIComponent(ceiling) + "&order=published_at.desc&limit=1",
+    { headers: { "apikey": key, "Authorization": "Bearer " + key },
+      signal: AbortSignal.timeout(10000) });
+  if (!r.ok) {
+    console.log("[news] stall check HTTP " + r.status);
+    return "error";
+  }
+  const rows = await r.json();
+  const newestMs = Date.parse((rows && rows[0] && rows[0].published_at) || "") || 0;
+  if (!newsStallAlertDue(nowMs, newestMs)) return "fresh";
+  const mins = newestMs ? Math.round((nowMs - newestMs) / 60000) : null;
+  const etFmt = function (ms) {
+    return new Date(ms).toLocaleString("en-US",
+      { timeZone: "America/New_York", weekday: "short", month: "short",
+        day: "numeric", hour: "numeric", minute: "2-digit" }) + " ET";
+  };
+  let cursor = null;
+  try { cursor = await readNewsCursor(env); } catch (_) { /* text only */ }
+  const polledMs = cursor ? Date.parse(cursor.polled_at || "") || 0 : 0;
+  const feeder = !(env.ALPACA_KEY && env.ALPACA_SECRET)
+    ? "NOT configured (ALPACA_KEY / ALPACA_SECRET missing)"
+    : polledMs ? "last succeeded " + etFmt(polledMs) : "has not succeeded yet";
+  const text = ":rotating_light: TickerDesk news wire is silent: newest " +
+    "headline in news_live was published " +
+    (mins == null ? "never" : mins + " min ago (" + etFmt(newestMs) + ")") +
+    ". The site shows \"Last headline\" instead of \"Live\" until it " +
+    "recovers. Worker Alpaca poll: " + feeder +
+    ". Check the worker logs and the Railway news-ingestor.";
+  console.log("[news] " + text);
+  if (!env.SLACK_BOT_TOKEN || !env.SLACK_ALERT_CHANNEL) return "log-only";
+  if (!(await claimNewsAlert(env, nowMs))) return "throttled";
+  const j = await slackApi(env, "chat.postMessage",
+    { channel: env.SLACK_ALERT_CHANNEL, text: text });
+  return j && j.ok ? "posted" : "post-failed";
+}
+
+// Called from scheduled() for NEWS_CRON. Each part fails on its own.
+async function newsCronTick(env) {
+  const now = Date.now();
+  if (!env.SUPABASE_URL) return;
+  const canWrite = !!env.SUPABASE_SERVICE_KEY;
+  const run = async function (job) {
+    try { await job(); } catch (e) {
+      console.log("[news] " + ((e && e.message) || e));
+    }
+  };
+  if (canWrite && env.ALPACA_KEY && env.ALPACA_SECRET && newsPollDue(now)) {
+    await run(function () { return pollAlpacaNews(env, now, 500); });
+  }
+  // after the poll, so headlines it just wrote count as "new"
+  await run(function () { return checkNewsStall(env, now); });
+  if (canWrite && newsEtParts(now).min % 60 === 7) {
+    await run(function () { return pruneNewsLive(env); });
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const cors = {
@@ -4722,6 +5125,9 @@ export default {
   //   "40 20 * * MON-FRI"  → EOD: scanner.yml + momentum.yml (post-close)
   //   everything else  → intraday: uoa.yml
   async scheduled(event, env, ctx) {
+    // News wire poll + stall alert: its own every-minute cron, needs no PAT
+    // and runs on weekends too (see newsCronTick).
+    if (event.cron === NEWS_CRON) { ctx.waitUntil(newsCronTick(env)); return; }
     if (!env.PAT) {
       console.log("[cron] env.PAT not set — backstop skipped");
       return;

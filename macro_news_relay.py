@@ -17,6 +17,7 @@ SUPABASE_SERVICE_KEY.
 
 import json
 import os
+import re
 import sys
 import urllib.request
 from datetime import UTC, datetime, timedelta
@@ -52,12 +53,13 @@ def fetch_finnhub():
 
 # Public macro/market RSS wires — the sources that actually carry the
 # "Brent falls 5%" / "US-Iran talks" tape. Parsed with stdlib only.
+GOOGLE_NEWS = "Google News"
 RSS_FEEDS = (
     ("CNBC", "https://www.cnbc.com/id/100003114/device/rss/rss.html"),
     ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"),
     ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_marketpulse"),
     (
-        "Google News · Markets",
+        GOOGLE_NEWS,
         (
             "https://news.google.com/rss/search?q=markets%20OR%20oil%20OR%20"
             "fed%20OR%20treasury%20OR%20opec%20when:1d&hl=en-US&gl=US"
@@ -65,6 +67,87 @@ RSS_FEEDS = (
         ),
     ),
 )
+
+
+# The Google News search ("markets OR oil OR fed ...") matches any story
+# with those words in it: farmers markets, local crime, housing listings.
+# Half of the tape was that. Keep a Google News item only when it comes
+# from a finance publisher below, or its headline names a listed ticker.
+FINANCE_PUBLISHERS = frozenset(
+    p.lower()
+    for p in (
+        "Reuters",
+        "Bloomberg",
+        "Bloomberg.com",
+        "CNBC",
+        "MarketWatch",
+        "The Wall Street Journal",
+        "WSJ",
+        "Financial Times",
+        "Barron's",
+        "Yahoo Finance",
+        "Investing.com",
+        "Associated Press",
+        "AP News",
+        "Fox Business",
+        "Business Insider",
+        "Markets Insider",
+        "Axios",
+        "The Economist",
+        "Morningstar",
+        "Seeking Alpha",
+        "TheStreet",
+        "Benzinga",
+        "Nasdaq",
+        "S&P Global",
+        "OilPrice.com",
+        "Kitco NEWS",
+        "Federal Reserve",
+    )
+)
+TICKER_RE = re.compile(
+    r"\((?:NASDAQ|NYSE|NYSE American|NYSEAMERICAN|AMEX|OTC|TSX|CBOE)\s*:\s*[A-Z][A-Z.]{0,5}\)"
+    r"|\$[A-Z]{1,5}\b"
+)
+
+
+def google_news_item(title):
+    """Google News titles end in " - Publisher". -> (headline, publisher)
+    when the item passes the finance filter, else None."""
+    head, sep, pub = (title or "").rpartition(" - ")
+    head, pub = head.strip(), pub.strip()
+    if not sep or not head or not pub:
+        return None
+    if pub.lower() in FINANCE_PUBLISHERS or TICKER_RE.search(head):
+        return head, pub
+    return None
+
+
+# Text saved as UTF-8 but read back as Windows-1252 turns "Fed’s" into
+# "Fedâ€™s" and "·" into "Â·". Same logic as
+# fixMojibake in cloudflare-worker/worker.js and tdFixMojibake on the site.
+_MOJIBAKE_RE = re.compile("[\u00c2-\u00f4][\u0080-\u00bf\u0152-\u2122]")
+
+
+def fix_mojibake(s):
+    """Undo UTF-8-read-as-cp1252 garbling when the whole string round-trips;
+    otherwise return it unchanged."""
+    if not s or not _MOJIBAKE_RE.search(s):
+        return s
+    raw = bytearray()
+    for ch in s:
+        if ord(ch) < 0x100:
+            raw.append(ord(ch))
+            continue
+        try:
+            b = ch.encode("cp1252")
+        except UnicodeEncodeError:
+            return s
+        raw.extend(b)
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return s
 
 
 def fetch_rss():
@@ -89,10 +172,16 @@ def fetch_rss():
             print("  rss %s failed (non-fatal): %s" % (name, e))
             continue
         for item in root.iter("item"):
-            title = (item.findtext("title") or "").strip()
+            title = fix_mojibake((item.findtext("title") or "").strip())
             link = (item.findtext("link") or "").strip()
             if not title:
                 continue
+            source = name
+            if name == GOOGLE_NEWS:
+                kept = google_news_item(title)
+                if kept is None:
+                    continue
+                title, source = kept
             ts = None
             pd = item.findtext("pubDate")
             if pd:
@@ -104,8 +193,8 @@ def fetch_rss():
                 {
                     "id": hashlib.sha1((link or title).encode()).hexdigest()[:16],
                     "headline": title,
-                    "summary": (item.findtext("description") or "")[:400],
-                    "source": name,
+                    "summary": fix_mojibake(item.findtext("description") or "")[:400],
+                    "source": source,
                     "url": link,
                     "datetime": ts,
                     "related": "",

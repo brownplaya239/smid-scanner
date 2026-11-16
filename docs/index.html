@@ -3858,6 +3858,10 @@
   .news-live-dot { width:8px; height:8px; border-radius:50%; background:var(--green);
     box-shadow:0 0 6px rgba(31,179,99,0.6); animation:lf-pulse 2.4s infinite; }
   .news-live-dot.paused { background:var(--muted); box-shadow:none; animation:none; }
+  /* Stalled wire: amber, no pulse ("Last headline <when> ET") */
+  .news-live-status.stale, .md-news-status.stale { color:var(--gold); }
+  .news-live-status.stale .news-live-dot, .md-news-status.stale .md-news-dot {
+    background:var(--gold); box-shadow:none; animation:none; }
   .news-item.ni-fresh { animation:niFresh 6s ease-out forwards; }
   @keyframes niFresh { 0% { background:rgba(255,200,0,0.16); } 100% { background:transparent; } }
   .news-col { background:var(--card); border:1px solid var(--line);
@@ -6165,7 +6169,7 @@
             aria-pressed="false"
             title="Breaking only — show just market-moving headlines (halts, M&amp;A, rating actions, guidance, FDA, legal, buybacks)">⚡ Breaking</button>
           <span class="md-news-status"><span class="md-news-dot"></span>
-            <span class="td-news-time">Live</span></span>
+            <span class="td-news-time">Checking&hellip;</span></span>
         </div>
         <div class="md-news-list td-news-list">
           <div class="md-news-empty">Connecting to the wire&hellip;</div>
@@ -6498,7 +6502,7 @@
             aria-pressed="false"
             title="Breaking only — show just market-moving headlines (halts, M&amp;A, rating actions, guidance, FDA, legal, buybacks)">⚡ Breaking</button>
           <span class="md-news-status"><span class="md-news-dot"></span>
-            <span id="md-news-time" class="td-news-time">Live</span></span>
+            <span id="md-news-time" class="td-news-time">Checking&hellip;</span></span>
         </div>
         <div id="md-news-list" class="md-news-list td-news-list">
           <div class="md-news-empty">Connecting to the wire&hellip;</div>
@@ -6796,7 +6800,7 @@
         <button type="button" class="news-mode-btn" data-news-mode="search">Ticker search</button>
         <span class="news-live-status" id="news-live-status">
           <span class="news-live-dot" id="news-live-dot"></span>
-          <span id="news-live-text">Live</span></span>
+          <span id="news-live-text">Checking&hellip;</span></span>
       </div>
 
       <div class="news-pulse" id="news-pulse"></div>
@@ -19998,6 +20002,108 @@
     });
   })();
 
+  /* ── News wire honesty helpers (2026-11-16). The wire kept a green
+        "Live" dot for days after its feeder died, showed garbled text and
+        carried farmers-market stories from an unfiltered Google News feed.
+        tdNewsFreshness: "Live" only while the newest headline is under
+        15 min old in market hours (2 h otherwise), else "Last headline
+        <when> ET" in a warning style. tdFixMojibake: repairs text stored
+        as UTF-8 but read as Windows-1252 ("Fedâ€™s" -> "Fed’s"); same logic
+        as fixMojibake in cloudflare-worker/worker.js. tdNewsLegacyJunk:
+        rows from the old unfiltered feed (source "Google News · Markets");
+        the relay now filters it at ingest, and old rows age out in 3 days. */
+  function tdNewsEtParts(ms) {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York", hour12: false, weekday: "short",
+      hour: "2-digit", minute: "2-digit",
+    }).formatToParts(new Date(ms));
+    const get = function (t) {
+      return (parts.find(function (x) { return x.type === t; }) || {}).value;
+    };
+    let hh = parseInt(get("hour"), 10);
+    if (hh === 24) hh = 0;
+    return {
+      dow: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(get("weekday")),
+      min: hh * 60 + parseInt(get("minute"), 10),
+    };
+  }
+  /* Newest of a list of headline times, ignoring any more than 5 minutes
+     in the future: a mis-dated (e.g. tomorrow-dated) story must not keep
+     the wire "Live". null when nothing usable is left. */
+  const TD_NEWS_FUTURE_SLACK_MS = 300000;
+  function tdNewsNewest(isos, nowMs) {
+    let best = null, bestMs = -Infinity;
+    (isos || []).forEach(function (iso) {
+      const t = Date.parse(iso || "");
+      if (isNaN(t) || t > nowMs + TD_NEWS_FUTURE_SLACK_MS) return;
+      if (t > bestMs) { bestMs = t; best = iso; }
+    });
+    return best;
+  }
+  function tdNewsFreshness(newestIso, nowMs) {
+    let t = newestIso ? Date.parse(newestIso) : NaN;
+    if (t > nowMs + TD_NEWS_FUTURE_SLACK_MS) t = NaN;   // mis-dated
+    if (isNaN(t)) return { live: false, label: "No recent headlines" };
+    const p = tdNewsEtParts(nowMs);
+    const rth = p.dow >= 1 && p.dow <= 5 && p.min >= 570 && p.min < 960;
+    const limitMs = (rth ? 15 : 120) * 60000;
+    const opts = { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" };
+    if (nowMs - t < limitMs) {
+      return { live: true,
+               label: "Live · " + new Date(t).toLocaleTimeString("en-US", opts) + " ET" };
+    }
+    opts.weekday = "short"; opts.month = "short"; opts.day = "numeric";
+    return { live: false,
+             label: "Last headline " + new Date(t).toLocaleString("en-US", opts) + " ET" };
+  }
+  function tdFixMojibake(s) {
+    s = String(s == null ? "" : s);
+    if (!/[Â-ô][\u0080-¿Œ-™]/.test(s)) return s;
+    const CP1252 = { 0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84,
+      0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87, 0x02C6: 0x88, 0x2030: 0x89,
+      0x0160: 0x8A, 0x2039: 0x8B, 0x0152: 0x8C, 0x017D: 0x8E, 0x2018: 0x91,
+      0x2019: 0x92, 0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96,
+      0x2014: 0x97, 0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B,
+      0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F };
+    const bytes = [];
+    for (const ch of s) {
+      const c = ch.codePointAt(0);
+      if (c < 0x100) bytes.push(c);
+      else if (CP1252[c] !== undefined) bytes.push(CP1252[c]);
+      else return s;
+    }
+    try {
+      return new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(bytes));
+    } catch (_) { return s; }
+  }
+  function tdNewsLegacyJunk(source) {
+    return /^google news\b/i.test(tdFixMojibake(source || "").trim());
+  }
+  /* Holds the headline times from the last successful fetch and re-stamps
+     the wire label from them on its own timer, so a quiet wire turns amber
+     even while every fetch is failing (a failed fetch neither clears nor
+     refreshes them). Each successful fetch REPLACES the list, so a bad row
+     that is corrected or removed stops counting, and the newest time is
+     re-picked on every tick (tdNewsNewest skips future-dated rows). apply(f)
+     receives a tdNewsFreshness result; until the first fetch answers (or
+     fails) it is not called, so "Checking..." stays. */
+  function tdNewsClock(apply, everyMs) {
+    let times = [], known = false;
+    function tick() {
+      if (!known) return;
+      const now = Date.now();
+      apply(tdNewsFreshness(tdNewsNewest(times, now), now));
+    }
+    function seen(isos) {
+      known = true;
+      times = (Array.isArray(isos) ? isos : [isos]).filter(Boolean);
+      tick();
+    }
+    function failed() { known = true; tick(); }
+    setInterval(tick, everyMs || 30000);
+    return { seen: seen, failed: failed, tick: tick };
+  }
+
   (function setupNews() {
     const list      = document.getElementById("news-general-list");
     const pulse     = document.getElementById("news-pulse");
@@ -20142,6 +20248,10 @@
       const out = [];
       for (const a of articles || []) {
         if (!a || !a.title) continue;
+        if (tdNewsLegacyJunk(a.publisher)) continue;   // old unfiltered feed
+        a.title = tdFixMojibake(a.title);
+        if (a.description) a.description = tdFixMojibake(a.description);
+        if (a.publisher) a.publisher = tdFixMojibake(a.publisher);
         // Quality gate — drop Benzinga's algorithmic SEO filler.
         if (window.tdNewsSlop && window.tdNewsSlop(a.title)) continue;
         a.tickers = normalizeTickers(a.tickers);
@@ -20596,6 +20706,7 @@
           const before = new Set(GENERAL.map(titleKey));
           const added = mergeIntoGeneral(arts);
           if (!added) { firstMacro = false; return; }
+          setLiveStatus();
           if (!firstMacro) {
             arts.forEach(function (a) {
               if (a.id && !before.has(titleKey(a))) FRESH_IDS.add(a.id);
@@ -20622,6 +20733,7 @@
             : new Set(arts.filter(function (a) { return !before.has(titleKey(a)); })
                 .map(function (a) { return a.id; }).filter(Boolean));
           firstLive = false;
+          setLiveStatus();
           if (newsMode === "tape" && newsTabVisible()) renderGeneral();
         }).catch(function () {});
     }
@@ -20693,11 +20805,18 @@
       if (liveStatus) liveStatus.style.display = newsMode === "tape" ? "" : "none";
       if (!liveDot || !liveText || newsMode !== "tape") return;
       if (tapeActive()) {
+        // Honest freshness: "Live" only while the newest headline on the
+        // tape is recent; a stalled wire says when it last moved.
+        const now = Date.now();
+        const newest = tdNewsNewest((GENERAL || []).map(function (a) {
+          return a.published; }), now);
+        const f = tdNewsFreshness(newest, now);
         liveDot.classList.remove("paused");
-        liveText.textContent = "Live · " + new Date().toLocaleTimeString([],
-          { hour: "numeric", minute: "2-digit", second: "2-digit" });
+        if (liveStatus) liveStatus.classList.toggle("stale", !f.live);
+        liveText.textContent = f.label;
       } else {
         liveDot.classList.add("paused");
+        if (liveStatus) liveStatus.classList.remove("stale");
         liveText.textContent = "Paused";
       }
     }
@@ -20739,7 +20858,12 @@
     setNewsMode("tape");
     pollT = setInterval(function () { if (tapeActive()) loadGeneral(); }, POLL_MS);
     // Live wire backbone — poll news_live every 15s (REST, no SUPA dependency).
-    setInterval(function () { if (tapeActive()) loadLiveNews(); }, 15000);
+    setInterval(function () {
+      if (tapeActive()) { loadLiveNews(); setLiveStatus(); }
+    }, 15000);
+    // Re-judge the freshness label on its own timer from the cached tape,
+    // so it goes amber on time even while every fetch is failing.
+    setInterval(setLiveStatus, 30000);
     // macro wire refreshes on a 60s cadence (worker caches it at 60s)
     setInterval(function () { if (tapeActive()) loadMacroNews(); }, 60000);
 
@@ -20960,16 +21084,34 @@
           '<span>' + hl + (tkHtml ? ' ' + tkHtml : '') + '</span></div>';
       }).join("");
     }
-    function markSeenAndStamp(rows) {
+    function markSeen(rows) {
       if (!rows.length) return;
       rows.forEach(function (r) { if (r.id) seen.add(r.id); });
       first = false;
-      const t = "Live · " + fmtT(new Date().toISOString());
+    }
+    // Stamp every wire header from the GENERAL firehose's newest headline
+    // (a quiet watchlist is not a stalled wire). "Live" only while it is
+    // recent; otherwise "Last headline <when> ET" in the warning style.
+    // The clock re-stamps every 30s on its own, so the label goes amber on
+    // time even when the fetches below keep failing.
+    const wireClock = tdNewsClock(function (f) {
       document.querySelectorAll(".td-news-time").forEach(function (el) {
-        el.textContent = t;
+        el.textContent = f.label;
+        const st = el.closest(".md-news-status");
+        if (st) st.classList.toggle("stale", !f.live);
+      });
+    }, 30000);
+    // Drop rows from the old unfiltered Google News feed and repair
+    // garbled text before anything renders.
+    function cleanRows(rows) {
+      return (rows || []).filter(function (r) {
+        return r && !tdNewsLegacyJunk(r.source);
+      }).map(function (r) {
+        r.headline = tdFixMojibake(r.headline);
+        return r;
       });
     }
-    const NEWS_COLS = "select=id,headline,symbols,url,published_at";
+    const NEWS_COLS = "select=id,headline,source,symbols,url,published_at";
     const HDRS = { "apikey": SUPA_ANON, "Authorization": "Bearer " + SUPA_ANON };
 
     // General firehose → Today's Desk.
@@ -20978,17 +21120,22 @@
       if (!gen.length) return;
       fetch(SUPA_URL + "/rest/v1/news_live?" + NEWS_COLS +
           "&order=published_at.desc&limit=28", { headers: HDRS })
-        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (r) {
+          if (!r.ok) throw new Error("news_live HTTP " + r.status);
+          return r.json();
+        })
         .then(function (rows) {
-          if (!Array.isArray(rows)) return;
+          if (!Array.isArray(rows)) { wireClock.failed(); return; }
+          rows = cleanRows(rows);
           lastGen = rows;
           const html = buildHtml(rows, "No live headlines yet.");
           gen.forEach(function (el) { el.innerHTML = html; });
-          markSeenAndStamp(rows);
+          markSeen(rows);
+          wireClock.seen(rows.map(function (r) { return r.published_at; }));
           // Resolve any unknown-cap tickers, then re-render so nano-caps drop.
           enrichMcap(rows).then(function (changed) { if (changed) rerenderFromCache(); });
         })
-        .catch(function () {});
+        .catch(function () { wireClock.failed(); });
     }
 
     // Watchlist-filtered feed → My Desk. Uses the text[] `symbols` overlap
@@ -21012,10 +21159,11 @@
         .then(function (r) { return r.ok ? r.json() : []; })
         .then(function (rows) {
           if (!Array.isArray(rows)) return;
+          rows = cleanRows(rows);
           lastWl = rows;
           mdEl.innerHTML = buildHtml(rows,
             "No recent headlines for your watchlist tickers.");
-          markSeenAndStamp(rows);
+          markSeen(rows);
           enrichMcap(rows).then(function (changed) { if (changed) rerenderFromCache(); });
         })
         .catch(function () {});
