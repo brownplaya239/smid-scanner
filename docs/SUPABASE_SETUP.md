@@ -6,13 +6,30 @@ Takes ~5 minutes.
 ## 2g. (Security, 2026-11-10) Lock plan fields and report usage
 
 Run [`sql/2026-11-10_lock_plans_and_report_usage.sql`](../sql/2026-11-10_lock_plans_and_report_usage.sql)
-in the SQL Editor once the matching worker + site change is live. Until it
-runs, the `pr_own_write` policy below lets any signed-in user set their own
-`subscription_tier`, and `rg_own` lets them delete the `report_generations`
-rows the report caps count. After it runs, only the service role (Stripe
-webhook, `/promo/redeem`, CI) can change plan fields, and the worker records
-each report itself. The script ends with a read-only list of every paid
-account and where its plan came from.
+in the SQL Editor **before** merging the matching worker + site change, then
+merge right away. It is safe to run first: the live site and worker keep
+working (the old site's own usage logging and old promo box simply stop
+working, which is the point). Until it runs, the `pr_own_write` policy below
+lets any signed-in user set their own `subscription_tier` or delete and
+re-create their profile, and `rg_own` lets them delete the
+`report_generations` rows the report caps count.
+
+After it runs:
+
+- only the service role (Stripe webhook, worker, CI) can change plan fields,
+  and browsers can no longer delete their profile;
+- the worker reserves each report with `td_reserve_report()` before starting
+  it: one locked database step that reads the plan, checks the cap and
+  records the report, so parallel requests can't slip past the cap;
+- promo codes are applied by `td_redeem_promo()`, which remembers every code
+  each account has used (`promo_redemptions`) and refuses while a paid plan
+  is active.
+
+The script ends with a read-only list of every paid account and where its
+plan came from. After merging, run
+[`sql/2026-11-16_report_usage_duplicates.sql`](../sql/2026-11-16_report_usage_duplicates.sql)
+(read-only): it lists any report counted twice during the switch-over.
+Expected: no rows.
 
 **Promo codes** now live only in the worker secret `PROMO_CODES` (this repo
 and the site are public, so codes can't be in code). Cloudflare dashboard →
@@ -25,7 +42,8 @@ add a **Secret** named `PROMO_CODES` with JSON like:
 
 `tier` is `pro`, `premium` or `beta`; `days` is 1–730. No secret means every
 code is rejected. Remove a code from the JSON to retire it; accounts that
-already redeemed it keep their end date.
+already redeemed it keep their end date. Each account can use each code
+once, ever (recorded in `promo_redemptions`).
 
 ## 0c. (Phase 6) Cloudflare Worker secrets for Stripe Checkout
 

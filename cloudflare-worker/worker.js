@@ -1287,13 +1287,20 @@ async function requireUser(request, env) {
         "apikey": env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY || "",
       },
     });
-    if (!r.ok) {
+    if (r.status === 400 || r.status === 401 || r.status === 403) {
       return { ok: false, status: 401, code: "auth_expired",
                error: "Sign-in expired. Please sign in again." };
     }
+    if (!r.ok) {
+      // Supabase itself is failing (5xx, 429, ...): not the user's fault,
+      // and not a verified identity either. Fail closed.
+      console.log("requireUser: Supabase auth returned HTTP " + r.status);
+      return { ok: false, status: 503, code: "auth_unavailable",
+               error: "Service temporarily unavailable." };
+    }
     const body = await r.json();
     const uid = body && body.id;
-    if (!uid) {
+    if (typeof uid !== "string" || !/^[0-9a-f-]{36}$/i.test(uid)) {
       return { ok: false, status: 401, code: "auth_invalid",
                error: "Sign-in could not be verified." };
     }
@@ -1315,8 +1322,13 @@ async function requireUser(request, env) {
  *  the browser wrote the plan itself). With no secret set, every code is
  *  rejected, which is the safe default.
  *
- *  The worker writes the plan with the service key. Browsers can no
- *  longer write plan fields at all (sql/2026-11-10_lock_plans_and_report_usage.sql). */
+ *  The worker checks the code; the database function td_redeem_promo
+ *  (sql/2026-11-10_lock_plans_and_report_usage.sql) applies it in one
+ *  locked step: it creates a Free profile if the account has none, locks
+ *  the row against a simultaneous Stripe update, refuses a code this
+ *  account has EVER used (promo_redemptions, so A, B, A doesn't work),
+ *  refuses while a paid plan is active, and writes the plan. Browsers
+ *  can't write plan fields at all. */
 const PROMO_TIER_RANK = { free: 0, pro: 1, premium: 2, beta: 3 };
 
 function loadPromoCodes(env) {
@@ -1336,6 +1348,38 @@ function loadPromoCodes(env) {
       { tier: v.tier, days: days, label: String(v.label || "") };
   }
   return out;
+}
+
+/** Call a service-role-only Postgres function through PostgREST.
+ *  Returns { ok: true, data } only for HTTP 2xx with a JSON object body
+ *  that has a boolean `ok`; anything else (network error, non-2xx, a
+ *  different shape) is { ok: false, error }. */
+async function callServiceRpc(env, fn, args) {
+  let r;
+  try {
+    r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/rpc/" + fn, {
+      method: "POST",
+      headers: {
+        "apikey": env.SUPABASE_SERVICE_KEY,
+        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(args),
+    });
+  } catch (e) {
+    return { ok: false, error: "network: " + String((e && e.message) || e) };
+  }
+  const text = await r.text().catch(function () { return ""; });
+  if (!r.ok) {
+    return { ok: false, error: "HTTP " + r.status + " " + text.slice(0, 200) };
+  }
+  let data = null;
+  try { data = JSON.parse(text); } catch (_) { /* checked below */ }
+  if (!data || typeof data !== "object" || Array.isArray(data) ||
+      typeof data.ok !== "boolean") {
+    return { ok: false, error: "unexpected response: " + text.slice(0, 200) };
+  }
+  return { ok: true, data: data };
 }
 
 async function handlePromoRedeem(request, env, cors) {
@@ -1359,115 +1403,83 @@ async function handlePromoRedeem(request, env, cors) {
   const promo = loadPromoCodes(env)[code];
   if (!promo) return fail(400, "Invalid promo code.", "invalid");
 
-  const svc = {
-    "apikey": env.SUPABASE_SERVICE_KEY,
-    "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-  };
-  const profUrl = env.SUPABASE_URL.replace(/\/+$/, "") +
-    "/rest/v1/profiles?id=eq." + encodeURIComponent(user.uid);
-  let prof = null;
-  try {
-    const r = await fetch(profUrl +
-      "&select=subscription_tier,subscription_expires_at,promo_code_redeemed",
-      { headers: svc });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    prof = (await r.json())[0] || null;
-  } catch (e) {
-    console.log("promo profile read failed:", e.message);
-    return fail(503, "Couldn't check your account. Try again in a minute.",
+  const res = await callServiceRpc(env, "td_redeem_promo", {
+    p_user: user.uid, p_code: code, p_tier: promo.tier, p_days: promo.days,
+  });
+  if (!res.ok) {
+    console.log("promo redeem failed:", res.error);
+    return fail(503, "Couldn't apply the code. Try again in a minute.",
       "promo_unavailable");
   }
-  if (!prof) {
-    return fail(409, "Your account isn't fully set up yet. Sign out and " +
-      "back in, then try again.", "no_profile");
+  const d = res.data;
+  if (!d.ok) {
+    const cur = String(d.tier || "").toUpperCase();
+    if (d.code === "already_redeemed") {
+      return fail(409, "You've already redeemed " + code +
+        ". Each code is valid once per account.", "already_redeemed");
+    }
+    if (d.code === "plan_active") {
+      return fail(409, "Your " + cur + " plan is already active. Promo " +
+        "codes are for free accounts and trials.", "plan_active");
+    }
+    if (d.code === "higher_tier") {
+      return fail(409, "You're already on " + cur + ", which is a higher " +
+        "tier than this promo grants. No upgrade applied.", "higher_tier");
+    }
+    console.log("promo redeem: unexpected result code", d.code);
+    return fail(503, "Couldn't apply the code. Try again in a minute.",
+      "promo_unavailable");
   }
-  if (prof.promo_code_redeemed === code) {
-    return fail(409, "You've already redeemed " + code +
-      ". Each code is valid once per account.", "already_redeemed");
-  }
-  const tier = prof.subscription_tier || "free";
-  const expiresMs = prof.subscription_expires_at
-    ? Date.parse(prof.subscription_expires_at) : null;
-  const effective = (expiresMs !== null && expiresMs < Date.now())
-    ? "free" : tier;
-  // A plan with no end date is a paid (Stripe) or hand-granted plan.
-  // Applying a promo would give it an end date, and when that passed the
-  // account would read as Free while the person was still paying.
-  if (effective !== "free" && expiresMs === null) {
-    return fail(409, "Your " + effective.toUpperCase() + " plan is already " +
-      "active. Promo codes are for free accounts and trials.", "plan_active");
-  }
-  if ((PROMO_TIER_RANK[effective] || 0) > PROMO_TIER_RANK[promo.tier]) {
-    return fail(409, "You're already on " + effective.toUpperCase() +
-      ", which is a higher tier than this promo grants. No upgrade applied.",
-      "higher_tier");
-  }
-  const nowIso = new Date().toISOString();
-  const expiresAt = new Date(Date.now() + promo.days * 86400000).toISOString();
-  try {
-    const w = await fetch(profUrl, {
-      method: "PATCH",
-      headers: { ...svc, "Content-Type": "application/json",
-                 "Prefer": "return=minimal" },
-      body: JSON.stringify({
-        subscription_tier: promo.tier,
-        subscription_expires_at: expiresAt,
-        promo_code_redeemed: code,
-        promo_code_redeemed_at: nowIso,
-      }),
-    });
-    if (!w.ok) throw new Error("HTTP " + w.status);
-  } catch (e) {
-    console.log("promo profile write failed:", e.message);
-    return fail(502, "Couldn't apply the code. Try again in a minute.",
-      "promo_write_failed");
+  const expiresMs = typeof d.expires === "string" ? Date.parse(d.expires) : NaN;
+  if (!Number.isFinite(expiresMs)) {
+    console.log("promo redeem: result has no valid expires");
+    return fail(503, "Couldn't confirm the code was applied. Refresh the " +
+      "page to check your plan.", "promo_unavailable");
   }
   console.log("[promo] redeemed code=" + code + " tier=" + promo.tier +
     " days=" + promo.days);
   return Response.json({ ok: true, tier: promo.tier, days: promo.days,
-    expires: expiresAt, label: promo.label }, { headers: cors });
+    expires: new Date(expiresMs).toISOString(), label: promo.label },
+    { headers: cors });
 }
 
-/** Report usage ledger. The worker is the only writer of
- *  report_generations rows: it records each report BEFORE dispatching
- *  the workflow, so the monthly / lifetime caps count it, and removes
- *  the row again if the dispatch fails. Browsers used to insert these
- *  rows themselves, which meant a report could be run without ever
- *  being counted (skip the insert, or delete the row afterwards).
- *  Returns the new row id, or null if recording failed (logged; the
- *  report still runs, matching the fail-open quota lookup above). */
-async function recordReportUsage(env, uid, ticker, reportType) {
-  if (!uid || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) return null;
-  try {
-    const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
-      "/rest/v1/report_generations?select=id", {
-      method: "POST",
-      headers: {
-        "apikey": env.SUPABASE_SERVICE_KEY,
-        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-        "Content-Type": "application/json",
-        "Prefer": "return=representation",
-      },
-      body: JSON.stringify({ user_id: uid, ticker: ticker,
-        report_type: reportType, status: "queued" }),
-    });
-    if (!r.ok) {
-      console.log("report usage insert failed: HTTP " + r.status);
-      return null;
+/** Report usage. The worker is the only writer of report_generations
+ *  rows. Before starting a report it calls td_reserve_report, which (in
+ *  the database, under a per-user lock) reads the plan, counts usage
+ *  against the cap and records the report, all in one step. So ten
+ *  requests sent at once can't all pass the check: they queue on the
+ *  lock and each sees the rows the earlier ones added.
+ *  Returns { ok: true, id, used, cap, tier } for a reservation,
+ *  { ok: false, over: true, code, used, cap, tier } at the cap, or
+ *  { ok: false, error } if no reservation could be made (the caller must
+ *  then NOT start the report). */
+async function reserveReport(env, uid, ticker, reportType) {
+  const res = await callServiceRpc(env, "td_reserve_report", {
+    p_user: uid, p_ticker: ticker, p_report_type: reportType,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  const d = res.data;
+  if (d.ok) {
+    if (typeof d.id !== "string" || !d.id) {
+      return { ok: false, error: "reservation has no id" };
     }
-    const rows = await r.json();
-    return (rows && rows[0] && rows[0].id) || null;
-  } catch (e) {
-    console.log("report usage insert failed:", e.message);
-    return null;
+    return { ok: true, id: d.id, used: d.used, cap: d.cap, tier: d.tier };
   }
+  if (d.code === "monthly_cap" || d.code === "lifetime_cap") {
+    return { ok: false, over: true, code: d.code, used: Number(d.used) || 0,
+             cap: Number(d.cap) || 0, tier: String(d.tier || "free") };
+  }
+  return { ok: false, error: "unexpected result code " + d.code };
 }
 
-async function forgetReportUsage(env, rowId) {
+/** Undo a reservation when the report never started, so it isn't
+ *  charged against the cap. Best-effort; a failure is logged. */
+async function releaseReport(env, uid, rowId) {
   if (!rowId) return;
   try {
-    await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
-      "/rest/v1/report_generations?id=eq." + encodeURIComponent(rowId), {
+    const r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") +
+      "/rest/v1/report_generations?id=eq." + encodeURIComponent(rowId) +
+      "&user_id=eq." + encodeURIComponent(uid), {
       method: "DELETE",
       headers: {
         "apikey": env.SUPABASE_SERVICE_KEY,
@@ -1475,8 +1487,11 @@ async function forgetReportUsage(env, rowId) {
         "Prefer": "return=minimal",
       },
     });
+    if (!r.ok) {
+      console.log("report reservation release failed: HTTP " + r.status);
+    }
   } catch (e) {
-    console.log("report usage cleanup failed:", e.message);
+    console.log("report reservation release failed:", e.message);
   }
 }
 
@@ -2989,6 +3004,11 @@ async function handleStripeWebhook(request, env, cors) {
       // Stripe now owns the plan, so drop any promo end date. Otherwise a
       // promo user who then paid would read as Free once the old promo
       // date passed, while still being charged.
+      // Tier and end date go in ONE statement on purpose: Postgres locks
+      // the row for it, and td_redeem_promo locks the same row (FOR
+      // UPDATE), so a promo redemption and this write never interleave.
+      // If the promo commits first, this overwrites it with the paid plan;
+      // if this commits first, the promo sees a paid plan and refuses.
       body.subscription_expires_at = null;
     }
     if (patch.stripe_customer_id) {
@@ -5077,161 +5097,49 @@ export default {
         { status: 500, headers: cors });
     }
 
-    // ── Server-side rate limit (QA-08) ───────────────────────────────
+    // ── Server-side report limit (QA-08) ─────────────────────────────
     // The client pre-flights tdCanGenerateReport() before this call,
     // but a devtools user can disable the button and POST anyway. So
-    // the worker re-validates: identify the user from the Supabase
-    // JWT, look up their tier and 30-day report count, reject if
-    // they're over the cap.
+    // the worker enforces the limit itself, and FAILS CLOSED: a report
+    // (which costs Claude credits) only starts when all three succeed:
+    //   1. the Supabase access token is verified (requireUser),
+    //   2. the plan is read, and
+    //   3. a usage row is reserved under the cap (td_reserve_report does
+    //      2 + 3 in one locked database step; see reserveReport).
+    // Any failure there answers 401 / 429 / 503 and dispatches nothing.
     //
-    // SECURITY (2026-08 audit): anonymous POSTs were previously allowed
-    // through — and because the whole quota block below is gated on
-    // `bearer`, dropping the Authorization header skipped EVERY check
-    // and dispatched a GitHub workflow anyway. That made report
-    // generation both free and unlimited for anyone with curl, and let
-    // a capped user bypass their tier by removing one header. A token
-    // is now mandatory: no bearer -> 401 before any dispatch.
+    // SECURITY (2026-08 audit): anonymous POSTs used to skip every check.
+    // SECURITY (2026-11, PR #8): the cap check and the usage write used
+    // to be separate steps with a Yahoo request in between, so parallel
+    // requests could all pass; and a failed lookup counted as zero.
     //
-    // Tier caps mirror PLAN_LIMITS in docs/index.html. Keep in sync.
-    const TIER_REPORT_CAPS_30D = {
-      free: 3, pro: 10, premium: 100, beta: 50,
-    };
-    const TIER_LIFETIME_CAPS = {
-      free: 3, pro: 9999, premium: 9999, beta: 9999,
-    };
+    // Caps live in td_reserve_report (sql/2026-11-10_lock_plans_and_
+    // report_usage.sql) and mirror PLAN_LIMITS in docs/index.html:
+    // free 3 lifetime, pro 10 / premium 100 / beta 50 per 30 days.
     const authHeader = request.headers.get("Authorization") || "";
-    const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-    if (!bearer) {
+    if (!authHeader.startsWith("Bearer ") || authHeader.length <= 7) {
       return Response.json(
         { ok: false, error: "Sign in to generate a report.",
           code: "auth_required" },
         { status: 401, headers: cors });
     }
-    // Quota enforcement needs Supabase reachable. If it is not
-    // configured we fail CLOSED rather than dispatching unmetered work.
     if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
       return Response.json(
         { ok: false, error: "Report service temporarily unavailable.",
           code: "quota_unavailable" },
         { status: 503, headers: cors });
     }
-    {
-      try {
-        // 1. Validate the user's access token by asking Supabase who
-        //    it represents. Anon key is enough for /auth/v1/user.
-        const userResp = await fetch(
-          env.SUPABASE_URL + "/auth/v1/user",
-          { headers: {
-              "Authorization": "Bearer " + bearer,
-              "apikey": env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_KEY,
-          }}
-        );
-        if (!userResp.ok) {
-          return Response.json(
-            { ok: false, error: "Sign-in expired. Please sign in again." },
-            { status: 401, headers: cors });
-        }
-        const userBody = await userResp.json();
-        const uid = userBody && userBody.id;
-        if (uid) {
-          reqUserId = uid;   // route the generated report to this user's private storage
-          // 2. Look up the user's effective tier (honors promo expiry
-          //    server-side via the get_user_plan RPC).
-          const planResp = await fetch(
-            env.SUPABASE_URL + "/rest/v1/rpc/get_user_plan",
-            { method: "POST",
-              headers: {
-                "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-                "apikey": env.SUPABASE_SERVICE_KEY,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({}),
-            }
-          );
-          // RPC returns a string ("free" / "pro" / "premium" / "beta")
-          // when called with the service role and user_id is implicit
-          // via auth.uid() — but service role has no auth.uid(). So
-          // fall back to reading the profile row directly with service
-          // role and computing the tier inline.
-          let tier = "free";
-          try {
-            const profResp = await fetch(
-              env.SUPABASE_URL + "/rest/v1/profiles?id=eq." +
-                encodeURIComponent(uid) +
-                "&select=subscription_tier,subscription_expires_at",
-              { headers: {
-                  "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-                  "apikey": env.SUPABASE_SERVICE_KEY,
-              }}
-            );
-            const profBody = await profResp.json();
-            const row = (profBody || [])[0];
-            if (row) {
-              const expired = row.subscription_expires_at &&
-                new Date(row.subscription_expires_at) < new Date();
-              tier = expired ? "free" : (row.subscription_tier || "free");
-            }
-          } catch (_) {}
-
-          // 3. Count this user's reports in the last 30 days
-          const sinceIso = new Date(Date.now() - 30 * 86400000).toISOString();
-          const countResp = await fetch(
-            env.SUPABASE_URL + "/rest/v1/report_generations" +
-              "?user_id=eq." + encodeURIComponent(uid) +
-              "&created_at=gte." + encodeURIComponent(sinceIso) +
-              "&select=id",
-            { headers: {
-                "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-                "apikey": env.SUPABASE_SERVICE_KEY,
-                "Prefer": "count=exact",
-            }}
-          );
-          const contentRange = countResp.headers.get("Content-Range") || "";
-          const count30 = parseInt(contentRange.split("/")[1] || "0", 10) || 0;
-          const cap30 = TIER_REPORT_CAPS_30D[tier] || TIER_REPORT_CAPS_30D.free;
-
-          // 4. Lifetime cap (free tier only — others are effectively unlimited)
-          let lifetime = 0;
-          if (tier === "free") {
-            const lifeResp = await fetch(
-              env.SUPABASE_URL + "/rest/v1/report_generations" +
-                "?user_id=eq." + encodeURIComponent(uid) +
-                "&select=id",
-              { headers: {
-                  "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-                  "apikey": env.SUPABASE_SERVICE_KEY,
-                  "Prefer": "count=exact",
-              }}
-            );
-            const lifeRange = lifeResp.headers.get("Content-Range") || "";
-            lifetime = parseInt(lifeRange.split("/")[1] || "0", 10) || 0;
-          }
-          const lifeCap = TIER_LIFETIME_CAPS[tier] || TIER_LIFETIME_CAPS.free;
-
-          if (count30 >= cap30) {
-            return Response.json(
-              { ok: false, error: "Monthly report limit reached for " +
-                tier + " tier (" + count30 + " of " + cap30 +
-                " used). Upgrade to keep researching.",
-                code: "monthly_cap", used: count30, cap: cap30, tier: tier },
-              { status: 429, headers: cors });
-          }
-          if (tier === "free" && lifetime >= lifeCap) {
-            return Response.json(
-              { ok: false, error: "Free-tier lifetime cap reached (" +
-                lifetime + " of " + lifeCap +
-                " reports). Upgrade for more.",
-                code: "lifetime_cap", used: lifetime, cap: lifeCap, tier: tier },
-              { status: 429, headers: cors });
-          }
-        }
-      } catch (e) {
-        // If our rate-limit lookup itself fails, fail-open rather than
-        // blocking legitimate users on a Supabase hiccup. The client
-        // gate already gave best-effort protection.
-        console.log("Rate-limit lookup failed (fail-open):", e.message);
-      }
+    const reqUser = await requireUser(request, env);
+    if (!reqUser.ok) {
+      return Response.json(
+        { ok: false, error: reqUser.status === 401
+            ? "Sign-in expired. Please sign in again."
+            : "Report service temporarily unavailable.",
+          code: reqUser.status === 401 ? reqUser.code : "quota_unavailable" },
+        { status: reqUser.status === 401 ? 401 : 503, headers: cors });
     }
+    // Route the generated report to this user's private storage.
+    reqUserId = reqUser.uid;
 
     // Best-effort fast validity check — reject obviously-invalid tickers
     // instantly, before spending a GitHub Actions run. If the probe itself
@@ -5258,34 +5166,63 @@ export default {
       // probe failed — proceed; the workflow handles invalid tickers too
     }
 
-    // Count the report before it runs (see recordReportUsage). Recording
-    // first, not after, means a burst of parallel requests mostly sees
-    // each other's rows instead of all passing the cap check at once.
-    const usageRowId = await recordReportUsage(env, reqUserId, ticker,
+    // Reserve the report under the user's cap BEFORE starting it (see
+    // reserveReport). No reservation id, no report.
+    const reservation = await reserveReport(env, reqUserId, ticker,
       WORKFLOWS[report] ? report : "adhoc");
+    if (!reservation.ok) {
+      if (reservation.over) {
+        const msg = reservation.code === "lifetime_cap"
+          ? "Free-tier lifetime cap reached (" + reservation.used + " of " +
+            reservation.cap + " reports). Upgrade for more."
+          : "Monthly report limit reached for " + reservation.tier +
+            " tier (" + reservation.used + " of " + reservation.cap +
+            " used). Upgrade to keep researching.";
+        return Response.json(
+          { ok: false, error: msg, code: reservation.code,
+            used: reservation.used, cap: reservation.cap,
+            tier: reservation.tier },
+          { status: 429, headers: cors });
+      }
+      console.log("report reservation failed (fail-closed):", reservation.error);
+      return Response.json(
+        { ok: false, error: "Report service temporarily unavailable. " +
+            "Try again in a minute.", code: "quota_unavailable" },
+        { status: 503, headers: cors });
+    }
 
     // Trigger the GitHub workflow_dispatch — ref is "master" (this repo's branch)
-    const ghResp = await fetch(
-      `https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization":        `Bearer ${env.PAT}`,
-          "Accept":               "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-          "User-Agent":           "smid-scanner-adhoc-web",
-          "Content-Type":         "application/json",
-        },
-        body: JSON.stringify({ ref: "master",
-          inputs: { ticker, user_id: reqUserId } }),
-      }
-    );
+    let ghResp;
+    try {
+      ghResp = await fetch(
+        `https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization":        `Bearer ${env.PAT}`,
+            "Accept":               "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent":           "smid-scanner-adhoc-web",
+            "Content-Type":         "application/json",
+          },
+          body: JSON.stringify({ ref: "master",
+            inputs: { ticker, user_id: reqUserId } }),
+        }
+      );
+    } catch (e) {
+      // The report never started, so don't charge it against the cap.
+      await releaseReport(env, reqUserId, reservation.id);
+      return Response.json(
+        { ok: false, error: "Couldn't reach GitHub to start the report. " +
+            "Try again in a minute." },
+        { status: 502, headers: cors });
+    }
 
     if (ghResp.ok) {
       return Response.json({ ok: true, ticker }, { headers: cors });
     }
     // The report never started, so don't charge it against the cap.
-    await forgetReportUsage(env, usageRowId);
+    await releaseReport(env, reqUserId, reservation.id);
     const detail = await ghResp.text();
     let hint = "";
     if (ghResp.status === 404) {
