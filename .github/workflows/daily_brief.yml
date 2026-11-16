@@ -46,6 +46,9 @@ jobs:
       RESEND_API_KEY:       ${{ secrets.RESEND_API_KEY }}
       FROM_EMAIL:           ${{ secrets.FROM_EMAIL }}
       SITE_URL:             https://tickerdesk.io
+      # CAN-SPAM postal address for the email footer. A repo VARIABLE (not a
+      # secret: it is printed in every email). Unset = sends with a warning.
+      BRIEF_POSTAL_ADDRESS: ${{ vars.BRIEF_POSTAL_ADDRESS }}
       # Pre-open OI-retention check on yesterday's notable flow.
       POLYGON_API_KEY:      ${{ secrets.POLYGON_API_KEY }}
 

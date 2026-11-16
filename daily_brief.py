@@ -7,6 +7,11 @@ answers four questions at a glance:
 
     What changed?   What matters?   What should I look at first?   Where's the risk?
 
+It also mails the market-wide (non-personalized) brief to everyone who
+signed up through the site's Daily Brief forms and confirmed by email
+(`email_signups` rows with confirmed_at set and no unsubscribed_at),
+skipping anyone who already gets the personalized one.
+
 Sections (in order):
   1. Today's Playbook — 3 bullets: best opportunity / watch today / risk
   2. Confluence — watchlist names where grade + flow + catalyst align
@@ -29,6 +34,7 @@ Required env vars:
   SUPABASE_SERVICE_KEY      service_role key (bypasses RLS — keep in CI only)
   RESEND_API_KEY            re_XXXXXX
   FROM_EMAIL                e.g. "TickerDesk <brief@tickerdesk.io>"
+  BRIEF_POSTAL_ADDRESS      postal address for the footer (CAN-SPAM); warns if unset
 
 Run locally:
   python daily_brief.py                 # sends to all opted-in users
@@ -77,13 +83,47 @@ SITE_URL = os.environ.get("SITE_URL") or "https://tickerdesk.io"
 WORKER_URL = os.environ.get("WORKER_URL") or "https://api.tickerdesk.io"
 
 
+# CAN-SPAM: every commercial email must show a valid postal address. Set
+# the BRIEF_POSTAL_ADDRESS repo variable; when it's missing the brief still
+# goes out, with a warning in the run log.
+POSTAL_ADDRESS = " ".join((os.environ.get("BRIEF_POSTAL_ADDRESS") or "").split())
+
+
+def _hmac40(msg: str) -> str:
+    """First 40 hex of HMAC-SHA256(service_key, msg). The worker's
+    `_hmac40` computes the same digest with the same shared key."""
+    key = (SUPABASE_SERVICE_KEY or "td-dev-unsub").encode("utf-8")
+    return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).hexdigest()[:40]
+
+
 def _unsub_sig(user_id: str) -> str:
     """HMAC-SHA256(service_key, user_id) — the worker recomputes this with
     the same shared SUPABASE_SERVICE_KEY to authorize a one-click
     unsubscribe without any login. The key never leaves the server; only
     the 40-hex digest travels in the URL."""
-    key = (SUPABASE_SERVICE_KEY or "td-dev-unsub").encode("utf-8")
-    return hmac.new(key, user_id.encode("utf-8"), hashlib.sha256).hexdigest()[:40]
+    return _hmac40(user_id)
+
+
+def unsub_url_email(email: str) -> str:
+    """Signed one-click unsubscribe link for an email-list subscriber (a
+    confirmed `email_signups` row, no account). Signed over
+    "brief-unsub:<email>" so it can never double as a user-id token."""
+    em = (email or "").strip().lower()
+    if not em:
+        return ""
+    q = urllib.parse.urlencode({"e": em, "t": _hmac40("brief-unsub:" + em)})
+    return f"{WORKER_URL}/unsubscribe?{q}"
+
+
+def recipient_unsub_url(user: dict) -> str:
+    """The right signed unsubscribe link for any recipient: account
+    holders by user id, email-list subscribers by address."""
+    uid = user.get("user_id") or user.get("id") or ""
+    if uid:
+        return unsub_url(uid)
+    if user.get("list_subscriber"):
+        return unsub_url_email(user.get("email") or "")
+    return ""
 
 
 def unsub_url(user_id: str) -> str:
@@ -603,18 +643,72 @@ def fetch_opted_in_users(restrict_email: str | None = None) -> list[dict]:
     return out
 
 
-def already_sent_today(user_id: str, brief_date: str) -> bool:
+def list_subscriber_recipients(
+    rows: list[dict], account_emails: set[str], restrict_email: str | None = None
+) -> list[dict]:
+    """Turn confirmed email_signups rows into brief recipients.
+
+    Each gets the market-wide (non-personalized) brief: no user id and no
+    watch list. Anyone already getting the personalized brief through
+    their account is skipped, so nobody receives two copies."""
+    taken = {e.strip().lower() for e in account_emails if e}
+    want = (restrict_email or "").strip().lower()
+    out: list[dict] = []
+    for row in rows or []:
+        em = (row.get("email") or "").strip().lower()
+        if not em or "@" not in em or em in taken:
+            continue
+        if want and em != want:
+            continue
+        # these are filtered in the query too; checked again so a query
+        # change can never mail someone who left
+        if not row.get("confirmed_at") or row.get("unsubscribed_at"):
+            continue
+        taken.add(em)
+        out.append(
+            {
+                "user_id": "",
+                "email": em,
+                "display_name": "",
+                "plan": "free",
+                "tickers": [],
+                "list_subscriber": True,
+            }
+        )
+    return out
+
+
+def fetch_list_subscribers(
+    account_emails: set[str], restrict_email: str | None = None
+) -> list[dict]:
+    """Confirmed, not-unsubscribed sign-ups from the site's Daily Brief
+    forms (public.email_signups, written by the worker's /brief/subscribe)."""
     rows = _supabase_get(
-        "email_log",
+        "email_signups",
         {
-            "select": "id",
-            "user_id": f"eq.{user_id}",
-            "kind": "eq.daily_brief",
-            "brief_date": f"eq.{brief_date}",
-            "status": "eq.sent",
-            "limit": "1",
+            "select": "email,confirmed_at,unsubscribed_at",
+            "confirmed_at": "not.is.null",
+            "unsubscribed_at": "is.null",
         },
     )
+    return list_subscriber_recipients(rows or [], account_emails, restrict_email)
+
+
+def already_sent_today(user_id: str, brief_date: str, email: str = "") -> bool:
+    params = {
+        "select": "id",
+        "kind": "eq.daily_brief",
+        "brief_date": f"eq.{brief_date}",
+        "status": "eq.sent",
+        "limit": "1",
+    }
+    if user_id:
+        params["user_id"] = f"eq.{user_id}"
+    else:
+        # email-list subscriber: logged with no user id
+        params["user_id"] = "is.null"
+        params["email"] = "eq." + urllib.parse.quote(email.strip().lower(), safe="@")
+    rows = _supabase_get("email_log", params)
     return bool(rows)
 
 
@@ -631,7 +725,7 @@ def log_email(
         _supabase_post(
             "email_log",
             {
-                "user_id": user_id,
+                "user_id": user_id or None,  # None = email-list subscriber
                 "email": email,
                 "kind": "daily_brief",
                 "status": status,
@@ -2063,27 +2157,36 @@ NEWS_LIVE = os.environ.get("NEWS_LIVE", "1") not in ("0", "false", "no")
 PREVIEW_MODE = True
 
 
-def production_guard(user_id: str, unsub: str) -> list:
+def production_guard(user_id: str, unsub: str, email: str = "") -> list:
     """A real send needs a real subscriber.
 
     The preview path signs its links for `u=demo`, which is a valid HMAC
     over a user that does not exist: every recipient would get the same
     token, and unsubscribing would flip a row nobody owns. Placeholder
     identities are fine in a preview and disqualifying in a send.
+
+    An email-list subscriber has no user id: pass their address as
+    `email`, and the link must then be signed for exactly that address.
     """
     v = []
     uid = (user_id or "").strip().lower()
-    if not uid:
+    em = (email or "").strip().lower()
+    if not uid and not em:
         v.append("no recipient id; cannot sign a subscriber-specific unsubscribe token")
     if uid in ("demo", "preview", "test", "example", "fixture", "sample"):
         v.append("recipient id %r is a placeholder, not a subscriber" % uid)
+    if not uid and em.endswith(("@tickerdesk.io", "@example.com")):
+        v.append("recipient %r is a placeholder address, not a subscriber" % em)
     if not unsub or not unsub.startswith("http"):
         v.append("no signed unsubscribe URL")
     else:
         q = urllib.parse.urlparse(unsub).query
         p = urllib.parse.parse_qs(q)
-        if (p.get("u") or [""])[0].strip().lower() in ("demo", "preview", "test", ""):
-            v.append("unsubscribe token is signed for a placeholder user")
+        if uid:
+            if (p.get("u") or [""])[0].strip().lower() in ("demo", "preview", "test", ""):
+                v.append("unsubscribe token is signed for a placeholder user")
+        elif (p.get("e") or [""])[0].strip().lower() != em:
+            v.append("unsubscribe token is not signed for this recipient's address")
         if not (p.get("t") or [""])[0]:
             v.append("unsubscribe URL carries no signature")
     return v
@@ -2137,7 +2240,8 @@ def render_html_v3(
     # the user id key is `user_id` everywhere else in this file; reading
     # `id` here silently produced no URL and the footer fell back to the
     # watch-list page, so "Unsubscribe" opened the reader's portfolio
-    unsub = unsub_url(user.get("user_id") or user.get("id") or "")
+    # (email-list subscribers have no user id; they get an address-signed link)
+    unsub = recipient_unsub_url(user)
 
     # ONE model, both bodies. Each renderer used to cap its own lists, so
     # the plain text advertised six market contracts where the HTML showed
@@ -2185,6 +2289,7 @@ def render_html_v3(
         as_of=market.get("as_of_et"),
         summary_lines=lines,
         preview=PREVIEW_MODE,
+        postal_address=POSTAL_ADDRESS,
     )
     sections = BM.section_ids(model)
     # subject and preheader now live ON the model, so the headers, the two
@@ -2305,13 +2410,20 @@ def render_html(
         f"Not investment advice. Verify against your broker before trading."
         f"</div>"
     )
-    uurl = unsub_url(user.get("user_id") or "")
+    uurl = recipient_unsub_url(user)
+    why = (
+        "You're receiving this because you signed up for the Daily Brief at tickerdesk.io. "
+        if user.get("list_subscriber")
+        else "You're receiving this because Daily Brief is on for your account. "
+    )
+    postal = f"<br>{esc(POSTAL_ADDRESS)}" if POSTAL_ADDRESS else ""
     parts.append(
         f'<div style="margin-top:14px;font-size:11px;color:{CSS_MUTED};">'
-        f"You're receiving this because Daily Brief is on for your account. "
+        f"{why}"
         f'<a href="{uurl}" style="color:{CSS_ACCENT};text-decoration:none;">Unsubscribe</a> · '
         f'<a href="{SITE_URL}/#watchlist" style="color:{CSS_ACCENT};text-decoration:none;">Manage preferences</a> · '
         f'<a href="{SITE_URL}" style="color:{CSS_ACCENT};text-decoration:none;">Open TickerDesk</a>'
+        f"{postal}"
         f"</div></div></div>"
     )
     return subject, "".join(parts)
@@ -2524,6 +2636,13 @@ def main():
         print("  Weekend — skipping.")
         return
 
+    if not POSTAL_ADDRESS:
+        # still send: a missing footer line must not cost anyone their brief
+        print(
+            "  WARNING: BRIEF_POSTAL_ADDRESS is not set, so the emails carry no "
+            "postal address (US CAN-SPAM requires one). Set the repo variable."
+        )
+
     print("  Loading signal data...")
     swing = load_swing()
     uoa, market_top = load_uoa()
@@ -2571,6 +2690,16 @@ def main():
             if args.dry_run:
                 users = [demo_user(swing, uoa, market_top, earnings)]
                 print("  dry-run: falling back to synthetic demo watchlist")
+        # People who signed up on the site without an account get the
+        # market-wide brief. A failure here must not stop account sends.
+        try:
+            print("  Fetching email-list subscribers...")
+            account_emails = {u["email"] for u in users}
+            subs = fetch_list_subscribers(account_emails, restrict_email=args.me)
+            print(f"    {len(subs)} confirmed email-list subscriber(s)")
+            users += subs
+        except Exception as e:
+            print(f"  Could not fetch email-list subscribers ({e}).")
     print(f"    {len(users)} user(s) to brief")
     if not users:
         return
@@ -2615,7 +2744,7 @@ def main():
                 html_body,
                 text_body,
                 to_email=u["email"],
-                unsub=unsub_url(u.get("user_id") or ""),
+                unsub=recipient_unsub_url(u),
             )
             model = getattr(render_html_v3, "last_model", None)
             if model:
@@ -2627,14 +2756,21 @@ def main():
             sent += 1
             continue
 
-        if not args.skip_idempotency and already_sent_today(u["user_id"], iso_date):
+        if not args.skip_idempotency and already_sent_today(
+            u["user_id"], iso_date, email=u["email"]
+        ):
             print(prefix + "skipped (already sent today)")
             skipped += 1
             continue
 
         # last gate before the wire: a preview artefact must never be the
         # thing that goes out
-        guard = production_guard(u.get("user_id") or "", unsub_url(u.get("user_id") or ""))
+        unsub = recipient_unsub_url(u)
+        guard = production_guard(
+            u.get("user_id") or "",
+            unsub,
+            email=u["email"] if u.get("list_subscriber") else "",
+        )
         if guard:
             print(prefix + "BLOCKED: " + "; ".join(guard))
             failed += 1
@@ -2645,7 +2781,7 @@ def main():
             subject,
             html_body,
             text_body=text_body,
-            unsub=unsub_url(u.get("user_id") or ""),
+            unsub=unsub,
         )
         if ok:
             print(prefix + f"sent ({subject})")

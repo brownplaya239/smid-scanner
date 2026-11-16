@@ -413,6 +413,8 @@ def render_text(model, *, subject=None):
             "reach a human."
         ),
     ]
+    if model["meta"].get("postal_address"):
+        out.append(_wrap(model["meta"]["postal_address"]))
     return "\n".join(l for l in out if l is not None) + "\n"
 
 
