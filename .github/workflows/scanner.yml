@@ -1,42 +1,45 @@
 name: SMID Breakout Scanner
 
+# ── Who starts this workflow (2026-11-16) ──────────────────────────────
+# GitHub's own schedule runs this workflow 5-7 hours late: the 10:07 AM
+# ET cron has been starting around 4:20 PM ET. Since 2026-11-10 the run
+# routes by the ET clock, so every late "morning" run landed after 4 PM
+# and built setups instead: no breakout scan ran after Nov 9, and the
+# setup builders ran 4-5 times a night.
+#
+# The Cloudflare worker is now the primary scheduler. On the Eastern
+# clock (DST-safe) it dispatches this workflow with mode=breakout at
+# 10:00, 11:30 and 3:00 PM ET on trading days, and with no inputs at
+# 4:45 PM ET for the setup builders (BREAKOUT_SLOTS / EOD_SLOT in
+# cloudflare-worker/worker.js). The crons below stay as a backstop.
+# scan_slot.py makes every trigger idempotent: a run skips a slot whose
+# report is already archived, so the late backstop runs add nothing.
 on:
   schedule:
-    # ── DST policy (single cron per fire time, no duplicates) ──────────────
-    # GitHub cron is literal UTC. Previously each fire time had two crons
-    # (EDT + EST) under the assumption only the "current season" fired — but
-    # BOTH fire every weekday year-round, doubling every report archive.
-    # Now picking ONE cron per fire window. Crons run :07/:17/:37 past to
-    # avoid GitHub's top-of-hour delay penalty.
-    #
-    # For each window: pick whichever cron keeps the run in the SAFE side
-    # (post-open for breakouts, post-close for setups). Accept a 1-hour
-    # drift during the off-season DST window.
-    #
-    # ── Scanner (3 runs/day) ──
-    # 10:00 AM ET breakouts: MUST be post-open. EDT cron (14:07 UTC) fires
-    # at 10:07 AM EDT (correct) but 9:07 AM EST (pre-open — bad).
-    # EST cron (15:07 UTC) fires 11:07 AM EDT (1 hr late — fine) and
-    # 10:07 AM EST (correct). Picked EST.
-    - cron: '7 15 * * 1-5'
-
-    # 11:30 AM ET — first-hour continuation: Qullamaggie's prime entry.
-    # Both options safely land within market hours. Picked EDT for closer
-    # match in summer (longer DST window).
-    - cron: '37 15 * * 1-5'
-
-    # 3:00 PM ET — power hour. Both options within market hours.
-    # Picked EDT to keep summer fire at intended 3:07 PM ET.
-    - cron: '7 19 * * 1-5'
-
-    # ── Setup Builder (1 run/day, after close) ──
-    # 4:15 PM ET — MUST be post-close (VCP volume needs finalized candle).
-    # EDT cron (20:17 UTC) fires 4:17 PM EDT (correct) but 3:17 PM EST
-    # (pre-close — bad). EST cron (21:17 UTC) fires 5:17 PM EDT (1 hr late
-    # — fine) and 4:17 PM EST (correct). Picked EST.
-    - cron: '17 21 * * 1-5'
+    # Backstop crons, literal UTC (EST times; an hour later in EDT).
+    # Each one only fills a slot the worker missed (see scan_slot.py).
+    - cron: '7 15 * * 1-5'     # 10:07 AM EST breakout slot
+    - cron: '37 16 * * 1-5'    # 11:37 AM EST breakout slot
+    - cron: '7 20 * * 1-5'     # 3:07 PM EST breakout slot
+    - cron: '17 21 * * 1-5'    # 4:17 PM EST setup builders
 
   workflow_dispatch:           # manual trigger from GitHub UI anytime
+    inputs:
+      mode:
+        description: "auto = by the ET clock (setups from 4 PM); breakout; setup"
+        type: choice
+        options: [auto, breakout, setup]
+        default: auto
+      force:
+        description: "Run even if this slot's report already exists"
+        type: boolean
+        default: false
+
+# One run at a time: a worker dispatch and a backstop cron that land
+# together queue up, and the second one sees the first one's report.
+concurrency:
+  group: scanner
+  cancel-in-progress: false
 
 env:
   # uv: workflow steps use only the locked runtime packages, never the dev
@@ -52,6 +55,11 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          # the branch tip at job start, not the commit at trigger time: a
+          # run that waited in the queue must see the reports the run
+          # before it just published, or scan_slot.py would repeat it
+          ref: ${{ github.ref }}
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v10.3.3
@@ -65,29 +73,33 @@ jobs:
         # This job reads no data; anything it writes is new (R2 cutover).
         run: uv run scripts/r2_sync.py init
 
-      - name: Determine scan type and run
+      - name: Decide what this run does (skip slots that already ran)
+        id: slot
+        env:
+          MODE: ${{ inputs.mode || 'auto' }}
+          FORCE: ${{ inputs.force && '--force' || '' }}
+        run: uv run python scan_slot.py --mode "$MODE" $FORCE
+
+      - name: Run scans
+        if: steps.slot.outputs.kind != 'none'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          KIND: ${{ steps.slot.outputs.kind }}
+          RUN_SMID: ${{ steps.slot.outputs.run_smid }}
+          RUN_IWM: ${{ steps.slot.outputs.run_iwm }}
         run: |
-          # Route by the ET wall clock (DST-safe). The old 10-minute UTC
-          # windows missed any delayed run, and the Cloudflare EOD backstop
-          # (4:45 PM ET) always fell outside them, so it re-ran the
-          # breakout scanner after the close instead of the setup builders.
-          TIME_ET=$(TZ=America/New_York date +%H%M)
-
           # Run SMID then IWM SEQUENTIALLY — not parallel.
           # Parallel runs hammer Yahoo Finance from the same runner IP and the
           # heavier IWM scan (500 tickers) gets rate-limited to 0 results.
-          # From 4:00 PM ET on → EOD setup builders; before → breakouts
-          if [ "$((10#$TIME_ET))" -ge 1600 ]; then
-            echo "Running setup builders (EOD base scan) — SMID then IWM"
-            uv run python setup_builder.py;       R1=$?
-            uv run python setup_builder.py --iwm; R2=$?
+          if [ "$KIND" = "setup" ]; then
+            SCRIPT=setup_builder.py
           else
-            echo "Running breakout scanners — SMID then IWM"
-            uv run python scanner.py;       R1=$?
-            uv run python scanner.py --iwm; R2=$?
+            SCRIPT=scanner.py
           fi
+          echo "Running $SCRIPT (smid=$RUN_SMID iwm=$RUN_IWM)"
+          R1=0; R2=0
+          if [ "$RUN_SMID" = "true" ]; then uv run python "$SCRIPT";       R1=$?; fi
+          if [ "$RUN_IWM" = "true" ];  then uv run python "$SCRIPT" --iwm; R2=$?; fi
 
           echo "SMID exit: $R1  |  IWM exit: $R2"
           if [ $R1 -ne 0 ] || [ $R2 -ne 0 ]; then
@@ -96,6 +108,7 @@ jobs:
           fi
 
       - name: Publish reports to site archive
+        if: steps.slot.outputs.kind != 'none'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: bash scripts/publish_reports.sh

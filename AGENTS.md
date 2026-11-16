@@ -25,21 +25,29 @@ quantitative screens — no Claude.
 
 ## Schedule (`.github/workflows/`)
 
-All weekdays ET. GitHub cron is literal UTC (no DST): each workflow picks UTC
-times that stay safe in both seasons. The Cloudflare worker is the primary
-scheduler for the flow scans (`uoa.yml`, every 30 min 9:45 AM-3:45 PM ET) and
-the 4:45 PM ET EOD backstop (`scanner.yml` + `momentum.yml`); it runs on the
-ET clock (`UOA_SLOTS` / `EOD_SLOT` in `cloudflare-worker/worker.js`).
+All weekdays ET. GitHub cron is literal UTC (no DST) and runs hours late
+(scanner.yml's 10:07 AM cron starts ~4:20 PM). The Cloudflare worker is the
+primary scheduler, on the ET clock: flow scans (`uoa.yml`, every 30 min
+9:45 AM-3:45 PM), breakout scans (`scanner.yml` mode=breakout, 10:00, 11:30,
+3:00 PM; holidays and half-day afternoons skipped), the 4:45 PM EOD dispatch
+(`scanner.yml` + `momentum.yml`) and `JOB_SCHEDULE` (`UOA_SLOTS`,
+`BREAKOUT_SLOTS`, `EOD_SLOT` in `cloudflare-worker/worker.js`). GitHub crons
+stay as backstops.
 
 | Time ET | Workflow | Runs |
 |---|---|---|
 | 10:00, 11:30 AM, 3:00 PM | `scanner.yml` | SMID + IWM scanners (sequential) |
-| 4:15 PM | `scanner.yml` | SMID + IWM setup builders (sequential) |
-| 4:30 PM | `momentum.yml` | QM Monthly + Stockbee Weekly |
+| 4:45 PM | `scanner.yml` | SMID + IWM setup builders (sequential) |
+| 4:30 PM | `momentum.yml` | QM Monthly + Stockbee Weekly (+ economic calendar) |
+| Sun ~10 AM + 7 PM, Mon 8 AM | `economic_calendar.yml` | Rolls the economic calendar to the new week |
 | on demand | `ticker-lookup.yml` | Ad-hoc single-ticker lookup (`workflow_dispatch`) |
 
-`scanner.yml` routes by the ET clock: runs from 4:00 PM ET on are the setup
-builders, earlier runs are the breakout scanners.
+`scanner.yml` asks `scan_slot.py` what to do: mode `breakout` scans the
+latest slot that has started, `auto` (crons, EOD) uses setups from 4:00 PM.
+A slot whose PDF is already in `docs/reports/` is skipped, so extra triggers
+add nothing; `force` overrides. 45 min after each breakout slot the worker
+posts to Slack (`SLACK_ALERT_CHANNEL`) if the report is missing. The
+worker's holiday table must match `exchange_calendar.py` (tested).
 
 ---
 
