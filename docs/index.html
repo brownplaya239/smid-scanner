@@ -24442,11 +24442,14 @@
     // every interval tick. Cards do their own freshness staling display,
     // so this just keeps the underlying data current.
     function fetchDeskData() {
-      return Promise.all([
+      // Each source is NAMED, never read back by position: a positional
+      // arr[n] map once fed regime entries to the earnings code and
+      // earnings entries to the breadth lookup.
+      const src = {
         // Desk slice of the flow rows (~90% smaller than uoa_latest: same
         // rows, 16 fields). Falls back to the full file until the first
         // post-deploy scan publishes the slim one.
-        fetchJSON("./reports/uoa_desk.json").then(function (d) {
+        uoa: fetchJSON("./reports/uoa_desk.json").then(function (d) {
           return (d && d.rows && d.rows.length)
             ? d : fetchJSON("./reports/uoa_latest.json");
         }),
@@ -24455,17 +24458,17 @@
         // ~15 MB history — the single biggest initial-load win, esp. on
         // mobile. Fall back to the full file if the summary isn't
         // published yet (first deploy before the next swing run).
-        fetchJSON("./reports/swing_latest_summary.json").then(function (s) {
+        swing: fetchJSON("./reports/swing_latest_summary.json").then(function (s) {
           return (s && s.runs && s.runs.length)
             ? s : fetchJSON("./reports/swing_report.json");
         }),
-        fetchJSON("./reports/momentum_qm.json"),
-        fetchJSON("./reports/momentum_stockbee.json"),
-        fetchJSON("./reports/manifest.json"),
+        qm: fetchJSON("./reports/momentum_qm.json"),
+        sb: fetchJSON("./reports/momentum_stockbee.json"),
+        manifest: fetchJSON("./reports/manifest.json"),
         // Live economic calendar via the worker (ForexFactory proxy) so the
         // Actual column fills in through the day; fall back to the static
         // post-close batch if the worker is unreachable.
-        fetch(WORKER_URL + "/?econ-calendar=1")
+        cal: fetch(WORKER_URL + "/?econ-calendar=1")
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (d) {
             return (d && d.events && d.events.length)
@@ -24474,34 +24477,34 @@
           .catch(function () {
             return fetchJSON("./reports/economic_calendar.json");
           }),
-        fetchJSON("./reports/uoa_meta_cache.json"),
+        uoaMeta: fetchJSON("./reports/uoa_meta_cache.json"),
         // Pre-open OI-confirmed carryover (tiny — a few KB) for the
         // "Overnight Flow" tile. Absent/empty until the morning brief run.
-        fetchJSON("./reports/carryover_flow.json"),
+        carryover: fetchJSON("./reports/carryover_flow.json"),
         // Post-close missed-opportunity self-audit (learning loop 5).
-        fetchJSON("./reports/missed_opportunities.json"),
+        missed: fetchJSON("./reports/missed_opportunities.json"),
         // Nightly self-grade: yesterday's picks vs today's closes.
-        fetchJSON("./reports/evening_review.json"),
+        evening: fetchJSON("./reports/evening_review.json"),
         // Technical fact table (~10KB): EMA/RSI/ATR/RS + correlation map
         // for surfaced names — powers the correlation warning chips.
-        fetchJSON("./reports/technical_facts.json"),
+        facts: fetchJSON("./reports/technical_facts.json"),
         // Engine Room summary (tiny) — health line on the What-Changed tile.
-        fetchJSON("./reports/grade_engine.json"),
+        engine: fetchJSON("./reports/grade_engine.json"),
         // Earnings calendar. TD_DATA.earnings had THREE consumers
         // (watchlist Earnings column, "earnings <=7 days" list, Start
         // Here "reporting within 3 days") but was never assigned — so
         // the column showed "—" for every ticker forever, which reads
         // as "no earnings upcoming" on a name reporting tomorrow.
-        fetchJSON("./reports/earnings_anticipated.json"),
+        earnings: fetchJSON("./reports/earnings_anticipated.json"),
         // Loop-7 regime log (tiny) — the CANONICAL full-universe EOD
         // regime label. The banner's own recompute uses the trimmed
         // 2-run swing summary, which can disagree by several breadth
         // points right at the risk-off threshold.
-        fetchJSON("./reports/regime_history.json"),
+        regimeHist: fetchJSON("./reports/regime_history.json"),
         // Measured outcome stats the Risk-off / Defense / Offense cards
         // quote (all small). Read live so the cards never repeat a stale
         // hard-coded hit rate.
-        Promise.all([
+        stats: Promise.all([
           fetchJSON("./reports/uoa_edge.json"),
           fetchJSON("./reports/uoa_scorecard.json"),
           fetchJSON("./reports/uoa_research.json"),
@@ -24511,29 +24514,34 @@
           return { edge: a[0], scorecard: a[1], research: a[2],
                    scans: a[3], setups: a[4] };
         }),
-      ]).then(function (arr) {
-        const swing = arr[1], uoaMeta = arr[6];
-        DESK_DATE = (swing && swing.runs && swing.runs.length)
-          ? swing.runs[swing.runs.length - 1].date
-          : new Date().toISOString().slice(0, 10);
-        DESK_META = uoaMeta || {};
-        window.TD_DATA.uoa = arr[0];
-        window.TD_DATA.swing = arr[1];
-        window.TD_DATA.qm = arr[2];
-        window.TD_DATA.sb = arr[3];
-        window.TD_DATA.manifest = arr[4];
-        window.TD_DATA.cal = arr[5];
-        window.TD_DATA.uoaMeta = arr[6];
-        window.TD_DATA.carryover = arr[7];
-        window.TD_DATA.missed = arr[8];
-        window.TD_DATA.evening = arr[9];
-        window.TD_DATA.facts = ((arr[10] || {}).facts) || {};
-        window.TD_DATA.engine = arr[11] || null;
-        window.TD_DATA.regimeHist = arr[12] || null;
-        window.TD_DATA.earnings = arr[13] || null;
-        window.TD_DATA.stats = arr[14] || {};
-        fillMomCautions(window.TD_DATA.stats);
-      });
+      };
+      const keys = Object.keys(src);
+      return Promise.all(keys.map(function (k) { return src[k]; }))
+        .then(function (vals) {
+          const d = {};
+          keys.forEach(function (k, i) { d[k] = vals[i]; });
+          const swing = d.swing;
+          DESK_DATE = (swing && swing.runs && swing.runs.length)
+            ? swing.runs[swing.runs.length - 1].date
+            : new Date().toISOString().slice(0, 10);
+          DESK_META = d.uoaMeta || {};
+          window.TD_DATA.uoa = d.uoa;
+          window.TD_DATA.swing = d.swing;
+          window.TD_DATA.qm = d.qm;
+          window.TD_DATA.sb = d.sb;
+          window.TD_DATA.manifest = d.manifest;
+          window.TD_DATA.cal = d.cal;
+          window.TD_DATA.uoaMeta = d.uoaMeta;
+          window.TD_DATA.carryover = d.carryover;
+          window.TD_DATA.missed = d.missed;
+          window.TD_DATA.evening = d.evening;
+          window.TD_DATA.facts = ((d.facts || {}).facts) || {};
+          window.TD_DATA.engine = d.engine || null;
+          window.TD_DATA.regimeHist = d.regimeHist || null;
+          window.TD_DATA.earnings = d.earnings || null;
+          window.TD_DATA.stats = d.stats || {};
+          fillMomCautions(window.TD_DATA.stats);
+        });
     }
     // Render the desk grid from whatever is already in window.TD_DATA — no
     // network. fetchDeskData() refreshes that cache; this draws from it.
@@ -24566,6 +24574,9 @@
       const hasCi = Array.isArray(ci) && ci.length === 2 &&
         typeof ci[0] === "number" && typeof ci[1] === "number";
       const edge = hasCi && ci[0] > 0;
+      // Three honest reads: whole range above zero, whole range below
+      // zero, or straddling zero.
+      const worse = hasCi && ci[1] < 0;
       const bk = (((st.research || {}).attribution || {}).books || {})
         .put_buy || {};
       const fci = bk.flow_alpha_ci95;
@@ -24576,10 +24587,16 @@
         "excess (n " + _nfmt(ps.n) + ").";
       if (hasCi) {
         const rng = _sgn(ci[0]) + "% to " + _sgn(ci[1]) + "%";
-        text += edge
-          ? " The matched-control 95% range (" + rng + ") stays above zero."
-          : " Not a proven edge: the matched-control 95% range (" + rng +
-            ") includes zero.";
+        if (edge) {
+          text += " The matched-control 95% range (" + rng +
+            ") stays above zero.";
+        } else if (worse) {
+          text += " Measurably worse than the market: the whole " +
+            "matched-control 95% range (" + rng + ") is below zero.";
+        } else {
+          text += " Not a proven edge: the matched-control 95% range (" +
+            rng + ") includes zero.";
+        }
       } else {
         text += " Not a proven edge: no confidence range is published yet.";
       }
@@ -24590,7 +24607,9 @@
       }
       return { hit: ps.hit, edge: edge, text: text,
                badge: ps.hit + "% hit \u00b7 " +
-                 (edge ? "measured edge" : "not a proven edge") };
+                 (edge ? "measured edge"
+                   : worse ? "measurably worse than the market"
+                   : "not a proven edge") };
     }
     // Momentum screens' measured 5-day record (scan_outcomes) and the A+
     // swing grade's (setup_outcomes). Empty strings when not published.

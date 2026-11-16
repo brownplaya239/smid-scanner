@@ -173,3 +173,60 @@ def test_old_hard_coded_stats_are_gone():
     i = src.index('"Median final result')
     assert i < src.index('"Touched +50% at some point')
     assert os.path.exists(HTML)
+
+
+def test_put_flow_range_entirely_below_zero_is_called_worse_not_zero():
+    r = _desk(
+        "deskPutFlowRead(Object.assign({}, ST, {scorecard: {pockets: {put_buys: "
+        "{bootstrap: {ci95: [-2, -0.1]}}}}}))"
+    )
+    assert r["edge"] is False
+    assert r["badge"] == "54% hit · measurably worse than the market"
+    t = r["text"]
+    assert "Measurably worse than the market" in t and "−2.00% to −0.10%" in t
+    assert "below zero" in t and "includes zero" not in t
+
+
+def test_desk_data_caches_each_file_under_its_own_name():
+    """fetchDeskData stores every fetched file under the matching TD_DATA key:
+    earnings_anticipated -> earnings, regime_history -> regimeHist (these were
+    once swapped by a positional arr[n] map)."""
+    stub = """
+var window = {TD_DATA: {}};
+var DESK_DATE = "", DESK_META = {};
+var WORKER_URL = "https://worker.invalid";
+function fillMomCautions() {}
+function fetchJSON(path) {
+  return Promise.resolve({src: path, rows: [1], runs: [{date: "d"}], events: [1]});
+}
+function fetch(url) {
+  return Promise.resolve({ok: true, json: function () { return {src: url, events: [1]}; }});
+}
+fetchDeskData().then(function () {
+  const t = window.TD_DATA, out = {};
+  for (const k of Object.keys(t)) out[k] = t[k] && t[k].src;
+  out.statsEdge = t.stats.edge.src;
+  out.statsSetups = t.stats.setups.src;
+  console.log(JSON.stringify(out));
+});
+"""
+    got = _run(["fetchDeskData"], stub)
+    want = {
+        "uoa": "uoa_desk.json",
+        "swing": "swing_latest_summary.json",
+        "qm": "momentum_qm.json",
+        "sb": "momentum_stockbee.json",
+        "manifest": "manifest.json",
+        "cal": "econ-calendar=1",
+        "uoaMeta": "uoa_meta_cache.json",
+        "carryover": "carryover_flow.json",
+        "missed": "missed_opportunities.json",
+        "evening": "evening_review.json",
+        "engine": "grade_engine.json",
+        "regimeHist": "regime_history.json",
+        "earnings": "earnings_anticipated.json",
+        "statsEdge": "uoa_edge.json",
+        "statsSetups": "setup_outcomes.json",
+    }
+    for key, suffix in want.items():
+        assert (got.get(key) or "").endswith(suffix), (key, got.get(key))
