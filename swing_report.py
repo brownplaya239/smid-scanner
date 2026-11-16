@@ -34,7 +34,7 @@ load_dotenv(override=True)
 
 import polygon_data
 import themes
-from uoa_scanner import EXCLUDE_ETFS, _sic_sector
+from uoa_scanner import EXCLUDE_ETFS, _sic_sector, is_fund
 
 ET = pytz.timezone("America/New_York")
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -161,6 +161,7 @@ def _fetch_one_meta(ticker):
         "exchange": EXCHANGE_NAME.get(pex, pex),
         "mcap_bucket": _swing_cap_bucket(d.get("market_cap")),
         "market_cap": d.get("market_cap"),  # raw figure for popups
+        "type": d.get("type") or "",  # Polygon security type: CS, ADRC, ETF, ETN...
         "fetched": datetime.now(ET).strftime("%Y-%m-%d"),
     }
 
@@ -496,24 +497,7 @@ def run():
     grades = {g: [] for g in GRADES}
     for m in universe:
         meta = meta_cache.get(m["ticker"], {})
-        grades[m["grade"]].append(
-            {
-                "t": m["ticker"],
-                "ext": m["ext"],
-                "n": meta.get("name", m["ticker"]),
-                "sec": meta.get("sector", ""),
-                "ind": meta.get("industry", ""),
-                "ctry": meta.get("country", ""),
-                "xch": meta.get("exchange", ""),
-                "mcb": meta.get("mcap_bucket", ""),
-                "mcap": meta.get("market_cap"),  # raw value (for popup formatting)
-                "p": round(m["price"], 2),
-                "chg": round(m["chg_day"], 2) if m["chg_day"] is not None else None,
-                "rvol": round(m["rvol"], 2) if m.get("rvol") is not None else None,
-                "spark": m["spark"],
-                "th": themes.themes_for(m["ticker"]),
-            }
-        )
+        grades[m["grade"]].append(_grade_cell(m, meta))
 
     bull = sum(len(grades[g]) for g in GRADES[:10])  # A+ .. D+
     total = len(universe)
@@ -558,6 +542,31 @@ def run():
         f"A+ {len(grades['A+'])}  ...  G {len(grades['G'])}"
     )
     print("\nDone.")
+
+
+def _grade_cell(m, meta):
+    """One graded ticker as the dashboard reads it. Funds (ETFs, ETNs,
+    leveraged / inverse products) carry "etf": 1 so the Desk can keep them
+    out of stock-only lists; see uoa_scanner.is_fund for the rule."""
+    cell = {
+        "t": m["ticker"],
+        "ext": m["ext"],
+        "n": meta.get("name", m["ticker"]),
+        "sec": meta.get("sector", ""),
+        "ind": meta.get("industry", ""),
+        "ctry": meta.get("country", ""),
+        "xch": meta.get("exchange", ""),
+        "mcb": meta.get("mcap_bucket", ""),
+        "mcap": meta.get("market_cap"),  # raw value (for popup formatting)
+        "p": round(m["price"], 2),
+        "chg": round(m["chg_day"], 2) if m["chg_day"] is not None else None,
+        "rvol": round(m["rvol"], 2) if m.get("rvol") is not None else None,
+        "spark": m["spark"],
+        "th": themes.themes_for(m["ticker"]),
+    }
+    if is_fund(m["ticker"], meta.get("name"), meta.get("type")):
+        cell["etf"] = 1
+    return cell
 
 
 def _emit(run_obj):

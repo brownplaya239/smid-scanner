@@ -3358,6 +3358,25 @@ const PMB_EXCLUDE = new Set([
 // Skips insider Forms 3/4/5 (rarely THE catalyst) and returns the
 // already-human filing headline + the doc URL. Reuses fetchSecFilings
 // (CIK map cached 24h, submissions cached 5 min).
+// Can this filing explain a big one-day move? Only event filings can:
+// 8-K / 6-K current reports (except exhibits-only, holder-vote and bylaw
+// items), a NEW 13D (activist stake), tender offers and merger filings.
+// Routine paperwork never counts: passive 13G / 13G-A holders, 13D
+// amendments, Form 144 sale notices, insider Forms 3/4/5, S-8 plan shares,
+// S-3 / 424B shelf and prospectus filings, 10-Q / 10-K, proxies. Showing
+// "13G/A" as the reason HUBS rose 6% was wrong.
+const ROUTINE_8K_ITEMS = ["9.01", "5.07", "5.03"];
+function isCatalystFiling(form, items) {
+  const f = String(form || "").toUpperCase().trim();
+  if (f === "8-K" || f === "8-K/A" || f === "6-K") {
+    const it = String(items || "").split(",").map(function (x) {
+      return x.trim(); }).filter(Boolean);
+    if (!it.length) return true;   // items not listed: can't rule it out
+    return it.some(function (x) { return ROUTINE_8K_ITEMS.indexOf(x) < 0; });
+  }
+  if (is13D(f)) return !/\/A$/.test(f);
+  return /^(SC TO-T|SC TO-I|SC 14D9|DEFM14A|PREM14A|425)\b/.test(f);
+}
 async function latest8KCatalyst(ticker) {
   const res = await fetchSecFilings(ticker, 12);
   const filings = (res && res.filings) || [];
@@ -3367,7 +3386,7 @@ async function latest8KCatalyst(ticker) {
     const d = Date.parse(f.acceptedDate || f.filingDate || "");
     if (isNaN(d)) continue;
     if ((now - d) / 3600000 > 96) break;        // older than 4 days → stop
-    if (/^(Form )?[345]$/.test(f.form)) continue; // skip insider forms
+    if (!isCatalystFiling(f.form, f.items)) continue;  // routine paperwork
     return { label: f.headline || (f.form + " filing"), url: f.url };
   }
   return null;

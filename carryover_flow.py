@@ -379,13 +379,19 @@ def build(target_date: str | None = None) -> dict:
     contracts.sort(key=lambda c: (c.get("conviction") is None, -(c.get("conviction") or 0)))
 
     held_n = sum(1 for c in contracts if c.get("held") is True)
+    # settled = this morning's OI is in, so the print could be checked.
+    # confirmed = the check passed: at least HELD_THRESHOLD of the print
+    # showed up as new open interest. confirmed_count used to count the
+    # settled prints, so the board read "8/8 OI-confirmed" while 5 of the 8
+    # had failed the check.
     conf = [c for c in contracts if c.get("conviction") is not None]
     return {
         "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "session_date": session_date,
         "held_count": held_n,
         "total": len(contracts),
-        "confirmed_count": len(conf),
+        "settled_count": len(conf),
+        "confirmed_count": held_n,
         "top_conviction": conf[0]["conviction"] if conf else None,
         "held_threshold": HELD_THRESHOLD,
         "interpretation": _interpret(contracts),

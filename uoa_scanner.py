@@ -21,6 +21,7 @@ the quotes entitlement is live (classify_trades upgrades itself).
 
 import json
 import os
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -269,6 +270,32 @@ EXCLUDE_ETFS = {
     "WMTL",
     "WMTD",  # WMT leveraged
 }
+
+# Fund products the curated list above hasn't caught yet. Polygon's
+# reference "type" (CS = common stock, ADRC = ADR) is authoritative when we
+# have it; the issuer / wording pattern catches new leveraged and inverse
+# launches by name ("2x Long MU Daily", "UltraShort Silver", "... ETF").
+FUND_TYPES = {"ETF", "ETN", "ETV", "ETS", "FUND", "SP"}
+_FUND_NAME = re.compile(
+    r"\b(ETFs?|ETNs?|ProShares|Direxion|GraniteShares|T-Rex|Tradr|Leverage Shares|"
+    r"MicroSectors|iShares|SPDR|MiniShares|Daily Target|UltraShort|UltraPro|Inverse|"
+    r"Leveraged|Funds?|Exchange-Traded|Physical (Gold|Silver|Platinum)|"
+    r"[1-5](\.\d+)?[xX])\b"
+)
+
+
+def is_fund(ticker, name=None, sec_type=None):
+    """True for ETFs, ETNs and leveraged / inverse products.
+
+    Stock-only lists (grade leaderboards, fade candidates, long setups) use
+    this so funds like TECL (3x tech) or ZSL (2x short silver) never rank
+    next to single stocks. Order: the curated EXCLUDE_ETFS list, then
+    Polygon's security type, then the fund-name pattern."""
+    if ticker in EXCLUDE_ETFS:
+        return True
+    if sec_type and str(sec_type).upper() in FUND_TYPES:
+        return True
+    return bool(name and _FUND_NAME.search(str(name)))
 
 
 # ─── Universe ─────────────────────────────────────────────────────────────────

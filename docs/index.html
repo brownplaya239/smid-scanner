@@ -1719,6 +1719,10 @@
   .freshness.recent         { color:#ffc800; }
   .freshness.stale  .fr-dot { background:#ff5b78; }
   .freshness.stale          { color:#ff5b78; }
+  /* Latest completed session's EOD batch (e.g. Friday's, read Monday
+     morning): on time, so neutral, not a warning colour. */
+  .freshness.prior  .fr-dot { background:var(--muted); }
+  .freshness.prior          { color:var(--muted); }
   .freshness .fr-sep { color:var(--border2); }
   .freshness .fr-char { color:var(--textdim); font-weight:500; }
   .freshness .fr-stamp { color:var(--text); font-weight:600; }
@@ -3354,9 +3358,10 @@
   .th-grid .th-row .tr-n    { color:var(--muted); font-size:8.5px; }
   .th-grid .th-row .tr-avg  { font-variant-numeric:tabular-nums;
     font-weight:700; }
-  .th-grid .th-row.up   .tr-avg { color:var(--green); }
-  .th-grid .th-row.down .tr-avg { color:var(--red); }
-  .th-grid .th-row.flat .tr-avg { color:var(--muted); }
+  .th-grid .th-row .tr-avg { min-width:44px; text-align:right; }
+  .th-grid .th-row .tr-avg.up   { color:var(--green); }
+  .th-grid .th-row .tr-avg.down { color:var(--red); }
+  .th-grid .th-row .tr-avg.flat { color:var(--muted); }
   .th-grid .th-head { font-size:9px; text-transform:uppercase;
     letter-spacing:.4px; font-weight:700; padding:2px 0 4px;
     margin-bottom:2px; border-bottom:1px solid var(--line); }
@@ -12399,6 +12404,8 @@
         if (!isClosed(d)) n++;
       return n;
     }
+    // Shared with the per-tab freshness stamp (setupFreshnessLayer).
+    window.tdSessionsBehind = sessionsBehind;
     function freshBadge(iso, character) {
       const t = Date.parse(iso);
       if (isNaN(t)) return '<span class="adm-badge err">No data</span>';
@@ -13888,6 +13895,37 @@
       if (secs < 86400) return Math.floor(secs / 3600) + "h ago";
       return Math.floor(secs / 86400) + "d ago";
     }
+    // {cls, label} for an end-of-day batch, or null when the session
+    // helper isn't available. Batch from today (ET) = fresh; from the most
+    // recent completed session = "prior" (neutral) labelled "last close
+    // (Fri)"; one session overdue = recent; more = stale.
+    function postCloseState(isoStr, behindFn, nowMs) {
+      const fn = behindFn || window.tdSessionsBehind;
+      const t = Date.parse(isoStr);
+      if (typeof fn !== "function" || isNaN(t)) return null;
+      const behind = fn(isoStr);
+      const etDay = function (ms) {
+        return new Date(ms).toLocaleDateString("en-CA",
+          { timeZone: "America/New_York" });
+      };
+      const now = nowMs == null ? Date.now() : nowMs;
+      if (behind <= 0) {
+        if (etDay(t) === etDay(now)) return { cls: "fresh", label: null };
+        const dow = new Date(t).toLocaleDateString("en-US",
+          { timeZone: "America/New_York", weekday: "short" });
+        return { cls: "prior", label: "last close (" + dow + ")" };
+      }
+      return { cls: behind === 1 ? "recent" : "stale", label: null };
+    }
+    // The relative-time text in the stamp. End-of-day batches from the
+    // latest completed session read "last close (Fri)", not "2d ago".
+    function freshAgo(isoStr, character) {
+      if (character === "post-close") {
+        const st = postCloseState(isoStr);
+        if (st && st.label) return st.label;
+      }
+      return timeAgo(isoStr);
+    }
     function staleClass(isoStr, character) {
       const t = Date.parse(isoStr);
       if (isNaN(t)) return "stale";
@@ -13895,9 +13933,12 @@
       // "on-demand" reports (ad-hoc) have no cadence — an old date just means
       // nobody has generated one recently, not that data is stale. Never alarm.
       if (character === "on-demand") return "fresh";
-      // "post-close" is allowed to be ~14h old without being stale
-      // (yesterday's close → today's pre-open is normal)
+      // "post-close": judge by trading sessions, not hours. Friday's batch
+      // read on Monday morning is the latest one that can exist, so it is
+      // neutral ("prior"), not red. One missed run = amber, more = red.
       if (character === "post-close") {
+        const st = postCloseState(isoStr);
+        if (st) return st.cls;
         if (hrs < 18) return "fresh";
         if (hrs < 40) return "recent";
         return "stale";
@@ -14048,7 +14089,7 @@
         '<span class="fr-dot"></span>' +
         '<span class="fr-stamp">' + etStamp(isoStr) + '</span>' +
         '<span class="fr-sep">·</span>' +
-        '<span>' + timeAgo(isoStr) + '</span>' +
+        '<span>' + freshAgo(isoStr, character) + '</span>' +
         '<span class="fr-sep">·</span>' +
         '<span class="fr-char">' +
           (hybrid ? "lists/grades EOD batch" : charLabel) + '</span>' +
@@ -14071,7 +14112,7 @@
         fr.className = "freshness " + staleClass(cfg.iso, cfg.character);
         // ET stamp is immutable, "X ago" is the 4th span (after dot, stamp, sep)
         const agoSpan = fr.querySelector(":scope > span:nth-of-type(4)");
-        if (agoSpan) agoSpan.textContent = timeAgo(cfg.iso);
+        if (agoSpan) agoSpan.textContent = freshAgo(cfg.iso, cfg.character);
       });
     }, 30000);
     // Wrap setter so we also store config for the periodic refresh
@@ -21790,6 +21831,31 @@
       const v = c[k];
       return (v == null) ? -Infinity : v;
     }
+    // "OI Beyond Print" cell. net_new_oi = OI change − contracts traded, so
+    // a fully held print reads about 0 (META held 99.8% → −4) and a closed
+    // print reads hugely negative. Printing those negatives next to a 100%
+    // "OI confirmed" read as a contradiction; only extra OI is news here.
+    function ovfBeyondPrintHTML(c) {
+      const nno = c.net_new_oi;
+      if (nno == null) return "<span class='ovf-m'>—</span>";
+      if (nno > 0)
+        return "<span class='ovf-g'>+" + nno.toLocaleString() + "</span>";
+      return "<span class='ovf-m' title='OI did not grow past the print (" +
+        nno.toLocaleString() + " vs the contracts traded)'>none</span>";
+    }
+    // Footer counts. Confirmed = the morning OI check passed (held: at least
+    // held_threshold of the print became new open interest). Settled = OI is
+    // in so the check could run. The old footer counted settled prints as
+    // "OI-confirmed" (8/8 while 5 had failed).
+    function ovfCounts(co) {
+      const rows = (co && co.contracts) || [];
+      return {
+        total: rows.length,
+        confirmed: rows.filter(function (c) { return c.held === true; }).length,
+        settled: rows.filter(function (c) {
+          return c.oi_confirmed != null; }).length,
+      };
+    }
     // The dashboard's inner HTML — interpretation + sortable table.
     function ovfDashHTML(co) {
       _ovfData = co;
@@ -21810,7 +21876,7 @@
         ["Premium", "premium", "Dollar value of the original flagged print."],
         ["Held %", "whale_held", "Estimated share of the whale's print still open overnight (Δ OI ÷ contracts traded, capped 100%)."],
         ["OI Conf %", "oi_confirmed", "Percentage of yesterday's opening trade that appeared in today's open interest (Δ OI ÷ contracts traded)."],
-        ["Net New OI", "net_new_oi", "OI increase beyond the original print — positive means other traders joined (follow-on buying)."],
+        ["OI Beyond Print", "net_new_oi", "New open interest on top of the flagged print itself (OI change minus contracts traded). Positive = other traders opened more contracts too. 'none' = OI did not grow past the print — not a sign that OI fell (see OI Conf %)."],
         ["Conviction", "conviction", "0–100: whale-held 35% · OI-confirmed 35% · premium 15% · OI-vs-prior 10% · strike relevance 5%."],
         ["Priority", "priority", "Follow-through watch priority: A+/A strong · B watch · Avoid likely closed/scalped · Pending awaiting OI."],
       ];
@@ -21838,10 +21904,7 @@
             c.volume.toLocaleString() + " contracts traded";
         const held = c.whale_held == null ? "<span class='ovf-m'>—</span>"
           : Math.round(c.whale_held * 100) + "%";
-        const nno = c.net_new_oi;
-        const nnoTxt = nno == null ? "<span class='ovf-m'>—</span>"
-          : (nno > 0 ? "<span class='ovf-g'>+" + nno.toLocaleString() + "</span>"
-                     : "<span class='ovf-m'>" + nno.toLocaleString() + "</span>");
+        const nnoTxt = ovfBeyondPrintHTML(c);
         const conv = c.conviction;
         const prCls = { "A+": "ovf-pr-ap", "A": "ovf-pr-a", "B": "ovf-pr-b",
           "Avoid": "ovf-pr-av", "Pending": "ovf-pr-pend" }[c.priority] || "ovf-pr-pend";
@@ -21879,7 +21942,8 @@
       const title = open ? "Yesterday's Flow · Conviction Board"
                          : "Overnight Flow · Conviction Board";
       const sess = ovfExp(co.session_date) || "prior session";
-      const nConf = co.confirmed_count != null ? co.confirmed_count : co.total;
+      const cnt = ovfCounts(co);
+      const heldPct = Math.round(100 * (co.held_threshold || 0.5));
       const stamp = { cls: open ? "current" : "fresh",
         label: (open ? "Pre-open · " : "Latest · ") + "session " + sess,
         full: "Yesterday's notable prints re-checked against this morning's " +
@@ -21887,8 +21951,11 @@
               "Click a column to sort; hover any metric for its definition. " +
               "15-min delayed source data." };
       const body = '<div class="ovf-dash">' + ovfDashHTML(co) + '</div>' +
-        '<div class="ovf-foot">' + nConf + '/' + co.total +
-          ' OI-confirmed &middot; conviction = held 35% · OI-conf 35% · premium 15% ' +
+        '<div class="ovf-foot">' + cnt.confirmed + '/' + cnt.total +
+          ' OI-confirmed (≥' + heldPct + '% of the print held overnight)' +
+          (cnt.settled < cnt.total
+            ? ' &middot; ' + (cnt.total - cnt.settled) + ' awaiting OI' : '') +
+          ' &middot; conviction = held 35% · OI-conf 35% · premium 15% ' +
           '· OI-vs-prior 10% · strike 5% &middot; sortable</div>';
       return desk(title, body, "desk-card--wide", stamp);
     }
@@ -22288,7 +22355,8 @@
                   (a2.activates_at || 30) + ')');
               const sc2 = hh.scorecard;
               if (sc2 && sc2.n)
-                bits.push("yesterday’s picks " + sc2.wins + "/" + sc2.n);
+                bits.push(deskPicksLabel(sc2.date) + " " + sc2.wins + "/" +
+                  sc2.n);
               if (hh.regime) bits.push('regime <b>' +
                 window.escapeHtml(String(hh.regime)) + '</b>');
               engLine = '<div style="margin-bottom:3px;">Engine: ' +
@@ -22517,6 +22585,42 @@
         "desk-card--wide", stamp);
     }
 
+    // The engine scorecard grades the picks made on `iso` (YYYY-MM-DD) at
+    // the next close. On a Monday those are Thursday's picks, so say the
+    // day instead of "yesterday's": "picks from Thu", or the date when the
+    // picks are more than a week old.
+    function deskPicksLabel(iso, now) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || "");
+      if (!m) return "last graded picks";
+      const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12));
+      const ref = now ? new Date(now) : new Date();
+      const days = (ref.getTime() - d.getTime()) / 86400000;
+      const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()];
+      const mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug",
+                   "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()];
+      return "picks from " + (days < 6.5 ? dow : mon + " " + d.getUTCDate());
+    }
+    // Desk lists show each ticker once. Keeps the first (highest-ranked)
+    // entry; tickers compare trimmed + upper-case. Items are strings or
+    // objects carrying the ticker under `key` (default "tk").
+    function deskUniqByTicker(items, key) {
+      const seen = new Set();
+      return (items || []).filter(function (it) {
+        const raw = typeof it === "string" ? it : it && it[key || "tk"];
+        const t = String(raw == null ? "" : raw).trim().toUpperCase();
+        if (!t || seen.has(t)) return false;
+        seen.add(t);
+        return true;
+      });
+    }
+    // Funds (ETFs, ETNs, leveraged / inverse products such as TECL or ZSL)
+    // carry etf:1 in the swing grade batch. swing_report.py sets it from
+    // uoa_scanner.is_fund (curated EXCLUDE_ETFS list + Polygon security
+    // type + fund-name pattern). Stock-only lists skip them.
+    function deskIsFund(cell) {
+      return !!(cell && cell.etf);
+    }
+
     // ── Action List (Today's Desk top card) ─────────────────────────
     // Synthesizes 6 actionable segments from current signal data so the
     // user sees "what to do next" instead of just "what's happening."
@@ -22542,7 +22646,9 @@
       if (swing && swing.runs && swing.runs.length) {
         const run = swing.runs[swing.runs.length - 1];
         Object.keys(run.grades || {}).forEach(function (g) {
-          (run.grades[g] || []).forEach(function (c) { grades[c.t] = g; });
+          (run.grades[g] || []).forEach(function (c) {
+            if (!deskIsFund(c)) grades[c.t] = g;
+          });
         });
       }
       const flowByTk = {};
@@ -22608,11 +22714,15 @@
       });
       shorts.sort((a, b) => (b.flow.premium || 0) - (a.flow.premium || 0));
 
-      // 3. Flow + Trend Confirmed: any confluence (not just top tier)
+      // 3. Flow + Trend Confirmed: any confluence (not just top tier).
+      // Best Long Setups is a subset of this, so its names are left out
+      // here — the two segments sit side by side and TENB showed twice.
+      const inLongs = new Set(longs.map(function (x) { return x.tk; }));
       const confirmed = [];
       Object.keys(flowByTk).forEach(function (tk) {
         const g = grades[tk];
         const f = flowByTk[tk];
+        if (inLongs.has(tk)) return;
         if (g && f.direction) {
           const gUp = isTopGrade(g) || g[0] === "B" || g[0] === "C";
           if (gUp && isBullFlow(f.direction)) {
@@ -22637,6 +22747,13 @@
       });
       conflict.sort((a, b) => (b.flow.premium || 0) - (a.flow.premium || 0));
 
+      const fmtPrem = function (p) {
+        if (!p) return "";
+        if (p >= 1e6) return "$" + (p / 1e6).toFixed(1) + "M";
+        if (p >= 1e3) return "$" + Math.round(p / 1e3) + "K";
+        return "$" + p;
+      };
+
       // 5. Watchlist urgencies (signed-in only)
       const urgent = [];
       if (signedIn && watchlist.size) {
@@ -22648,8 +22765,8 @@
                           why: "Reports earnings today" });
           } else if (f && isBullFlow(f.direction) && f.premium >= 250000) {
             urgent.push({ tk, grade: g, flow: f,
-                          why: "Heavy bullish flow ($" +
-                            Math.round(f.premium / 1000) + "K)" });
+                          why: "Heavy bullish flow (" +
+                            fmtPrem(f.premium) + ")" });
           } else if (f && isBearFlow(f.direction) && f.premium >= 250000) {
             urgent.push({ tk, grade: g, flow: f,
                           why: "Heavy bearish flow" });
@@ -22658,12 +22775,6 @@
       }
 
       // Render a segment — title + chips (top 4 names, click → drilldown)
-      const fmtPrem = function (p) {
-        if (!p) return "";
-        if (p >= 1e6) return "$" + (p / 1e6).toFixed(1) + "M";
-        if (p >= 1e3) return "$" + Math.round(p / 1e3) + "K";
-        return "$" + p;
-      };
       function chip(item, opts) {
         opts = opts || {};
         const g = item.grade || "";
@@ -22694,6 +22805,7 @@
         // .al-seg-body wrapper). Lets users actually see the full
         // list instead of just an "N more" decoration.
         const cap = maxShow || 4;
+        items = deskUniqByTicker(items);
         const more = items.length > cap
           ? '<button class="al-more" type="button" ' +
               'data-expand-parent=".al-seg-body" ' +
@@ -22821,7 +22933,9 @@
           return (q && typeof q.change === "number") ? q.change : c.chg;
         };
         const arr = (r.grades[grade] || []).slice()
-          .filter(function (c) { return typeof eff(c) === "number"; })
+          .filter(function (c) {
+            return !deskIsFund(c) && typeof eff(c) === "number";
+          })
           .sort(function (a, b) {
             return dir === "asc" ? eff(a) - eff(b) : eff(b) - eff(a);
           })
@@ -23360,20 +23474,25 @@
           // overnight-stale cache from masquerading as live. Falls back to
           // the swing chg until quotes load.
           const lq = cache[c.t];
-          let chg = null;
+          let chg = null, live = null;
           if (lq && typeof lq.change === "number" &&
               Date.now() - (lq.ts || 0) < 30 * 60 * 1000) {
-            chg = lq.change; liveN++;
+            chg = live = lq.change; liveN++;
             if ((lq.ts || 0) > lastTs) lastTs = lq.ts;
           } else if (typeof c.chg === "number") {
             chg = c.chg;
           }
           if (chg == null) return;
           totN++;
+          const prior = typeof c.chg === "number" ? c.chg : null;
           c.th.forEach(function (th) {
-            if (!acc[th]) acc[th] = { tickers: [], sum: 0 };
-            acc[th].tickers.push({ t: c.t, chg: chg });
-            acc[th].sum += chg;
+            if (!acc[th]) acc[th] = { tickers: [], sum: 0,
+              pSum: 0, pN: 0, lSum: 0, lN: 0 };
+            const a = acc[th];
+            a.tickers.push({ t: c.t, chg: chg });
+            a.sum += chg;
+            if (prior != null) { a.pSum += prior; a.pN++; }
+            if (live != null) { a.lSum += live; a.lN++; }
           });
         });
       });
@@ -23385,12 +23504,24 @@
         out.push({
           theme:    th,
           n:        n,
-          chg_avg:  o.sum / n,
+          chg_avg:  o.sum / n,          // live where quoted, else prior close
+          // Kept apart so a table never ranks by one day and shows another:
+          chg_prior: o.pN ? o.pSum / o.pN : null,   // last close-to-close
+          chg_live:  o.lN ? o.lSum / o.lN : null,   // today (delayed 15m)
           tickers:  o.tickers.sort(function (a, b) { return b.chg - a.chg; }),
         });
       });
       out.sort(function (a, b) { return b.chg_avg - a.chg_avg; });
       return out;
+    }
+    // Themes ranked by the prior-close average, strongest first. Themes
+    // without a prior-close figure sort last.
+    function themeRankPrior(all) {
+      return (all || []).slice().sort(function (a, b) {
+        const va = a.chg_prior == null ? -Infinity : a.chg_prior;
+        const vb = b.chg_prior == null ? -Infinity : b.chg_prior;
+        return vb - va;
+      });
     }
     // Stash for the hover popup
     let THEME_ROLLUP = {};
@@ -23428,24 +23559,31 @@
       all.forEach(function (t) { THEME_ROLLUP[t.theme] = t; });
       // Split the sorted list in half so every theme shows up (one side or
       // the other), regardless of count. Strongest = top half desc,
-      // Weakest = bottom half asc-by-loss.
-      const half = Math.ceil(all.length / 2);
-      const strong = all.slice(0, half);
-      const weak   = all.slice(half).reverse();
+      // Weakest = bottom half asc-by-loss. Ranked by the PRIOR CLOSE average
+      // (the EOD batch the themes come from), which never moves under the
+      // user; today's live average sits in its own labelled column. Ranking
+      // by one day and printing another made "Strongest" show -2.6%.
+      const ranked = themeRankPrior(all);
+      const half = Math.ceil(ranked.length / 2);
+      const strong = ranked.slice(0, half);
+      const weak   = ranked.slice(half).reverse();
       const fmtChg = function (v) {
+        if (v == null) return "—";
         const sign = v > 0 ? "+" : "";
         return sign + v.toFixed(1) + "%";
       };
       const dirCls = function (v) {
-        return v > 0 ? "up" : v < 0 ? "down" : "flat";
+        return v == null ? "flat" : v > 0 ? "up" : v < 0 ? "down" : "flat";
       };
       const row = function (t) {
-        const cls = dirCls(t.chg_avg);
-        return '<div class="th-row ' + cls + '" data-th="' +
+        return '<div class="th-row" data-th="' +
             t.theme.replace(/"/g, "&quot;") + '">' +
           '<span class="tr-name">' + t.theme + '</span>' +
           '<span class="tr-n">' + t.n + '</span>' +
-          '<span class="tr-avg">' + fmtChg(t.chg_avg) + '</span></div>';
+          '<span class="tr-avg ' + dirCls(t.chg_prior) + '">' +
+            fmtChg(t.chg_prior) + '</span>' +
+          '<span class="tr-avg tr-live ' + dirCls(t.chg_live) + '">' +
+            fmtChg(t.chg_live) + '</span></div>';
       };
       // Column headers for the theme list — explain what "N" and
       // "Avg %" mean since they're not self-evident.
@@ -23460,10 +23598,15 @@
           'graded today. Themes need ≥3 to be included.">' +
           'N</span>' +
         '<span class="tr-avg" data-tip="1" title="' +
-          'Equal-weighted average of today\'s daily % change across ' +
-          'every constituent in the theme. Positive = the theme is ' +
-          'leading; negative = the theme is lagging.">' +
-          'Avg %</span></div>';
+          'Equal-weighted average % change across the theme at the last ' +
+          'close (the end-of-day batch). The list is ranked by this ' +
+          'column.">' +
+          'Prior close</span>' +
+        '<span class="tr-avg tr-live" data-tip="1" title="' +
+          'Equal-weighted average of today\'s % change (delayed 15m) ' +
+          'across the constituents that have a quote. A dash means ' +
+          'quotes have not loaded yet.">' +
+          'Today</span></div>';
       const strongCol = '<div class="th-col">' +
         '<div class="th-head pos">Strongest (' + strong.length + ')</div>' +
         colHdr + strong.map(row).join("") + '</div>';
@@ -23475,16 +23618,15 @@
       // matters — strongest first is the "where's the money" read.
       const _tStrong = strong[0];
       const _tWeak = weak[0];
-      const _thInsight = (_tStrong && _tWeak)
-        ? 'Strongest: <b>' + _tStrong.theme + '</b> ' +
-          '<span class="pos">' +
-          (_tStrong.chg_avg > 0 ? "+" : "") +
-          _tStrong.chg_avg.toFixed(1) + '%</span> ' +
+      const _thInsight = (_tStrong && _tWeak &&
+                          _tStrong.chg_prior != null && _tWeak.chg_prior != null)
+        ? 'At the prior close &mdash; Strongest: <b>' + _tStrong.theme + '</b> ' +
+          '<span class="' + (_tStrong.chg_prior >= 0 ? "pos" : "neg") + '">' +
+          fmtChg(_tStrong.chg_prior) + '</span> ' +
           '<span class="muted">(' + _tStrong.n + ' names)</span>' +
           ' &middot; Weakest: <b>' + _tWeak.theme + '</b> ' +
-          '<span class="neg">' +
-          (_tWeak.chg_avg > 0 ? "+" : "") +
-          _tWeak.chg_avg.toFixed(1) + '%</span> ' +
+          '<span class="' + (_tWeak.chg_prior >= 0 ? "pos" : "neg") + '">' +
+          fmtChg(_tWeak.chg_prior) + '</span> ' +
           '<span class="muted">(' + _tWeak.n + ' names)</span>'
         : null;
       // ── Whale-flow propagation ─────────────────────────────────────
@@ -23570,10 +23712,17 @@
         return ctx[t];
       };
       // Swing grades — full A+/A/A-/B+/B (bullish tier) + G+/G/F+/F (bearish tier)
+      const funds = new Set();
       if (swing && swing.runs && swing.runs.length) {
         const r = swing.runs[swing.runs.length - 1];
+        Object.keys(r.grades || {}).forEach(function (g) {
+          (r.grades[g] || []).forEach(function (c) {
+            if (deskIsFund(c)) funds.add(c.t);
+          });
+        });
         ["A+","A","A-","B+","B","F+","F","F-","G+","G"].forEach(function (g) {
           (r.grades[g] || []).forEach(function (c) {
+            if (funds.has(c.t)) return;
             const e = ensure(c.t); e.grade = g; e.themes = c.th || [];
           });
         });
@@ -23609,6 +23758,8 @@
           });
         });
       }
+      // Funds never rank as stock ideas, even when they carry flow.
+      funds.forEach(function (t) { delete ctx[t]; });
       return ctx;
     }
     function narrative(e) {
@@ -24335,7 +24486,8 @@
                            .sort(rank("bear"));
       // 10 picks = two clean rows of 5 on desktop: 8 ranked bulls + up to
       // 2 bears so the second row still carries the other side of the tape.
-      const picks = bulls.slice(0, 8).map(function (x) { x.dir = "bull"; return x; });
+      const picks = deskUniqByTicker(bulls, "t").slice(0, 8)
+        .map(function (x) { x.dir = "bull"; return x; });
       bears.slice(0, 2).forEach(function (b) { b.dir = "bear"; picks.push(b); });
       if (!picks.length) return "";
 
@@ -25107,7 +25259,7 @@
       // fade candidates: measured momentum inversion (RO-4)
       const fade = [], seen = {};
       function addFade(t, why, chg) {
-        if (!t || seen[t]) return;
+        if (!t || seen[t] || deskIsFund(DESK_TKMAP[t])) return;
         seen[t] = 1;
         fade.push({ t: t, why: why, chg: chg });
       }
@@ -25125,6 +25277,7 @@
       try {
         const run = swing.runs[swing.runs.length - 1];
         (run.grades["A+"] || []).forEach(function (c) {
+          if (deskIsFund(c)) return;
           addFade(c.t, "A+ grade (extended)", c.chg);
         });
       } catch (_) {}
@@ -25532,7 +25685,9 @@
             cardMarketHealth(swing) +          //   live intraday breadth (left)
             cardTopFlow(uoa) +                 //   options flow (right)
           '</div>',
-          cardActionList(ctx, swing, uoa, uoaMeta, today),  // full-width synth
+          // todayET, not the graded session date: "Earnings Today" must
+          // match the Upcoming Earnings card (same uoaMeta, same ET day).
+          cardActionList(ctx, swing, uoa, uoaMeta, todayET),  // full-width synth
           cardOvernightFlow(D.carryover),      // pre-open OI-confirmed carryover
           '<div class="desk-divider"><span>End-of-day — grades &amp; ' +
             'setups from the last post-close batch (4:30 PM ET); these ' +
@@ -25709,12 +25864,14 @@
       rows.forEach(function (el) {
         const t = map[el.dataset.th];
         if (!t) return;
-        const avg = el.querySelector(".tr-avg");
-        if (!avg) return;
-        const sign = t.chg_avg > 0 ? "+" : "";
-        avg.textContent = sign + t.chg_avg.toFixed(1) + "%";
-        el.className = "th-row " +
-          (t.chg_avg > 0 ? "up" : t.chg_avg < 0 ? "down" : "flat");
+        // Only the "Today" column is live; the prior-close column (and the
+        // ranking built on it) is the EOD batch and stays put.
+        const live = el.querySelector(".tr-live");
+        if (!live || t.chg_live == null) return;
+        const v = t.chg_live;
+        live.textContent = (v > 0 ? "+" : "") + v.toFixed(1) + "%";
+        live.className = "tr-avg tr-live " +
+          (v > 0 ? "up" : v < 0 ? "down" : "flat");
       });
     }
 
@@ -29502,22 +29659,42 @@
       function esc(s) {
         return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? "" : s);
       }
-      function phaseLabel() {
-        // Pre-market / Intraday / After-hours / Prior close from ET clock
+      function phaseLabel(nowMs) {
+        // Pre-market / Intraday / After-hours / Prior close from ET clock.
+        // Regular session is 9:30 AM-4:00 PM ET.
         try {
-          const h = parseInt(new Date().toLocaleString("en-US", {
-            timeZone: "America/New_York", hour: "numeric", hour12: false }), 10);
-          const m = new Date().toLocaleString("en-US", {
+          const now = nowMs == null ? new Date() : new Date(nowMs);
+          const hm = now.toLocaleString("en-US", { timeZone: "America/New_York",
+            hour: "numeric", minute: "numeric", hour12: false }).split(":");
+          const mins = (parseInt(hm[0], 10) % 24) * 60 + parseInt(hm[1], 10);
+          const m = now.toLocaleString("en-US", {
             timeZone: "America/New_York", weekday: "short" });
           const wknd = (m === "Sat" || m === "Sun");
           if (wknd) return "Prior session";
-          if (h < 9)  return "Pre-market";
-          if (h < 16) return "Intraday";
-          if (h < 20) return "After-hours";
+          if (mins < 9 * 60 + 30) return "Pre-market";
+          if (mins < 16 * 60) return "Intraday";
+          if (mins < 20 * 60) return "After-hours";
           return "Prior close";
         } catch (_) { return "Latest"; }
       }
+      // Filings that don't move a stock: passive 13G holders, 13D
+      // amendments, Form 144 sale notices, insider Forms 3/4/5, S-8 plan
+      // shares, shelf/prospectus paperwork, periodic reports, proxies and
+      // exhibits-only 8-Ks. The worker stops sending these; this keeps an
+      // older worker's answer from being shown as the reason for a move.
+      function pmbRoutineFiling(r) {
+        if (!r || r.catalyst_src !== "edgar" || !r.catalyst) return false;
+        return /^(13G|13D\/A|SC 13G|SCHEDULE 13G|144\b|Insider transaction|[345]\b|Form [345]\b|S-8|S-3|F-3|424B|Prospectus supplement|Shelf registration|Quarterly report|Annual report|Amended (annual|quarterly) report|Definitive proxy|DEF 14A|11-K|8-K · (Financial Statements \/ Exhibits|Submission of Matters to Holder Vote|Bylaw\/Charter Amendment)$)/i
+          .test(String(r.catalyst).trim());
+      }
+      function pmbNoCatalyst(phase) {
+        const when = { "Pre-market": "pre-market", "Intraday": "today",
+          "After-hours": "after hours" }[phase];
+        return "No clear catalyst found" + (when ? " (" + when + ")" : "");
+      }
       function row(r, dir) {
+        if (pmbRoutineFiling(r))
+          r = Object.assign({}, r, { catalyst: null, catalyst_src: null });
         const pctCls = r.pct >= 0 ? "up" : "down";
         const sign = r.pct > 0 ? "+" : "";
         // Source tag so the "why" provenance is explicit — SEC (EDGAR
@@ -29529,7 +29706,7 @@
           : '';
         const why = r.catalyst
           ? '<div class="pmb-why">' + srcTag + esc(r.catalyst) + '</div>'
-          : '<div class="pmb-why none">No catalyst on file (pre-market mover)</div>';
+          : '<div class="pmb-why none">' + esc(pmbNoCatalyst(phaseLabel())) + '</div>';
         return '<div class="pmb-row pmb-r-' + dir + '" data-t="' + esc(r.ticker) + '" ' +
           'role="button" tabindex="0" ' +
           'title="Open ' + esc(r.ticker) + ' drilldown">' +
@@ -31333,7 +31510,7 @@
           "Stock-level paper setups whose family record has a " +
           "date-clustered 95% confidence interval above the modeled " +
           "round-trip cost. Not an option trade.") +
-        tile("Signal Qualified", c.signal_qualified, "t-blue",
+        tile("Signal Qualified · setups today", c.signal_qualified, "t-blue",
           "Today's setups that belong to a validated forecasting edge" +
           (edges != null ? " (" + edges + " distinct edge" +
             (edges === 1 ? "" : "s") + ")" : "") +
@@ -31431,6 +31608,15 @@
     var STATUS_LABEL = { signal_qualified: "SIGNAL_QUALIFIED",
       trade_qualified: "TRADE_QUALIFIED", qualified: "QUALIFIED",
       degraded: "EXPERIMENTAL" };
+    // A family badge describes the FAMILY's record; the hero tile counts
+    // today's SETUPS. Say both so "SIGNAL QUALIFIED" over a 0 tile isn't a
+    // contradiction: "FAMILY SIGNAL QUALIFIED · 0 SETUPS TODAY".
+    function familyBadgeText(st, nToday) {
+      var txt = String(st || "").replace(/_/g, " ");
+      if (st !== "SIGNAL_QUALIFIED" && st !== "TRADE_QUALIFIED") return txt;
+      return "FAMILY " + txt + " · " + nToday + " SETUP" +
+        (nToday === 1 ? "" : "S") + " TODAY";
+    }
     function edgesHTML(d) {
       var h = "";
       ["vol_rich", "vol_cheap"].forEach(function (t) {
@@ -31456,7 +31642,7 @@
         '<div class="fb-head"><span class="fb-title">Earnings ' +
         'Volatility · ' + meta[0] + '</span>' +
         '<span class="atd-status s-' + st + '">' +
-        st.replace(/_/g, " ") + '</span></div>' +
+        familyBadgeText(st, insts.length) + '</span></div>' +
         '<div class="fb-desc">' + (vol.signal_qualified ? meta[1] +
           ' The forecasting relationship has cleared the signal gate; ' +
           'no option expression has cleared the trade gate.'
