@@ -17,8 +17,8 @@ on-demand ad-hoc ticker research, published to a GitHub Pages site.
 | Stockbee Weekly 20% | `momentum_scanner.py` | Every liquid name up 20%+ in the last 5 trading days. Pure data table. |
 | Ad-Hoc Lookup | `scanner.py --ticker SYM` | On-demand 5-page one-pager for any ticker (setup + insider + institutional + volume intelligence). |
 
-The scanner/setup-builder reports use Claude for analysis (Sonnet 4.6 for the
-scanner, Opus 4.7 for the setup builder). The momentum scans are pure
+The scanner/setup-builder reports use Claude for analysis (Sonnet 5.5 for the
+scanner, Opus 5.5 for the setup builder). The momentum scans are pure
 quantitative screens — no Claude.
 
 ---
@@ -49,6 +49,7 @@ builders, earlier runs are the breakout scanners.
 |---|---|
 | `scanner.py` | Breakout scanner (SMID + IWM modes) + `--ticker` ad-hoc lookup |
 | `setup_builder.py` | EOD VCP setup builder (SMID + IWM modes) |
+| `claude_call.py` | Shared Claude call: streaming, effort, refusal fallback, reads only `text` blocks |
 | `momentum_scanner.py` | QM Monthly + Stockbee Weekly screens (one run does both) |
 | `macro_context.py` | SPY/IWM/VIX/sector regime overlay |
 | `insider_activity.py` | SEC EDGAR Form 4 scan — 60/90d signal + 12-mo transaction log |
@@ -201,13 +202,21 @@ Rules worth knowing:
   yfinance's verified calendar, not Claude's training data.
 - **Invalid tickers abort early.** `--ticker` validates price history before
   any pipeline work and produces a clean "TICKER NOT FOUND" PDF.
-- **`max_tokens` and streaming.** Opus 4.7 caps non-streaming at ~21K tokens;
-  the setup builder uses 20K. Going higher requires streaming.
+- **`max_tokens`, thinking and streaming.** The current models think before
+  answering, and thinking counts toward `max_tokens`, so budgets are sized
+  well above the answer and every Python call streams (`claude_call.ask_claude`).
+  A reply can start with `thinking` blocks: never read `content[0].text`.
 
 ---
 
 ## Models
 
-- Scanner: `claude-sonnet-4-6` (frequent, lighter analysis)
-- Setup builder: `claude-opus-4-7` (deeper "Wharton HF analyst" reasoning)
-- `temperature` is not supported on Opus 4.7 — do not pass it.
+- Scanner + alt-data synthesis: `claude-sonnet-5-5` (effort `medium` / `low`)
+- Setup builder: `claude-opus-5-5`, effort `high` (deeper "Wharton HF analyst" reasoning)
+- Worker (filing summary, Trade Desk "Ask", screenshot import): `claude-haiku-5-5`,
+  thinking disabled (`cloudflare-worker/claude.mjs`)
+- Python calls go through `claude_call.py`: streaming, explicit `effort`,
+  server-side refusal fallback (`fallbacks="default"`), and `ClaudeNoAnswer` on a
+  refusal or empty reply. Haiku 5.5 has no server-side fallback.
+- Do not pass `temperature`/`top_p`/`top_k`, an assistant prefill, or
+  `thinking: {type: "disabled"}` on Opus/Sonnet 5.5 — all return HTTP 400.

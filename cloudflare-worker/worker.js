@@ -18,6 +18,8 @@
  * "REPO secret missing/wrong -> 404" failure mode.
  */
 
+import { haikuBody, claudeText } from "./claude.mjs";
+
 const REPO = "brownplaya239/smid-scanner";
 
 /** One Yahoo Finance quote — current price, % change vs the prior close, and
@@ -1224,11 +1226,10 @@ async function summarizeFiling(env, ticker, form, items, primaryUrl) {
         "anthropic-version": "2023-06-01",
         "content-type":      "application/json",
       },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 250,
-        messages: [{ role: "user", content: prompt }],
-      }),
+      // Thinking off + low effort: a short factual summary, as on Haiku 4.5.
+      // 300 (was 250): Haiku 5.5's tokenizer counts ~30% more tokens.
+      body: JSON.stringify(haikuBody({
+        maxTokens: 300, effort: "low", content: prompt })),
     });
     if (!r.ok) {
       const errText = await r.text();
@@ -1236,10 +1237,11 @@ async function summarizeFiling(env, ticker, form, items, primaryUrl) {
                                   errText.slice(0, 200) };
     }
     const j = await r.json();
-    const summary = j.content && j.content[0] && j.content[0].text || "";
+    const res = claudeText(j);
+    if (!res.ok) return { ok: false, error: res.error };
     return {
       ok:      true,
-      summary: summary.trim(),
+      summary: res.text,
       usage:   j.usage || null,
       model:   j.model,
     };
@@ -1248,7 +1250,7 @@ async function summarizeFiling(env, ticker, form, items, primaryUrl) {
   }
 }
 
-/** Portfolio screenshot OCR — Claude Haiku 4.5 vision.
+/** Portfolio screenshot OCR — Claude Haiku 5.5 vision.
  *  Accepts a POST body { image_b64, media_type } (media_type one of
  *  image/png|jpeg|webp|gif) and returns
  *  { ok, positions: [{ ticker, weight, name }], usage }.
@@ -1380,16 +1382,14 @@ async function handleAskDesk(request, env, cors) {
         "anthropic-version": "2023-06-01",
         "content-type":      "application/json",
       },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 400,
-        system: system,
-        messages: [{ role: "user", content:
+      // Thinking off + medium effort (Haiku 5.5's default) for grounded
+      // short answers. 500 (was 400): the new tokenizer counts ~30% more.
+      body: JSON.stringify(haikuBody({
+        maxTokens: 500, effort: "medium", system: system, content:
           "TRADE_DESK JSON:\n" + JSON.stringify(desk) +
           (valSlim ? "\n\nVALIDATION JSON:\n" + JSON.stringify(valSlim)
                    : "") +
-          "\n\nQUESTION: " + q }],
-      }),
+          "\n\nQUESTION: " + q })),
     });
     if (!r.ok) {
       return Response.json(
@@ -1397,8 +1397,16 @@ async function handleAskDesk(request, env, cors) {
         { status: 502, headers: cors });
     }
     const j = await r.json();
-    const answer = (j.content && j.content[0] && j.content[0].text || "")
-      .trim();
+    const res = claudeText(j);
+    if (!res.ok) {
+      // Refusal or empty answer: report it, and don't cache it.
+      return Response.json(
+        { ok: false, error: res.reason === "refusal"
+            ? "The assistant declined to answer that question."
+            : "The assistant returned no answer. Please try again." },
+        { status: 502, headers: cors });
+    }
+    const answer = res.text;
     const out = { ok: true, answer: answer,
                   as_of: desk.generated || null };
     memPut(cacheKey, out);
@@ -1542,18 +1550,16 @@ async function handlePortfolioOCR(request, env, cors) {
         "anthropic-version": "2023-06-01",
         "content-type":      "application/json",
       },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 1500,
-        messages: [{
-          role: "user",
-          content: [
-            { type: "image",
-              source: { type: "base64", media_type: mt, data: b64 } },
-            { type: "text", text: instr },
-          ],
-        }],
-      }),
+      // Thinking off + medium effort, as Haiku 4.5 ran it. 2000 (was 1500):
+      // the new tokenizer counts ~30% more tokens for the same JSON.
+      body: JSON.stringify(haikuBody({
+        maxTokens: 2000, effort: "medium",
+        content: [
+          { type: "image",
+            source: { type: "base64", media_type: mt, data: b64 } },
+          { type: "text", text: instr },
+        ],
+      })),
     });
     if (!r.ok) {
       const errText = await r.text();
@@ -1568,7 +1574,12 @@ async function handlePortfolioOCR(request, env, cors) {
   }
   // Parse the model's JSON. It should be a bare object, but strip any
   // stray fences / prose defensively before JSON.parse.
-  const raw = (j.content && j.content[0] && j.content[0].text || "").trim();
+  const res = claudeText(j);
+  if (!res.ok) {
+    return Response.json({ ok: false, error: res.error },
+      { status: 502, headers: cors });
+  }
+  const raw = res.text;
   let positions = [];
   try {
     const cleaned = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
