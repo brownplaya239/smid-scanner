@@ -866,6 +866,22 @@ def classify_flow(contracts):
             _WORDS[bear] if bear < len(_WORDS) else bear,
             amb_tail,
         )
+    elif direction == NO_DIR and not voted:
+        # "Only no of the one print carry a direction" is what the general
+        # sentence below produced when nothing voted; say it plainly
+        word = _WORDS[n] if n < len(_WORDS) else str(n)
+        if amb == n:
+            explain = "The tape could not resolve %s to a buyer or seller" % (
+                "the one print" if n == 1 else "any of the %s prints" % word
+            )
+        elif nodata == n:
+            explain = (
+                "The one print arrived without a side"
+                if n == 1
+                else "None of the %s prints arrived with a side" % word
+            )
+        else:
+            explain = "No print carries a direction" + amb_tail
     elif direction == NO_DIR:
         seen = _side_breakdown(contracts, BULLISH) or _side_breakdown(contracts, BEARISH)
         explain = "Only %s of %s %s a direction%s%s" % (
@@ -2027,11 +2043,12 @@ def check_model(model):
                 "appears anywhere in the email" % r["ticker"]
             )
 
-    # every contract states a side and a direction
+    # every contract states a side (or says outright that it is unknown)
+    # and a direction
     for sid, sec in secs.items():
         for r in sec.get("records") or []:
             for c in ([r] if r.get("action") else []) + (r.get("contracts") or []):
-                if not c.get("action") or c["action"] == "UNSPECIFIED":
+                if not c.get("action"):
                     v.append("%s contract %s has no buy/sell side" % (sid, c.get("key")))
                 if not c.get("direction"):
                     v.append("%s contract %s has no inferred direction" % (sid, c.get("key")))

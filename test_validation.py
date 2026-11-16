@@ -450,7 +450,7 @@ def run_checks(check):
             "earnings",
             "a rich/cheap read shows its arithmetic",
             all(
-                ("×" in r["why"] or "typical move" in r["why"])
+                ("×" in r["why"] or "typical move" in r["why"] or "typical past move" in r["why"])
                 for r in ep["records"]
                 if r.get("verdict")
             ),

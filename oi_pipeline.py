@@ -223,7 +223,9 @@ def email_section(payload, session_date=None):
     sd = payload.get("session_date") or (
         session_date.isoformat() if hasattr(session_date, "isoformat") else str(session_date or "")
     )
-    pretty = FT.fmt_dt((sd + "T00:00:00-04:00") if sd else "", False)
+    # Noon, not midnight: midnight at the summer offset converts to 11 p.m.
+    # the day before all winter, so the email named the wrong session.
+    pretty = FT.fmt_dt((sd + "T12:00:00-05:00") if sd else "", False)
     rows = payload.get("email_rows") or []
     if not rows:
         return {

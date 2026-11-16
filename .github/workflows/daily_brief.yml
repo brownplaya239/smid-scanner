@@ -49,6 +49,8 @@ jobs:
       # CAN-SPAM postal address for the email footer. A repo VARIABLE (not a
       # secret: it is printed in every email). Unset = sends with a warning.
       BRIEF_POSTAL_ADDRESS: ${{ vars.BRIEF_POSTAL_ADDRESS }}
+      # Emailed when subscribers get the old fallback layout (optional).
+      ALERT_EMAIL:          ${{ secrets.ALERT_EMAIL }}
       # Pre-open OI-retention check on yesterday's notable flow.
       POLYGON_API_KEY:      ${{ secrets.POLYGON_API_KEY }}
 

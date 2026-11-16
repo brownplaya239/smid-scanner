@@ -88,6 +88,12 @@ WORKER_URL = os.environ.get("WORKER_URL") or "https://api.tickerdesk.io"
 # goes out, with a warning in the run log.
 POSTAL_ADDRESS = " ".join((os.environ.get("BRIEF_POSTAL_ADDRESS") or "").split())
 
+# Who hears about it when subscribers get the old fallback layout. From
+# early October to mid November 2026 that happened on about 31 of 35
+# mornings and nobody knew. Set the ALERT_EMAIL repo secret; without it
+# the run still shows a warning on the GitHub Actions page.
+ALERT_EMAIL = (os.environ.get("ALERT_EMAIL") or "").strip()
+
 
 def _hmac40(msg: str) -> str:
     """First 40 hex of HMAC-SHA256(service_key, msg). The worker's
@@ -2513,6 +2519,42 @@ def send_email(
         return False, f"{type(e).__name__}: {e}"
 
 
+def fallback_alert(reasons: list[str], sent: int, iso_date: str) -> tuple[str, str]:
+    """Subject and plain-text body for the operator alert."""
+    uniq: list[str] = []
+    for r in reasons:
+        if r not in uniq:
+            uniq.append(r)
+    n = len(reasons)
+    subject = "[ALERT] TickerDesk: %d of %d Daily Brief email(s) went out in the old layout" % (
+        n,
+        sent,
+    )
+    body = (
+        "Daily Brief, %s\n\n"
+        "%d of the %d brief(s) sent this morning used the old fallback layout, "
+        "because the new layout failed its pre-send checks. Subscribers still "
+        "got an email; it was the older version.\n\n"
+        "What the checks found (first few per email):\n\n%s\n\n"
+        "The full log is on the Daily Brief run in GitHub Actions."
+        % (iso_date, n, sent, "\n\n".join("- " + r[:1500] for r in uniq[:5]))
+    )
+    return subject, body
+
+
+def report_fallbacks(reasons: list[str], sent: int, iso_date: str) -> None:
+    """Make a fallback impossible to miss: a warning on the Actions run,
+    plus an email to ALERT_EMAIL when that secret is set."""
+    subject, body = fallback_alert(reasons, sent, iso_date)
+    # a line starting with ::warning:: becomes an annotation on the run page
+    print("::warning title=Daily Brief used the old layout::" + subject)
+    if not ALERT_EMAIL:
+        print("  (ALERT_EMAIL is not set, so no alert email was sent)")
+        return
+    ok, resp = send_email(ALERT_EMAIL, subject, "<pre>%s</pre>" % esc(body), text_body=body)
+    print("  fallback alert " + ("emailed" if ok else "FAILED: " + resp[:200]))
+
+
 # ─────────────────────────────────────────────────────────────────────
 # Dry-run preview
 # ─────────────────────────────────────────────────────────────────────
@@ -2730,6 +2772,7 @@ def main():
         return
 
     sent = skipped = failed = 0
+    fallbacks: list[str] = []  # one reason per email that went out in the old layout
     preview_written = False
     for u in users:
         brief = build_brief(
@@ -2744,6 +2787,7 @@ def main():
         brief["_earnings"] = earnings
         brief["_news"] = overnight
         subject = html_body = text_body = None
+        fell_back = ""
         if BRIEF_V3:
             try:
                 subject, html_body, text_body = render_html_v3(
@@ -2753,6 +2797,7 @@ def main():
                 # a layout change must never cost a subscriber their brief
                 print(f"  v3 render failed, falling back to v2: {e}")
                 subject = html_body = text_body = None
+                fell_back = str(e) or type(e).__name__
         if not html_body:
             subject, html_body = render_html(
                 u, brief, brief_date, carryover, premarket, overnight, intel
@@ -2810,6 +2855,8 @@ def main():
         )
         if ok:
             print(prefix + f"sent ({subject})")
+            if fell_back:
+                fallbacks.append(fell_back)
             log_email(
                 u["user_id"],
                 u["email"],
@@ -2836,6 +2883,8 @@ def main():
             failed += 1
 
     print(f"\nDone. sent={sent} skipped={skipped} failed={failed}")
+    if fallbacks:
+        report_fallbacks(fallbacks, sent, iso_date)
 
 
 if __name__ == "__main__":
