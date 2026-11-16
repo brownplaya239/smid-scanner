@@ -408,7 +408,9 @@ def test_action_list_shows_a_long_setup_once_and_money_formatted():
             ["deskUniqByTicker", "deskIsFund", "cardActionList"], body, prelude
         )
     }
-    assert segs["Best Long Setups"][0] == ["TENB"]
+    # segment 1 is "Best Long Setups" (renamed "Strongest Setups" by PR #28)
+    long_seg = segs.get("Strongest Setups") or segs["Best Long Setups"]
+    assert long_seg[0] == ["TENB"]
     assert segs["Flow + Trend Confirmed"][0] == ["MSFT"]  # TENB not repeated; TECL is a fund
     assert segs["Earnings Today"][0] == ["ABUS"]
     urg = segs["⭐ Watchlist Urgencies"]

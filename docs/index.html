@@ -22718,8 +22718,9 @@
       shorts.sort((a, b) => (b.flow.premium || 0) - (a.flow.premium || 0));
 
       // 3. Flow + Trend Confirmed: any confluence (not just top tier).
-      // Best Long Setups is a subset of this, so its names are left out
-      // here — the two segments sit side by side and TENB showed twice.
+      // Segment 1 (the A-tier long setups, `longs`) is a subset of this, so
+      // its names are left out here — the two segments sit side by side
+      // and TENB showed twice.
       const inLongs = new Set(longs.map(function (x) { return x.tk; }));
       const confirmed = [];
       Object.keys(flowByTk).forEach(function (tk) {
