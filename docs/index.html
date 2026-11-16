@@ -27,7 +27,7 @@
   form-action 'self';
 " />
 <meta name="theme-color" content="#000000" />
-<meta name="description" content="Options flow scanner with next-day open-interest confirmation, breakout &amp; VCP scans, earnings trade ideas, and on-demand stock research reports — every signal self-graded against real closes, wins and losses published." />
+<meta name="description" content="Options flow scanner with next-day open-interest confirmation, breakout &amp; VCP scans, earnings setups, and on-demand stock research reports — every signal self-graded against real closes, wins and losses published." />
 <link rel="icon" href="favicon.ico" sizes="any" />
 <link rel="icon" href="favicon.png" type="image/png" />
 <!-- Warm the worker connection before the first quote/news poll — saves a
@@ -38,7 +38,7 @@
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="TickerDesk" />
 <meta property="og:title" content="TickerDesk — Options Flow, Breakout Scans &amp; Stock Research" />
-<meta property="og:description" content="Options flow with next-day OI confirmation, breakout &amp; VCP scans, earnings trade ideas, stock research reports. Every signal self-graded — wins and losses published." />
+<meta property="og:description" content="Options flow with next-day OI confirmation, breakout &amp; VCP scans, earnings setups, stock research reports. Every signal self-graded — wins and losses published." />
 <link rel="canonical" href="https://tickerdesk.io/" />
 <meta property="og:url" content="https://tickerdesk.io" />
 <meta property="og:image" content="https://tickerdesk.io/og-image.jpg" />
@@ -48,7 +48,7 @@
 <meta property="og:image:alt" content="TickerDesk — daily equity research desk" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="TickerDesk — Options Flow, Breakout Scans &amp; Stock Research" />
-<meta name="twitter:description" content="Options flow with next-day OI confirmation, breakout &amp; VCP scans, earnings trade ideas, stock research reports. Every signal self-graded — wins and losses published." />
+<meta name="twitter:description" content="Options flow with next-day OI confirmation, breakout &amp; VCP scans, earnings setups, stock research reports. Every signal self-graded — wins and losses published." />
 <meta name="twitter:image" content="https://tickerdesk.io/og-image.jpg" />
 <title>TickerDesk — Options Flow Scanner, Breakout Scans &amp; Stock Research</title>
 <!-- Structured data: what the app is + the pricing FAQ (mirrors the
@@ -61,7 +61,7 @@
   "url": "https://tickerdesk.io/",
   "applicationCategory": "FinanceApplication",
   "operatingSystem": "Web",
-  "description": "Daily equity research desk: options flow scanner with next-day open-interest confirmation, breakout and VCP scans, earnings trade ideas, and on-demand stock research reports. Every signal is logged and self-graded against real closes; wins and losses are published.",
+  "description": "Daily equity research desk: options flow scanner with next-day open-interest confirmation, breakout and VCP scans, earnings setups, and on-demand stock research reports. Every signal is logged and self-graded against real closes; wins and losses are published.",
   "offers": [
     {"@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD"},
     {"@type": "Offer", "name": "Pro", "price": "29", "priceCurrency": "USD"},
@@ -767,7 +767,7 @@
     padding:6px 0; }
   .ipr-foot { font-size:9.5px; color:var(--muted); line-height:1.5;
     margin-top:7px; padding-top:6px; border-top:1px solid var(--line); }
-  /* Earnings Trade Ideas (Earnings tab, under the Edge table) */
+  /* Earnings Setups (Earnings tab, under the Edge table) */
   .ei-wrap { margin-top:16px; }
   .ei-h { font-size:14px; font-weight:800; color:var(--text);
     margin:0 0 8px; }
@@ -2736,7 +2736,7 @@
   .zdte-chain tr.z-fl td.zk::after { content:" FLIP"; font-size:8px;
     color:var(--gold); }
   .zdte-chain td.z-itm { background:rgba(255,200,0,0.045); }
-  /* 0DTE trade ideas */
+  /* 0DTE level scenarios */
   #zdte-ideas { margin-top:14px; }
   .zi-card { background:var(--navy2); border:1px solid var(--gold);
     border-radius:10px; padding:13px 15px; }
@@ -6176,8 +6176,8 @@
     <!-- Today's Desk -->
     <section class="panel active" id="panel-desk">
       <!-- Welcome for signed-out visitors. Hidden by default; shown by
-           tdWelcomeSync() only when nobody is signed in and the visitor
-           hasn't dismissed it (localStorage td_welcome_dismissed_v1).
+           tdWelcomeSync() only after the first sign-in check finishes,
+           nobody is signed in, and the visitor hasn't dismissed it.
            The email box reuses the footer's Daily Brief sign-up code
            (tdWireBriefForm, POST /brief/subscribe). -->
       <div class="tdw" id="td-welcome" hidden>
@@ -6257,20 +6257,24 @@
             picks in the same conviction band actually went the right way
             the next day; it appears once 30+ picks are graded.</dd>
           <dt>HEDGE</dt>
-          <dd>The options flow on the name is mixed or looks like protection
-            on an existing position, so it doesn&rsquo;t confirm the trend
-            either way.</dd>
+          <dd>A name with a strong trend grade (A or B up, F or G down)
+            where the options flow is mixed or there is no flow data at
+            all. It is a sorting bucket; it doesn&rsquo;t mean anyone is
+            hedging.</dd>
           <dt>BOUNCE COHORT</dt>
           <dd>Names cut 3 or more grade notches in one session. In our
             record this group has bounced slightly more often than not; the
             pane shows the measured hit rate and sample size.</dd>
           <dt>OI CONFIRMED</dt>
-          <dd>Next-morning open interest rose, so the flagged options
-            position was actually opened and held overnight rather than
-            closed the same day.</dd>
+          <dd>Open interest on the flagged contract rose by the next
+            morning. That is consistent with new positions staying open;
+            it can&rsquo;t prove this specific trade was held.</dd>
           <dt>Pullback watch / Breakout watch / Weak trend</dt>
-          <dd>One-line descriptions of where a chart stands. They are not
-            instructions to buy or sell.</dd>
+          <dd>Tiers by how many of our signals agree (conviction):
+            pullback watch is the top tier, breakout watch the middle.
+            Neither checks how close price is to a pullback or breakout
+            level. Weak trend means a downtrend. Not instructions to buy
+            or sell.</dd>
         </dl>
         <p><a href="/glossary#tickerdesk-labels">Full glossary &rarr;</a></p>
       </details>
@@ -6866,13 +6870,13 @@
       <div id="whisper-body">
         <div class="uoa-empty">Loading...</div>
       </div>
-      <!-- Earnings Edge — implied vs historically-realized move + verdict,
+      <!-- Earnings moves — implied vs historically-realized move + pricing read,
            generated post-close by earnings_edge.py. -->
       <div id="earnings-edge"></div>
       <!-- @eWhispers weekly chart image — moved below the actionable
            summary + scrape grid, but still preserved for reference. -->
       <div id="whisper-tweet"></div>
-      <!-- Earnings Trade Ideas — rule-based cards joining the site's own
+      <!-- Earnings Setups — rule-based cards joining the site's own
            signals (grade / RS / flow / implied-vs-realized / drift) per
            name reporting <=7d. Self-grading: earnings_ideas.py logs each
            idea and grades it on real closes; per-type hit rates gate at
@@ -8055,6 +8059,11 @@
     try { f(WATCHLIST); } catch (e) { console.error(e); }
   }); }
   window.tdUser    = function () { return CURRENT_USER; };
+  // True once the first sign-in check has finished (session restored, timed
+  // out, or no Supabase config). Until then a null user means "unknown",
+  // not "signed out". Set right before the first _emitUser().
+  let TD_AUTH_READY = false;
+  window.tdAuthReady = function () { return TD_AUTH_READY; };
   window.tdWatchlist = function () { return new Set(WATCHLIST); };
 
   // ── Watchlist storage layer ──
@@ -8780,6 +8789,8 @@
   function initSupabase() {
     if (!SUPA_URL || !SUPA_ANON) {
       // Anon mode — site still works, watchlist on localStorage
+      TD_AUTH_READY = true;
+      _emitUser();
       loadWatchlist();
       return;
     }
@@ -8858,6 +8869,7 @@
             location.pathname + location.search);
         }
       } catch (_) {}
+      TD_AUTH_READY = true;
       _emitUser();
       refreshPlanState();
       loadWatchlist();
@@ -12225,24 +12237,24 @@
   tdWireBriefForm("tdw", "welcome");
 
   // ── Welcome box for signed-out visitors (top of the Desk) ──
-  // Shown only when nobody is signed in AND the visitor hasn't dismissed
-  // it. A saved Supabase session key counts as signed in, so a returning
-  // member doesn't see it flash while auth is still loading.
+  // Shown only once the first sign-in check has finished, nobody is signed
+  // in, and the visitor hasn't dismissed it. Until auth resolves the box
+  // stays hidden, so a returning member never sees it flash, even when
+  // localStorage can't be read. Dismissal is held in memory for the life
+  // of the page (so a later re-check can't undo it) and saved to
+  // localStorage on a best-effort basis.
   const TD_WELCOME_KEY = "td_welcome_dismissed_v1";
-  function tdWelcomeSync(el, user, store) {
-    let dismissed = false, session = false;
-    try {
-      dismissed = store.getItem(TD_WELCOME_KEY) === "1";
-      for (let i = 0; i < store.length; i++) {
-        if (/^sb-.*-auth-token/.test(store.key(i) || "")) session = true;
-      }
-    } catch (_) {}
-    const show = !user && !session && !dismissed;
+  const tdWelcomeState = { dismissed: false };
+  function tdWelcomeSync(el, user, store, authReady) {
+    let saved = false;
+    try { saved = !!store && store.getItem(TD_WELCOME_KEY) === "1"; } catch (_) {}
+    const show = !!authReady && !user && !tdWelcomeState.dismissed && !saved;
     if (el) el.hidden = !show;
     return show;
   }
   function tdWelcomeDismiss(el, store) {
-    try { store.setItem(TD_WELCOME_KEY, "1"); } catch (_) {}
+    tdWelcomeState.dismissed = true;
+    try { if (store) store.setItem(TD_WELCOME_KEY, "1"); } catch (_) {}
     if (el) el.hidden = true;
   }
   (function setupWelcome() {
@@ -12251,17 +12263,14 @@
     let store = null;
     try { store = window.localStorage; } catch (_) {}
     const sync = function () {
-      tdWelcomeSync(el, window.tdUser ? window.tdUser() : null,
-                    store || { getItem: function () { return null; },
-                               length: 0, key: function () { return null; } });
+      tdWelcomeSync(el, window.tdUser ? window.tdUser() : null, store,
+                    window.tdAuthReady ? window.tdAuthReady() : false);
     };
     sync();
     if (typeof onUserChange === "function") onUserChange(sync);
-    // An expired session key is cleared once auth settles; re-check then.
-    setTimeout(sync, 4000);
     const x = document.getElementById("tdw-x");
     if (x) x.addEventListener("click", function () {
-      tdWelcomeDismiss(el, store || { setItem: function () {} });
+      tdWelcomeDismiss(el, store);
     });
   })();
 
@@ -15669,7 +15678,7 @@
     swing: "Momentum Lab",
     breakout: "Breakout Scans",
     setup: "Setup Builder",
-    whisper: "Earnings Calendar & Trade Ideas",
+    whisper: "Earnings Calendar & Setups",
     news: "Market News",
     global: "Global Markets",
     charts: "Charts & Index Levels",
@@ -16129,11 +16138,11 @@
       ["PML",  "#b48fff", 2, "Premarket low — early conviction floor before the open"],
       ["ORH",  "#ffd54a", 3, "Opening-range (first 15m) high — break above favors trend-up day"],
       ["ORL",  "#ffd54a", 3, "Opening-range (first 15m) low — break below favors trend-down day"],
-      ["VPOC", "#ff9d3c", 0, "Highest-volume price today — the market's fairest price; magnets reverts"],
+      ["VPOC", "#ff9d3c", 0, "Highest-volume price today — the market's fairest price; often acts as a magnet"],
       ["VAH",  "#ff9d3c", 2, "Value-area high — top of where 70% of today's volume traded"],
       ["VAL",  "#ff9d3c", 2, "Value-area low — bottom of the 70% volume zone"],
-      ["CALL WALL", "#46dc8b", 0, "Biggest +gamma strike — dealers sell rallies into it; acts as resistance (delayed OI)"],
-      ["PUT WALL",  "#f26f6f", 0, "Biggest −gamma strike — dealers buy dips into it; acts as support (delayed OI)"],
+      ["CALL WALL", "#46dc8b", 0, "Biggest +gamma strike — dealer hedging tends to lean against moves up into it; a resistance reference (delayed OI)"],
+      ["PUT WALL",  "#f26f6f", 0, "Biggest −gamma strike — dealer hedging tends to lean against moves down into it; a support reference (delayed OI)"],
       ["FLIP",      "#ffc61a", 3, "Gamma flip — above: dealers dampen moves; below: they amplify them"],
       ["EM+", "#93a0bd", 3, "Expected-move top — spot + ATM straddle; options-implied session ceiling"],
       ["EM−", "#93a0bd", 3, "Expected-move bottom — spot − ATM straddle; options-implied session floor"],
@@ -16321,16 +16330,17 @@
     }
 
     // ── Level glossary — every acronym on this page, spelled out ──
-    // [full name, what it is, how it's traded]. Surfaced by the hover
+    // [full name, what it is, how price has tended to behave around it].
+    // Descriptions of structure only, never instructions. Surfaced by the hover
     // card below on the tier table + NOW panel, so no label on this
     // page is ever an unexplained acronym.
     const ZDEF = {
       "PDH": ["Prior Day High",
         "Yesterday's regular-session (9:30–16:00 ET) high.",
-        "Classic breakout trigger: a clean break AND hold opens continuation; rejection fades back into yesterday's range."],
+        "A common breakout reference: a clean break and hold above it has often led to continuation; a rejection often fades back into yesterday's range."],
       "PDL": ["Prior Day Low",
         "Yesterday's regular-session low.",
-        "Losing it turns the session defensive — the reference short trigger."],
+        "A common breakdown reference: trading below it marks a weaker session."],
       "PC": ["Prior Close",
         "Yesterday's 4:00 PM closing print.",
         "The gap reference: holding above a gap-up is bullish acceptance; slipping back through it invites a gap fill."],
@@ -16348,10 +16358,10 @@
         "Break below favors a trend-down day."],
       "VWAP": ["Volume-Weighted Average Price",
         "Session average price weighted by volume — the institutional fair-value line.",
-        "Above = buyers in control (buy dips to it); below = sellers (sell rallies to it)."],
+        "Price above it means buyers have controlled the session on average; below it, sellers."],
       "EM+": ["Expected Move — upper",
         "Spot + the at-the-money straddle price: the options-implied session ceiling.",
-        "Reaching it early means the day already paid its implied move — chasing beyond it is negative-expectancy more often than not."],
+        "Reaching it early means the day has already covered its options-implied move."],
       "EM−": ["Expected Move — lower",
         "Spot − the at-the-money straddle price: the options-implied session floor.",
         "Same logic inverted — the tape has already paid its implied move down here."],
@@ -16375,7 +16385,7 @@
         "Edge of value: acceptance above opens higher value, rejection sends price back to VPOC."],
       "VAL": ["Value Area Low",
         "Bottom of the 70%-volume range.",
-        "Edge of value on the downside — the dip-buy shelf while value holds."],
+        "Edge of value on the downside — a support reference while value holds."],
       "WK H": ["Prior Week High", "Highest print of the last completed week.",
         "Higher-timeframe supply; swing traders defend it."],
       "WK L": ["Prior Week Low", "Lowest print of the last completed week.",
@@ -16390,13 +16400,13 @@
         "Institutional-timeframe reference."],
       "CALL WALL": ["Call Wall — largest positive-gamma strike",
         "The strike with the biggest dealer call gamma (prior-session settled OI).",
-        "Dealers sell rallies into it to stay hedged — it acts as a ceiling until it breaks."],
+        "Dealer hedging tends to lean against moves up into it, so it often acts as a ceiling until it breaks."],
       "PUT WALL": ["Put Wall — largest negative-gamma strike",
         "The strike with the biggest dealer put gamma (settled OI).",
-        "Dealers buy dips into it — it acts as a floor while it holds."],
+        "Dealer hedging tends to lean against moves down into it, so it often acts as a floor while it holds."],
       "FLIP": ["Gamma Flip (zero gamma)",
         "The price where net dealer gamma crosses from positive to negative.",
-        "Above: dealer hedging DAMPENS moves (fade the extremes). Below: hedging AMPLIFIES them (play momentum)."],
+        "Above: dealer hedging tends to DAMPEN moves. Below: hedging tends to AMPLIFY them."],
       "MAX PAIN": ["Max Pain",
         "The settle price where option holders lose the most in aggregate (nearest-expiry OI).",
         "A pin magnet into expiration — strongest on expiry afternoons, weak otherwise."],
@@ -16406,7 +16416,7 @@
       "EMA9": ["9-period EMA", "Fast exponential moving average on the chart's timeframe.",
         "The momentum rail on a trending day."],
       "EMA20": ["20-period EMA", "Exponential moving average on the chart's timeframe.",
-        "The intraday trend rail — pullbacks to it are the standard trend entry."],
+        "The intraday trend rail — on trend days, pullbacks have often paused near it."],
       "EMA200": ["200-period EMA", "Slow exponential average on the chart's timeframe.",
         "The regime line — sharp fights happen here."],
       "SMA50d": ["50-day SMA", "Daily simple moving average over 50 sessions.",
@@ -16418,7 +16428,7 @@
         "High T = the level gets tested nearly every day (plan for it); low T = a rare visit."],
       "H": ["First-touch held",
         "Of the sessions that touched it, the share where the FIRST touch held (no clean break).",
-        "H near 50% is a coin flip — trade the reaction, not the level. Well above 50% = a genuine fade level; well below = a break level."]
+        "H near 50% is a coin flip: the level alone says little. Well above 50% = it has usually held; well below = it has usually given way."]
     };
 
     // Instant styled hover card — native title= waits ~1s, can't be
@@ -16678,7 +16688,7 @@
                 (100 - s.held) + '% of the time — this level tends to give way.">breaks ' +
                 (100 - s.held) + '%</span>'
               : '<span class="zp-vd zp-flip" title="First touch held ' + s.held +
-                '% — statistically a coin flip. Trade the reaction, not the level.">' +
+                '% — statistically a coin flip: the level alone says little.">' +
                 'coin flip</span>';
         }
         return '<div class="zpl-r" data-zdef="' + r.n + '">' +
@@ -16722,9 +16732,9 @@
           '</b> ' + fmt2(near.v) + ' (' + fmtD(near) + ')' +
           (ns && ns.held != null
             ? ' — first touch holds <b>' + ns.held + '%</b> of the time' +
-              (ns.held >= 58 ? ': a genuine fade level.'
-               : ns.held <= 42 ? ': it usually gives way — favor the break.'
-               : ': a coin flip, so trade the reaction, not the level.')
+              (ns.held >= 58 ? ': it has usually held.'
+               : ns.held <= 42 ? ': it has usually given way.'
+               : ': a coin flip, so the level alone says little.')
             : '.') +
           (cluster ? ' <b>' + cluster.map(function (x) {
               return PLAY_NAME[x.n] || x.n; })
@@ -16904,33 +16914,33 @@
       const vwap = val.VWAP;
       if (vwap != null) {
         const t1 = near(Math.max(last, vwap), RES, true);
-        if (t1) sc.push({ dir: "bull", cond: "Hold VWAP " + fmt2(vwap),
-          txt: "buy dips against it → target " + t1.n + " " + fmt2(t1.v),
+        if (t1) sc.push({ dir: "bull", cond: "Holds above VWAP " + fmt2(vwap),
+          txt: "next reference above: " + t1.n + " " + fmt2(t1.v),
           st: st.VWAP ? "VWAP touched in " + st.VWAP.touch +
             "% of sessions; first touch held " + st.VWAP.held + "%" : null });
         const t2 = near(Math.min(last, vwap), SUP, false);
-        if (t2) sc.push({ dir: "bear", cond: "Lose VWAP " + fmt2(vwap),
-          txt: "sell rallies → target " + t2.n + " " + fmt2(t2.v) });
+        if (t2) sc.push({ dir: "bear", cond: "Stays below VWAP " + fmt2(vwap),
+          txt: "next reference below: " + t2.n + " " + fmt2(t2.v) });
       }
       if (val.PDH != null) {
         const t = near(val.PDH, ["CALL WALL", "EM+", "WK H", "MO H"], true);
-        sc.push({ dir: "bull", cond: "Break + hold PDH " + fmt2(val.PDH),
-          txt: "continuation → " + (t ? t.n + " " + fmt2(t.v)
-            : "trail the move"),
+        sc.push({ dir: "bull", cond: "Breaks and holds above PDH " + fmt2(val.PDH),
+          txt: "next reference above: " + (t ? t.n + " " + fmt2(t.v)
+            : "none mapped"),
           st: st.PDH ? "PDH first touch broke " + (100 - st.PDH.held) +
             "%; avg extension after break " + st.PDH.brk_ext + "%" : null });
       }
       if (val.PDL != null) {
         const t = near(val.PDL, ["PUT WALL", "EM−", "WK L", "MO L"], false);
-        sc.push({ dir: "bear", cond: "Break + hold PDL " + fmt2(val.PDL),
-          txt: "continuation → " + (t ? t.n + " " + fmt2(t.v)
-            : "trail the move"),
+        sc.push({ dir: "bear", cond: "Breaks and holds below PDL " + fmt2(val.PDL),
+          txt: "next reference below: " + (t ? t.n + " " + fmt2(t.v)
+            : "none mapped"),
           st: st.PDL ? "PDL first touch broke " + (100 - st.PDL.held) +
             "%; avg extension after break " + st.PDL.brk_ext + "%" : null });
       }
       if (!sc.length) { host.innerHTML = ""; return; }
       host.innerHTML = '<div class="zp-card"><div class="zp-h">🗺 ' +
-        ctx.sym + ' scenario playbook — if / then paths</div>' +
+        ctx.sym + ' level map — if / then scenarios</div>' +
         sc.map(function (s) {
           return '<div class="zp-r ' + s.dir + '"><span class="zp-if">' +
             s.cond + '</span><span>' + s.txt + '</span>' +
@@ -16938,30 +16948,33 @@
             '</div>';
         }).join("") +
         '<div class="zp-foot">Deterministic paths from the live level map ' +
-        '(15-min delayed) — conditions, not predictions. Historical ' +
+        '(15-min delayed) — hypothetical scenarios, not predictions or ' +
+        'instructions. Historical ' +
         'stats (📐) are measured on ~250 real sessions by the ' +
         'nightly level-stats engine; where absent, the sample hasn\'t been ' +
         'built yet. Educational, not advice.</div></div>';
     }
 
-    // ── 0DTE trade-idea generator (deterministic, regime-aware) ─────────
+    // ── 0DTE level scenarios (deterministic, regime-aware) ──────────────
     // Mirrors zdte_ideas.py exactly so the live card and the nightly
-    // grader agree on setup TYPES. Each idea shows trigger / target /
-    // invalidation + its self-graded track record (accruing until n>=30).
+    // grader agree on setup TYPES. Each scenario shows the level, the next
+    // reference and the level that voids it, plus its self-graded track
+    // record (accruing until n>=30). Shown as structure ("above / below
+    // level"), never as long/short trade instructions.
     let _zStats = null;
     fetch("./reports/zdte_ideas_stats.json", { cache: "no-cache" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) { _zStats = d; }).catch(function () {});
 
     const IDEA_LABEL = {
-      posgamma_fade_short: "Fade the ceiling → VWAP",
-      posgamma_fade_long:  "Fade the floor → VWAP",
-      neggamma_break_short:"Support break → downside",
-      neggamma_break_long: "Resistance break → upside",
+      posgamma_fade_short: "Rejected at the ceiling, back toward VWAP",
+      posgamma_fade_long:  "Holds the floor, back toward VWAP",
+      neggamma_break_short:"Support break, next level below",
+      neggamma_break_long: "Resistance break, next level above",
       or_break_long:  "Opening-range break up",
       or_break_short: "Opening-range break down",
-      vwap_reclaim_long: "VWAP reclaim → long",
-      vwap_loss_short:   "VWAP loss → short",
+      vwap_reclaim_long: "VWAP reclaim, next level above",
+      vwap_loss_short:   "VWAP loss, next level below",
     };
 
     function renderIdeas(vals, last, gex, spot, L) {
@@ -17019,14 +17032,12 @@
         mk("vwap_loss_short", "short", vwap, dnOf(vwap, vals.VAL, vals.ORL, pw));
 
       const regTxt = regime === "positive"
-        ? "Positive-gamma — dealers dampen moves; the tape favors <b>fading the extremes back to VWAP</b>."
-        : "Negative-gamma — dealers amplify moves; the tape favors <b>momentum on level breaks</b>.";
+        ? "Positive gamma: dealer hedging tends to <b>dampen moves</b>, so price has often drifted back toward VWAP."
+        : "Negative gamma: dealer hedging tends to <b>amplify moves</b>, so level breaks have often run further.";
       const st = (_zStats && _zStats.by_type) || {};
       const tot = (_zStats && _zStats.total_graded) || 0;
       const $f = function (v) { return "$" + v.toFixed(2); };
       const rows = ideas.map(function (it) {
-        const rr = Math.abs(it.target - it.trigger) /
-                   Math.max(0.01, Math.abs(it.invalid - it.trigger));
         const s = st[it.type];
         let rec;
         if (s && s.status === "active")
@@ -17035,25 +17046,26 @@
           ((s && s.n) || 0) + '/' + 30 + '</span>';
         return '<div class="zi-row zi-' + it.dir + '">' +
           '<div class="zi-top"><span class="zi-dir">' +
-          (it.dir === "long" ? "▲ LONG" : "▼ SHORT") + '</span>' +
+          (it.dir === "long" ? "▲ above level" : "▼ below level") + '</span>' +
           '<span class="zi-name">' + (IDEA_LABEL[it.type] || it.type) + '</span>' +
           rec + '</div>' +
-          '<div class="zi-lv"><span>Trigger <b>' + $f(it.trigger) + '</b></span>' +
-          '<span>Target <b class="pos">' + $f(it.target) + '</b></span>' +
-          '<span>Invalid <b class="neg">' + $f(it.invalid) + '</b></span>' +
-          '<span>R:R <b>' + rr.toFixed(1) + '</b></span></div></div>';
+          '<div class="zi-lv"><span>Level <b>' + $f(it.trigger) + '</b></span>' +
+          '<span>Next reference <b>' + $f(it.target) + '</b></span>' +
+          '<span>Scenario void ' + (it.dir === "long" ? "below" : "above") +
+          ' <b>' + $f(it.invalid) + '</b></span></div></div>';
       }).join("");
 
       host.innerHTML = '<div class="zi-card">' +
-        '<div class="zi-h">🎯 ' + sym + ' 0DTE trade ideas — ' +
-        (regime === "positive" ? "fade regime" : "momentum regime") + '</div>' +
+        '<div class="zi-h">🗺 ' + sym + ' 0DTE level scenarios — ' +
+        (regime === "positive" ? "positive-gamma regime" : "negative-gamma regime") + '</div>' +
         '<div class="zi-regime">' + regTxt + '</div>' +
-        (rows || '<div class="zi-empty">No high-confluence setup right now — ' +
+        (rows || '<div class="zi-empty">No high-confluence level right now — ' +
           'price sits clear of the key levels.</div>') +
-        '<div class="zi-foot">Deterministic setups from the plotted levels + ' +
-        'gamma regime — <b>not advice</b>, 15-min-delayed. The track record ' +
-        'on each is <b>self-graded nightly</b> (trigger fired → target before ' +
-        'invalidation, session frame) and earns itself over ~6 weeks: ' + tot +
+        '<div class="zi-foot">Hypothetical scenarios from the plotted levels + ' +
+        'gamma regime — <b>not advice or trade instructions</b>, 15-min-delayed. ' +
+        'The track record on each is <b>self-graded nightly</b> (price crossed ' +
+        'the level, then reached the next reference before the void level, ' +
+        'session frame) and builds over ~6 weeks: ' + tot +
         ' ideas graded so far. Same rules as the nightly grader.</div></div>';
     }
 
@@ -19306,7 +19318,10 @@
     const tweet = document.getElementById("whisper-tweet");
     if (!body) return;
 
-    // ── Earnings Edge — trade / watch / avoid each report ─────────────
+    // ── Earnings moves — implied vs typical per report ──────────────────
+    // earnings_edge.json carries a Trade / Watch / Avoid verdict (the
+    // Daily Brief reads it too). The site shows it as a neutral pricing
+    // read instead, and drops the advice clauses from the hover text.
     // implied (front-expiry option read, only when a contract truly
     // brackets the report) vs the median realized reaction over the last
     // ≤8 reports (session-aware BMO/AMC pairing) + post-earnings drift.
@@ -19321,6 +19336,12 @@
         const esc = window.escapeHtml;
         const vCls = { "Trade": "ee-trade", "Watch": "ee-watch",
                        "Avoid": "ee-avoid" };
+        const vLab = { "Trade": "Cheap or flow", "Watch": "Neutral",
+                       "Avoid": "Rich" };
+        const whyTxt = function (w) {
+          return String(w || "").replace(
+            /\s*—\s*long premium (overpays; spreads only|has the edge)/g, "");
+        };
         const sv = function (r) {
           switch (_eeSort.k) {
             case "t":       return r.t || "";
@@ -19381,7 +19402,7 @@
           const ratio = r.edge_ratio != null ? r.edge_ratio + "×" : "—";
           const drift = r.drift_5d != null
             ? (r.drift_5d > 0 ? "+" : "") + r.drift_5d + "%" : "—";
-          return '<div class="ee-row" title="' + esc(r.why || "") + '">' +
+          return '<div class="ee-row" title="' + esc(whyTxt(r.why)) + '">' +
             '<span class="ee-tk" data-t="' + esc(r.t) + '">' + esc(r.t) + '</span>' +
             '<span class="ee-when">' + fmtD(r.date) + '</span>' +
             '<span class="ee-when">' + (r.days === 0 ? "today" :
@@ -19391,7 +19412,7 @@
             '<span class="ee-num ' + rCls + '">' + ratio + '</span>' +
             '<span class="ee-num">' + drift + '</span>' +
             '<span><span class="ee-verdict ' + (vCls[r.verdict] || "") + '">' +
-              esc(r.verdict) + '</span></span></div>';
+              esc(vLab[r.verdict] || r.verdict) + '</span></span></div>';
         }).join("");
         const th = function (lab, key, tip, num) {
           const on = _eeSort.k === key;
@@ -19401,8 +19422,8 @@
             (on ? (_eeSort.d < 0 ? " ▼" : " ▲") : "") + '</span>';
         };
         el.innerHTML =
-          '<div class="ee-card"><div class="ee-head">Earnings Edge — ' +
-          'is the move worth paying for?' +
+          '<div class="ee-card"><div class="ee-head">Earnings moves — ' +
+          'options-implied vs typical reaction' +
           '<span class="ee-sub">' + (LFL
             ? 'typical = AVERAGE |reaction| last ≤8 reports (BMO/AMC-aware; ' +
               'median on hover) · implied = options-priced move for the ' +
@@ -19421,10 +19442,10 @@
             th('Implied', IMP_K, LFL
               ? 'Options-priced move for the report session alone: the straddle expiring just after the report, less the normal trading days to expiry'
               : 'Options-priced move from the contract expiring just after the report', 1) +
-            th('Ratio', 'edge_ratio', 'Implied ÷ typical: ≥1.35× rich (long premium overpays) · ≤0.85× cheap' +
+            th('Ratio', 'edge_ratio', 'Implied ÷ typical: ≥1.35× rich (options priced above history) · ≤0.85× cheap' +
               (LFL ? ' · 1.00 = fairly priced' : ''), 1) +
             th('Drift', 'drift_5d', 'Avg move from reaction close to +5 sessions — continuation vs fade', 1) +
-            th('Verdict', 'verdict') + '</div>' +
+            th('Pricing', 'verdict', 'Rich: options price well above the typical move. Cheap or flow: priced at or below it, or fairly priced with directional flow. Neutral: no clear read. A description, not a trade signal.') + '</div>' +
           rows + '</div></div>';
       }
       el.addEventListener("click", function (e) {
@@ -19508,7 +19529,7 @@
       return { past: false, label: gap === 1 ? "tomorrow" : "in " + gap + "d" };
     }
 
-    // ── Earnings Trade Ideas — the site's signals, synthesized per print ──
+    // ── Earnings Setups — the site's signals, synthesized per print ──
     // Rendered from earnings_ideas.json (nightly, after earnings_edge).
     // Every card cites its evidence; every idea type carries its own
     // self-graded track record (gated n>=30, "accruing" until real).
@@ -19519,13 +19540,13 @@
         momentum_into_print: ["MOMENTUM INTO PRINT", "ei-bull",
           "Leader with bullish flow and positive historical post-report drift"],
         post_report_drift: ["POST-REPORT DRIFT", "ei-drift",
-          "Trades the historical drift AFTER the print — no binary overnight risk"],
+          "Measures the historical drift AFTER the print, once the report is out"],
         vol_rich: ["VOL RICH", "ei-vol",
           "Options price more than this name historically delivers"],
         vol_cheap: ["VOL CHEAP", "ei-vol",
           "Options price less than this name historically moves"],
         binary_caution: ["BINARY CAUTION", "ei-warn",
-          "Crowded event risk — size down or trade the reaction"],
+          "Big typical mover already extended into a crowded event"],
       };
       function esc(s) {
         return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? "" : s);
@@ -19587,7 +19608,7 @@
             '</div>';
         }).join("");
         host.innerHTML = '<div class="ei-wrap">' +
-          '<h3 class="ei-h">💡 Earnings trade ideas <span class="ei-sub">· ' +
+          '<h3 class="ei-h">💡 Earnings setups <span class="ei-sub">· ' +
           'the site\'s own signals, synthesized per print · self-graded</span></h3>' +
           rows +
           '<div class="ei-foot">Rule-based cards from signals already on ' +
@@ -23847,11 +23868,11 @@
         case "earnings":
           if (v == null || v < 0) return "";
           if (v === 0) return "earnings TODAY — binary event risk";
-          if (v <= 5)  return "earnings in " + v + "d — event risk inside the trade";
-          if (v <= 10) return "earnings in " + v + "d — plan the exit";
+          if (v <= 5)  return "earnings in " + v + "d — event risk within 5 days";
+          if (v <= 10) return "earnings in " + v + "d — event risk ahead";
           return "";
         case "held":
-          return v ? "whale held overnight — OI confirmed the position" : "";
+          return v ? "next-day OI rose — consistent with positions staying open" : "";
         case "theme":
           return v ? v + " — active theme" : "";
         case "mom":
@@ -24443,19 +24464,24 @@
         "desk-card--wide", stamp);
     }
 
-    // Wording for the risk-off note on the standout-chart cards. Says
-    // "lose more often than not" only when the outcome record says so.
+    // Wording for the risk-off note on the standout-chart cards. It states
+    // only what the outcome record measures: m.loses means the momentum
+    // screens' OVERALL record (all market conditions, not filtered to
+    // risk-off days) has a negative average return (EV < 0 or profit
+    // factor < 1, which is the same thing). It is not a win rate, so the
+    // note never says "lose more often than not" or "in this kind of market".
     function opcRiskOffNote(st) {
       const m = deskMomentumRead(st);
       return {
-        banner: "Risk-off tape: " + (m.loses
-          ? "in our outcome record, long setups like these have lost more " +
-            "often than not in this kind of market"
-          : "long setups are less reliable while most stocks are falling") +
-          (m.aplus ? " (" + m.aplus + ")" : "") +
-          ". Treat these as a research watchlist, not entries.",
-        tag: m.loses ? "Risk-off: historically these lose more often than not"
-                     : "Risk-off: less reliable in this tape",
+        banner: "Risk-off tape: most stocks are falling today." + (m.loses
+          ? " In our overall outcome record (all market conditions), the " +
+            "momentum screens behind these charts show negative average returns"
+          : "") +
+          (m.aplus ? (m.loses ? "; " : " For reference: ") + m.aplus : "") +
+          ((m.loses || m.aplus) ? "." : "") +
+          " Treat these as a research watchlist, not entries.",
+        tag: m.loses ? "Risk-off; overall record: negative average returns"
+                     : "Risk-off: most stocks are falling today",
       };
     }
 
@@ -25244,7 +25270,7 @@
           'research, not investment advice.">outcome-DB gated · not advice' +
           "</span></h3>" +
           (heldRows
-            ? '<div class="ro-sub">Whale positions held overnight ' +
+            ? '<div class="ro-sub">Large flow with a next-day OI increase ' +
               "(OI-confirmed" +
               ((carry || {}).session_date
                 ? " · flagged " + esc(carry.session_date) : "") +
@@ -27410,8 +27436,7 @@
           '<div class="es">Direction-adjusted +5d win rate vs SPY the band ' +
           'earned before the last 45 days (left) vs within them (right). ' +
           'Big negative drift = the current ' +
-          'tape pays these signals less than history did — size down until ' +
-          'it normalizes.</div></div>');
+          'tape has paid these signals less than history did.</div></div>');
       }
       // ── Direction Split — where the book's EV actually lives. The
       // 2026-07 alpha decomposition found the ledger separates almost
@@ -30675,7 +30700,7 @@
             });
           } catch (_) {}
           html += '<div class="dd-row"><span class="dd-k">Earnings window' +
-            '</span><span>binary event risk inside the trade' + cf +
+            '</span><span>report lands before expiry: binary event risk' + cf +
             '</span></div>';
         }
         return '<div class="dd-wrap">' + html + '</div>';
@@ -30722,7 +30747,7 @@
         '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+r.expiry+
         ' &middot; '+(r.dte!=null?r.dte+"d":"")+'</div></div>'+
         '<div class="dbtns"><button class="dbtn" id="dshare" title="Copy shareable link">Share</button>'+
-        '<button class="dbtn" id="dcopy" title="Copy trade idea">Copy</button>'+
+        '<button class="dbtn" id="dcopy" title="Copy signal summary">Copy</button>'+
         '<button class="dbtn" id="dclose">&times;</button></div></div>'+
         drow("Tier / Score", '<span class="uoa-tier '+tierCls(r.tier)+'">'+r.tier+
           '</span> &nbsp; '+r.trade_score)+

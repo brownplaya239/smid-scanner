@@ -80,7 +80,7 @@
   <ul>
     <li>Every published alert is logged the moment it appears: no retroactive additions, no deletions.</li>
     <li>Returns are graded against real closing prices at +1/+3/+5/+10/+20 days, benchmarked against SPY.</li>
-    <li>Next-day open-interest checks tell us whether flagged positions were actually opened and held.</li>
+    <li>Next-day open-interest checks tell us whether open interest rose, which is consistent with new positions staying open (it can't prove a specific trade was held).</li>
     <li>Cohort statistics wait for a minimum sample and ship with 95% ranges. Below the minimum they say "accruing", never a made-up number.</li>
     <li>A nightly calibration check compares trained expectations with the live tape and publishes the drift, currently &minus;6 to &minus;4 points depending on score band.</li>
   </ul>
