@@ -54,6 +54,16 @@ class Changed(unittest.TestCase):
                 )
         self.assertEqual(got, ["data/edited.json", "data/new.jsonl"])
 
+    def test_half_written_temp_files_never_upload(self):
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "data"))
+            for fn in ("pnl.json", "pnl.json.tmp", "x.json.r2tmp"):
+                with open(os.path.join(d, "data", fn), "w") as f:
+                    f.write("x")
+            with mock.patch.object(r2_sync, "_BASE", d):
+                got = [os.path.basename(p) for p in r2_sync.data_paths()]
+        self.assertEqual(got, ["pnl.json"])
+
 
 class DeletesAndGitOnly(unittest.TestCase):
     def test_pruned_file_is_deleted_key(self):

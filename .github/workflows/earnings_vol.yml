@@ -49,8 +49,13 @@ jobs:
         run: uv run scripts/r2_sync.py pull
 
       - name: Reconstruct option P&L for graded vol events
+        # The script stops starting new work after its 25-minute budget
+        # (EARNINGS_VOL_TIME_BUDGET_MIN) and saves progress as it goes.
+        # The step timeout is a backstop; Publish still runs either way.
+        timeout-minutes: 32
         env:
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          EARNINGS_VOL_TIME_BUDGET_MIN: "25"
         run: uv run python earnings_vol_backtest.py
 
       - name: Execution-quality study (NBBO package fills)
@@ -63,6 +68,9 @@ jobs:
         run: uv run python earnings_vol_exec.py
 
       - name: Publish
+        # also after a failed or timed-out backtest step: its saved
+        # progress (written atomically) is kept, not thrown away
+        if: ${{ !cancelled() }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: bash scripts/publish_reports.sh

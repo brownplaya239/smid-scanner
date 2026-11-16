@@ -24,8 +24,17 @@ v2 (reviewer-corrected):
     coverage  Polygon answered but has no bars / chain / expiry-day
               settlement: backoff, then cached as a permanent skip
               after MAX_COVERAGE_ATTEMPTS
-    pending   the option has not expired yet: retried after expiry
+    pending   the option has not expired yet: retried after expiry.
+              Once the expiry date is before today (ET) a missing
+              settlement is a coverage gap, so the attempt limit applies.
+  Skips cached before attempts were dated are moved into the retry
+  file as due retries, so they share the retry budget.
   New events go first; at most RETRY_BUDGET retries run per night.
+
+  TIME BUDGET — no new request starts after TIME_BUDGET_MIN minutes
+  (env EARNINGS_VOL_TIME_BUDGET_MIN), and results + retry state are
+  saved every SAVE_EVERY events and on exit, so a slow night keeps its
+  progress and the rest waits for the next run.
 
   EXIT MODELS — earnings strategies are exit-timing sensitive, so every
   structure is marked at three predeclared exits:
@@ -61,9 +70,11 @@ import json
 import math
 import os
 import random
+import time
 from datetime import UTC, datetime, timedelta
 from datetime import date as _date
 from statistics import mean, median
+from zoneinfo import ZoneInfo
 
 import polygon_data as pg
 from trade_desk_validation import _load
@@ -98,6 +109,13 @@ MAX_FAIL_ATTEMPTS = 6
 RETRY_BASE_DAYS = 1  # backoff: 1, 2, 4, 8, 16, 16 ... days
 RETRY_MAX_DAYS = 16
 RETRY_BUDGET = 40  # retries per run, after every new event
+# Wall-clock budget for reconstructions (the job limit is 45 minutes and
+# the execution study + publish still run after this step). A single
+# Polygon request can take ~95 s when it keeps timing out, so the real
+# stop can be that much later.
+TIME_BUDGET_MIN = float(os.environ.get("EARNINGS_VOL_TIME_BUDGET_MIN") or 25)
+SAVE_EVERY = 5  # events between incremental saves
+_ET = ZoneInfo("America/New_York")
 MIN_N_QUALIFY = 60
 PF_QUALIFY = 1.3
 MAX_DD_R = -5.0
@@ -139,6 +157,21 @@ def _events():
 
 
 _BARS_CACHE = {}
+_DEADLINE = None  # _clock() value after which no request starts
+_clock = time.monotonic  # swapped for a fake clock in tests
+
+
+class OutOfTime(Exception):
+    """The run's time budget is spent; the event is left untouched."""
+
+
+def _check_time():
+    if _DEADLINE is not None and _clock() >= _DEADLINE:
+        raise OutOfTime()
+
+
+def _today_et():
+    return datetime.now(_ET).date()
 
 
 def _bars(ticker):
@@ -147,6 +180,7 @@ def _bars(ticker):
     memoized per run; failures are not, so a later event retries."""
     if ticker in _BARS_CACHE:
         return _BARS_CACHE[ticker], True
+    _check_time()
     try:
         rows = pg.daily_bars_checked(ticker, days=140)
     except Exception:
@@ -179,6 +213,7 @@ def _chain_asof(ticker, entry_date, exit_date):
     """(contracts, ok). ok is False if any page failed or was truncated."""
     rows, ok = [], True
     for expired in ("true", "false"):
+        _check_time()
         try:
             got, complete = pg.paginate_checked(
                 "/v3/reference/options/contracts",
@@ -260,10 +295,12 @@ def _structure_pnl(legs, exit_model, expiry_spot=None):
     return entry_cash + exit_cash, entry_cash
 
 
-def reconstruct(e):
+def reconstruct(e, today=None):
     """A reconstruction, or {"skip": reason}. Every request's success is
     tracked: a skip is a permanent/coverage one only when every request
-    it depended on succeeded; otherwise it is an "error:" skip."""
+    it depended on succeeded; otherwise it is an "error:" skip. Raises
+    OutOfTime when the run's time budget runs out mid-event."""
+    today = today or _today_et()
     und, ok = _bars(e["ticker"])
     if not ok:
         return {"skip": "error:underlying_bars_request"}
@@ -301,7 +338,9 @@ def reconstruct(e):
         # expiry_hold needs a real settlement price, whether or not later
         # bars exist. Not expired yet -> wait; expired but no expiry-day
         # bar -> a coverage gap (retried, then a permanent skip).
-        if exp >= max(und):
+        # "Expired" is judged against today, not the latest bar: a stale
+        # or delisted underlying has no later bars and would wait forever.
+        if exp >= today.isoformat() and exp >= max(und):
             return {"skip": PENDING_SKIP, "expiry": exp}
         return {"skip": "no_expiry_settlement", "expiry": exp}
     failed = []
@@ -699,7 +738,18 @@ def plan(cache, retry, events, today, budget=RETRY_BUDGET):
     cannot crowd out new events or eat the job's time limit."""
     for k in [k for k, r in cache.items() if r.get("bt_version") == BT_VERSION and r.get("skip")]:
         if not is_permanent_skip(cache[k]):
-            del cache[k]
+            old = cache.pop(k)
+            # becomes a due retry, not a new event, so a pile of legacy
+            # skips shares the retry budget instead of all running at once
+            retry.setdefault(
+                k,
+                {
+                    "attempts": 0,
+                    "kind": "legacy",
+                    "last_skip": str(old.get("skip"))[:120],
+                    "next_retry": today.isoformat(),
+                },
+            )
     for k in [k for k in retry if k in cache]:  # resolved elsewhere
         del retry[k]
     new, due = [], []
@@ -754,6 +804,18 @@ def record(cache, retry, e, r, today):
     meta["last_skip"] = str(r["skip"])[:120]
     meta["kind"] = cls
     if cls == "pending":
+        try:
+            expired = _date.fromisoformat(str(r.get("expiry"))[:10]) < today
+        except ValueError:
+            expired = False
+        if expired:
+            # past expiry and still no settlement: a coverage gap that
+            # counts toward the attempt limit, never an endless wait
+            cls = "coverage"
+            r = dict(r, skip="no_expiry_settlement")
+            meta["last_skip"] = r["skip"]
+            meta["kind"] = cls
+    if cls == "pending":
         # not a failure: try again the day after the option expires
         try:
             exp = _date.fromisoformat(str(r.get("expiry"))[:10])
@@ -782,8 +844,23 @@ def record(cache, retry, e, r, today):
     return cls
 
 
-def run(limit=None, report_only=False, today=None):
-    today = today or datetime.now(UTC).date()
+def _write_json(path, obj, **kw):
+    """Write via a temp file + rename, so a killed run never leaves a
+    half-written file behind."""
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, **kw)
+    os.replace(tmp, path)
+
+
+def _save(cache, retry):
+    _write_json(CACHE_PATH, cache, indent=0)
+    _write_json(RETRY_PATH, retry, indent=0, sort_keys=True)
+
+
+def run(limit=None, report_only=False, today=None, time_budget_min=None):
+    global _DEADLINE
+    today = today or _today_et()
     cache = _load(CACHE_PATH, {}) or {}
     retry = _load(RETRY_PATH, {}) or {}
     events = _events()
@@ -818,19 +895,33 @@ def run(limit=None, report_only=False, today=None):
         f"({BT_VERSION})"
     )
     retrying = {}
-    for e in todo:
-        try:
-            r = reconstruct(e)
-        except Exception as ex:
-            r = {"skip": "error:" + str(ex)[:80]}
-        if record(cache, retry, e, r, today) in ("failed", "coverage", "pending"):
-            reason = str(r["skip"]).split(":")[0]
-            retrying[reason] = retrying.get(reason, 0) + 1
-    if not report_only:
-        with open(CACHE_PATH, "w", encoding="utf-8") as f:
-            json.dump(cache, f, indent=0)
-        with open(RETRY_PATH, "w", encoding="utf-8") as f:
-            json.dump(retry, f, indent=0, sort_keys=True)
+    budget_min = TIME_BUDGET_MIN if time_budget_min is None else time_budget_min
+    _DEADLINE = _clock() + budget_min * 60
+    done = 0
+    try:
+        for e in todo:
+            try:
+                r = reconstruct(e, today=today)
+            except OutOfTime:
+                break  # left untouched: tried again next run
+            except Exception as ex:
+                r = {"skip": "error:" + str(ex)[:80]}
+            cls = record(cache, retry, e, r, today)
+            done += 1
+            if cls in ("failed", "coverage", "pending"):
+                reason = str(r["skip"]).split(":")[0]
+                retrying[reason] = retrying.get(reason, 0) + 1
+            if not report_only and done % SAVE_EVERY == 0:
+                _save(cache, retry)
+            if _clock() >= _DEADLINE:
+                break
+    finally:
+        _DEADLINE = None
+        if not report_only:
+            _save(cache, retry)  # also after a crash: keep what was done
+    deferred = len(todo) - done
+    if deferred:
+        print(f"time budget ({budget_min:g} min) reached: {deferred} events left for next run")
 
     recons = [r for r in cache.values() if r.get("bt_version") == BT_VERSION and not r.get("skip")]
     skips = {}
@@ -871,6 +962,8 @@ def run(limit=None, report_only=False, today=None):
             "over_budget": p["over_budget"],
             "gave_up_after_failures": p["gave_up"],
             "budget_per_run": RETRY_BUDGET,
+            "left_for_next_run_time_budget": deferred,
+            "time_budget_min": budget_min,
         },
         "types": {},
     }

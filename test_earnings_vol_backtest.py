@@ -176,9 +176,34 @@ def test_missing_expiry_bar_with_later_bars_is_not_zero(polygon):
 
 def test_unexpired_option_waits(polygon):
     polygon["und"] = _underlying()[:2]  # latest bar is before expiry
-    r = bt.reconstruct(EVENT)
+    r = bt.reconstruct(EVENT, today=date(2026, 10, 5))
     assert r == {"skip": "expiry_pending", "expiry": EXPIRY}
     assert bt.outcome(r) == "pending"
+
+
+def test_expired_option_with_stale_underlying_is_a_coverage_gap(polygon):
+    """The underlying stopped trading before expiry (stale or delisted).
+    Once expiry is behind today, that is missing data, not "wait"."""
+    polygon["und"] = _underlying()[:2]
+    assert bt.reconstruct(EVENT, today=date(2026, 10, 9))["skip"] == "expiry_pending"
+    r = bt.reconstruct(EVENT, today=date(2026, 10, 10))
+    assert r == {"skip": "no_expiry_settlement", "expiry": EXPIRY}
+
+
+def test_expired_pending_counts_attempts_and_ends(polygon):
+    """Even a "pending" answer after expiry (e.g. from an older code path)
+    uses the coverage attempt limit, so it cannot stay pending forever."""
+    cache, retry, day, tried = {}, {}, TODAY, []
+    r = {"skip": "expiry_pending", "expiry": "2026-10-09"}
+    for _ in range(60):
+        if bt.plan(cache, retry, [OLD], day)["todo"]:
+            tried.append(day)
+            bt.record(cache, retry, OLD, dict(r), day)
+        day += timedelta(days=1)
+    assert len(tried) == bt.MAX_COVERAGE_ATTEMPTS
+    (row,) = cache.values()
+    assert row["skip"] == "no_expiry_settlement" and bt.is_permanent_skip(row)
+    assert retry == {}
 
 
 @pytest.mark.parametrize("bad", [0, -1.0, float("nan"), None, "10"])
@@ -323,7 +348,7 @@ def test_repeated_runs_end_to_end(tmp_path, monkeypatch):
     flaky = dict(EVENT, ticker="FLAKY")
     calls = []
 
-    def fake_reconstruct(e):
+    def fake_reconstruct(e, today=None):
         calls.append(e["ticker"])
         if e["ticker"] == "GOOD":
             return {"spot": 10, "night_id": e["date"], "strategies": {}}
@@ -348,3 +373,86 @@ def test_repeated_runs_end_to_end(tmp_path, monkeypatch):
     assert list(retry) == [bt._key(flaky)] and retry[bt._key(flaky)]["gave_up"]
     out = json.loads((tmp_path / "out.json").read_text())
     assert out["retry_queue"]["gave_up_after_failures"] == 1
+
+
+# ------------------------------------------------- time budget + legacy
+
+
+def test_out_of_time_stops_before_the_next_request(polygon, monkeypatch):
+    monkeypatch.setattr(bt, "_DEADLINE", bt._clock() - 1)
+    with pytest.raises(bt.OutOfTime):
+        bt.reconstruct(EVENT, today=TODAY)
+    assert polygon["calls"] == 0
+
+
+def test_legacy_skips_are_migrated_into_the_retry_budget():
+    """Hundreds of undated legacy skips become due retries that share the
+    40-retry cap; genuinely new events still go first."""
+    legacy = [_ev(i) for i in range(300)]
+    cache = {bt._key(e): {"skip": "no_chain", "bt_version": bt.BT_VERSION} for e in legacy}
+    fresh = [_ev(1000 + i) for i in range(3)]
+    retry = {}
+    p = bt.plan(cache, retry, legacy + fresh, TODAY)
+    assert p["todo"][:3] == fresh
+    assert p["new"] == 3 and p["retries"] == bt.RETRY_BUDGET
+    assert p["over_budget"] == 300 - bt.RETRY_BUDGET
+    assert cache == {} and len(retry) == 300
+    assert all(m["kind"] == "legacy" and m["attempts"] == 0 for m in retry.values())
+
+
+def test_slow_failing_nights_stay_in_budget_and_keep_progress(tmp_path, monkeypatch):
+    """300 legacy skips, every request failing slowly (~95 s each). Each
+    run stops starting work at the time budget, saves what it did (also
+    part-way through), and the next run carries on with other events."""
+    legacy = [_ev(i) for i in range(300)]
+    fresh = [_ev(1000 + i) for i in range(3)]
+    cache_path, retry_path = tmp_path / "pnl.json", tmp_path / "retry.json"
+    cache_path.write_text(
+        json.dumps({bt._key(e): {"skip": "no_chain", "bt_version": bt.BT_VERSION} for e in legacy})
+    )
+    clock = {"t": 0.0}
+    calls, saves = [], []
+
+    def slow_failing_reconstruct(e, today=None):
+        bt._check_time()
+        clock["t"] += 95
+        calls.append(bt._key(e))
+        return {"skip": "error:option_bars_request"}
+
+    real_save = bt._save
+
+    def counting_save(cache, retry):
+        saves.append(len(retry))
+        real_save(cache, retry)
+
+    monkeypatch.setattr(bt, "_clock", lambda: clock["t"])
+    monkeypatch.setattr(bt, "CACHE_PATH", str(cache_path))
+    monkeypatch.setattr(bt, "RETRY_PATH", str(retry_path))
+    monkeypatch.setattr(bt, "OUT_PATH", str(tmp_path / "out.json"))
+    monkeypatch.setattr(bt, "_events", lambda: legacy + fresh)
+    monkeypatch.setattr(bt, "reconstruct", slow_failing_reconstruct)
+    monkeypatch.setattr(bt, "_save", counting_save)
+    monkeypatch.setattr(pg, "available", lambda: True)
+
+    start = clock["t"]
+    out = bt.run(today=TODAY, time_budget_min=30)
+    elapsed = clock["t"] - start
+    first_night = list(calls)
+    assert elapsed <= 30 * 60 + 95  # at most one request past the budget
+    assert len(first_night) == 19 < 3 + bt.RETRY_BUDGET
+    assert first_night[:3] == [bt._key(e) for e in fresh]
+    assert len(saves) >= 3  # saved part-way, not only at the end
+    assert out["retry_queue"]["left_for_next_run_time_budget"] == 3 + bt.RETRY_BUDGET - 19
+    retry = json.loads(retry_path.read_text())
+    assert len(retry) == 303  # every legacy skip migrated, none lost
+    assert sum(1 for m in retry.values() if m["attempts"] == 1) == 19
+    assert json.loads(cache_path.read_text()) == {}
+
+    # next night: different events, still within budget; the legacy
+    # migration does not start over
+    calls.clear()
+    clock["t"] = 0.0
+    bt.run(today=TODAY + timedelta(days=1), time_budget_min=30)
+    assert len(calls) == 19 and not set(calls) & set(first_night)
+    retry = json.loads(retry_path.read_text())
+    assert sum(1 for m in retry.values() if m["attempts"] == 1) == 38

@@ -325,6 +325,8 @@ def data_paths():
     out = sorted(glob.glob(os.path.join(_BASE, "docs", "reports", "*.json")))
     for root, _, files in os.walk(os.path.join(_BASE, "data")):
         for fn in files:
+            if fn.endswith((".tmp", ".r2tmp")):
+                continue  # half-written file from a killed job, never data
             out.append(os.path.join(root, fn))
     return out
 
