@@ -214,6 +214,8 @@ process.stdout.write(JSON.stringify({ results, profile, logs }));
 def _run(steps, *, mode="fake", initial=None, env_extra=None):
     with tempfile.TemporaryDirectory() as d:
         shutil.copy(WORKER, os.path.join(d, "worker.mjs"))
+        for mod in WORKER.parent.glob("*.mjs"):  # modules worker.js imports
+            shutil.copy(mod, os.path.join(d, mod.name))
         head = [
             f"const MODE = {json.dumps(mode)};",
             f"const USER = {json.dumps(USER)};",
