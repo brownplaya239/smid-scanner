@@ -711,26 +711,18 @@ def already_sent_today(user_id: str, brief_date: str, email: str = "") -> bool:
     }
     if user_id and _supabase_get("email_log", {**base, "user_id": f"eq.{user_id}"}):
         return True
-    want = (email or "").strip().lower()
+    want = (email or "").strip(" ").lower()
     if not want:
         return False
-    # Compare addresses ignoring capitals: new rows are logged lower-case,
-    # but older account rows kept the address exactly as the account had
-    # it (e.g. "Reader@Example.org"). ilike is case-insensitive; escape
-    # its wildcards so "a_b@x.io" can't match "axb@x.io". PostgREST also
-    # reads "*" as a wildcard and has no escape for it, so it becomes a
-    # one-character "_" here, and every row is re-checked exactly below.
-    pattern = want.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_").replace("*", "_")
+    # email_norm is lower(btrim(email)), a generated column added by
+    # sql/2026-11-16_brief_signups.sql, so it also covers older rows that
+    # kept the address's original capitals. An exact match: no wildcards,
+    # no candidate cutoff that could miss the real row.
     rows = _supabase_get(
         "email_log",
-        {
-            **base,
-            "select": "email",
-            "limit": "20",
-            "email": urllib.parse.quote(f"ilike.{pattern}", safe=""),
-        },
+        {**base, "email_norm": "eq." + urllib.parse.quote(want, safe="")},
     )
-    return any(str(r.get("email") or "").strip().lower() == want for r in rows or [])
+    return bool(rows)
 
 
 def log_email(

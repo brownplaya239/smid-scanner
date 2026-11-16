@@ -7,6 +7,8 @@
 -- What it does:
 --   1. Adds the double opt-in columns the worker and daily_brief.py use,
 --      including a one-time, expiring confirmation token (stored hashed).
+--      Also adds email_log.email_norm (lower-cased, trimmed address) so the
+--      brief job can check "already sent today?" with an exact match.
 --   2. Adds a small table of recent sign-up attempts (per network, hashed)
 --      so the anti-abuse limit is shared by every copy of the worker.
 --   3. Adds four functions the worker calls with the service key:
@@ -38,6 +40,15 @@ create index if not exists email_signups_lower_email
 create unique index if not exists email_signups_confirm_token
   on public.email_signups (confirm_token_hash)
   where confirm_token_hash is not null;
+
+-- The brief job's "already sent today?" check matches the delivery log by
+-- address with an exact comparison. A generated column fills itself in
+-- for every existing row too (older account rows kept the address's
+-- original capitals), and the index keeps the lookup fast.
+alter table public.email_log
+  add column if not exists email_norm text generated always as (lower(btrim(email))) stored;
+create index if not exists email_log_norm_day
+  on public.email_log (email_norm, kind, brief_date);
 
 -- 2. Shared anti-abuse log -------------------------------------------------
 -- One row per sign-up attempt that reached the database. ip_hash is an
@@ -240,6 +251,10 @@ revoke all on table public.email_signups from anon, authenticated;
 --   no policies left (should return 0 rows):
 --     select policyname from pg_policies
 --     where schemaname = 'public' and tablename = 'email_signups';
+--   the delivery log has its normalized column (should return 1 row):
+--     select column_name from information_schema.columns
+--     where table_schema = 'public' and table_name = 'email_log'
+--       and column_name = 'email_norm';
 --   the four functions exist (should return 4 rows):
 --     select proname from pg_proc
 --     where proname in ('brief_signup_claim', 'brief_signup_release',

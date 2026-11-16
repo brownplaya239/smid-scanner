@@ -20,7 +20,6 @@ import hashlib
 import hmac
 import json
 import os
-import re
 import shutil
 import subprocess
 import urllib.parse
@@ -151,42 +150,34 @@ def test_no_postal_address_when_unset():
 
 
 # ── same-day dedupe across both kinds of recipient ─────────────────────────
-def _like(pattern, value):
-    rx, i = "", 0
-    while i < len(pattern):
-        c = pattern[i]
-        if c == "\\" and i + 1 < len(pattern):
-            rx += re.escape(pattern[i + 1])
-            i += 2
-            continue
-        rx += ".*" if c in "%*" else "." if c == "_" else re.escape(c)
-        i += 1
-    return re.fullmatch(rx, value, re.IGNORECASE | re.DOTALL) is not None
-
-
 class FakeEmailLog:
     """email_log rows plus just enough PostgREST filtering for
-    already_sent_today: eq on user_id/kind/brief_date/status, and ilike
-    on email with Postgres LIKE rules (backslash escapes; % and PostgREST's *
-    match any run, _ one character; capitals ignored)."""
+    already_sent_today: eq on user_id/kind/brief_date/status/email_norm,
+    and limit. email_norm is computed like the SQL's generated column
+    (lower(btrim(email))), so old rows with capitals are covered too.
+    Pattern filters (like/ilike) are refused: the dedupe must be exact."""
 
     def __init__(self):
         self.rows: list[dict] = []
+        self.queries: list[dict] = []
 
     def get(self, path, params=None):
         assert path == "email_log"
         p = {k: urllib.parse.unquote(v) for k, v in (params or {}).items()}
+        self.queries.append(p)
         out = []
         for r in self.rows:
+            row = dict(r, email_norm=str(r.get("email") or "").strip(" ").lower())
             ok = True
-            for col in ("user_id", "kind", "brief_date", "status"):
-                if col in p and str(r.get(col)) != p[col].removeprefix("eq."):
-                    ok = False
-            if "email" in p:
-                assert p["email"].startswith("ilike."), p["email"]
-                ok = ok and _like(p["email"].removeprefix("ilike."), r["email"])
+            for col in ("user_id", "kind", "brief_date", "status", "email_norm"):
+                if col in p:
+                    assert p[col].startswith("eq."), p[col]
+                    ok = ok and str(row.get(col)) == p[col].removeprefix("eq.")
+            assert "email" not in p, "match on email_norm with eq, not on email"
             if ok:
                 out.append(r)
+        if "limit" in p:
+            out = out[: int(p["limit"])]
         return out
 
     def log(self, user_id, email, brief_date="2026-11-17"):
@@ -260,6 +251,24 @@ def test_dedupe_treats_wildcard_characters_literally(email_log):
     email_log.log("", "c*d@x.io")
     assert DB.already_sent_today("", "2026-11-17", email="a_b@x.io")
     assert DB.already_sent_today("", "2026-11-17", email="C*D@x.io")
+
+
+def test_dedupe_finds_the_address_among_many_rows(email_log):
+    # the old search pulled at most 20 near-matches and could miss the
+    # real one; an exact match on email_norm has no such cutoff
+    for i in range(40):
+        email_log.log("", f"a{i}b@x.io")
+    email_log.rows.append(dict(email_log.rows[0], email="A*B@x.io"))
+    assert DB.already_sent_today("", "2026-11-17", email="a*b@x.io")
+    q = email_log.queries[-1]
+    assert q["email_norm"] == "eq.a*b@x.io" and q["limit"] == "1"
+
+
+def test_sql_adds_the_normalized_email_column():
+    sql = open("sql/2026-11-16_brief_signups.sql", encoding="utf-8").read().lower()
+    assert "add column if not exists email_norm text" in sql
+    assert "generated always as (lower(btrim(email))) stored" in sql
+    assert "on public.email_log (email_norm, kind, brief_date)" in sql
 
 
 # ── the worker, run in Node against a fake Supabase + Resend ───────────────
