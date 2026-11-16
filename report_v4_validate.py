@@ -419,18 +419,20 @@ def check_pdfs(core, appendix, view=None):
     except Exception as e:
         return [chk("CORE_RENDERS", False, ERROR, "core is a valid PDF", "open failed: %s" % e)]
 
-    ok_n = (n == 1) if is_flash else (5 <= n <= 6)
+    # The analyst take, when it ships, is one dedicated page.
+    extra = 1 if (not is_flash and ((view or {}).get("analyst_take") or {}).get("available")) else 0
+    ok_n = (n == 1) if is_flash else (5 + extra <= n <= 6 + extra)
     out.append(
         chk(
             "CORE_PAGE_COUNT",
             ok_n,
             ERROR,
-            "1 flash page" if is_flash else "5 or 6 core pages",
+            "1 flash page" if is_flash else "%d or %d core pages" % (5 + extra, 6 + extra),
             "%d" % n,
             detail=None
             if is_flash
             else "Six with valuation, five when valuation is omitted rather "
-            "than padded; never more.",
+            "than padded, plus one page when the analyst take ships; never more.",
         )
     )
 
@@ -582,6 +584,98 @@ def check_rendered(core_text, apx_text, view, snap):
     return out
 
 
+# ── the AI-written analyst take ─────────────────────────────────────────
+
+ANALYST_CHECKS = (
+    "ANALYST_EVIDENCE_IDS",
+    "ANALYST_NUMBERS_GROUNDED",
+    "ANALYST_NO_FOREIGN_TICKERS",
+    "ANALYST_NO_ADVICE",
+    "ANALYST_LENGTH_CAPS",
+)
+_EXPECT = {
+    "ANALYST_EVIDENCE_IDS": "every point cites evidence ids that exist in this report",
+    "ANALYST_NUMBERS_GROUNDED": "every number and date appears in the evidence the point cites",
+    "ANALYST_NO_FOREIGN_TICKERS": "no ticker outside this report's data",
+    "ANALYST_NO_ADVICE": "no buy/sell/hold, rating, price target or position advice",
+    "ANALYST_LENGTH_CAPS": "2-3 sentence summary, 1-3 points per list, every part within its cap",
+}
+
+
+def _squash(s):
+    return re.sub(r"\s+", " ", s or "").strip()
+
+
+def check_analyst_take(view, snap=None, core_text=None):
+    """The gate's own pass over the AI section. The evidence pack is
+    REBUILT here from the view, independently of the generator, and the
+    shipped take is re-checked against it: a take that skipped or fooled
+    the generator's checks still cannot ship. With core_text, the rendered
+    page is also held to the validated text (or to the one-line note when
+    the take was withheld)."""
+    import report_v4_analyst as AT
+
+    out = []
+    at = view.get("analyst_take")
+    if at is None or view.get("flash"):
+        return out
+    if not at.get("available"):
+        for cid in ANALYST_CHECKS:
+            out.append(
+                V3.skipped(
+                    cid, ERROR, "analyst take withheld: %s" % (at.get("meta") or {}).get("status")
+                )
+            )
+    else:
+        base = {k: v for k, v in view.items() if k != "analyst_take"}
+        pack = AT.evidence_pack(base, snap)
+        probs = AT.take_problems(at, pack, view.get("ticker"))
+        for cid in ANALYST_CHECKS:
+            mine = [m for c, m in probs if c == cid]
+            out.append(
+                chk(
+                    cid,
+                    not mine,
+                    ERROR,
+                    _EXPECT[cid],
+                    "; ".join(mine[:5]) or "clean",
+                    refs=sorted({i for _, p in AT._parts(at) for i in p.get("evidence_ids") or []}),
+                )
+            )
+
+    if core_text is not None:
+        txt = _squash(core_text)
+        has_label = _squash(AT.LABEL_MARK) in txt
+        if at.get("available"):
+            parts = [p.get("text") or "" for _, p in AT._parts(at)]
+            missing = [p[:40] for p in parts if _squash(p) not in txt]
+            ok = has_label and not missing
+            obs = "label %s; %d of %d parts not found verbatim%s" % (
+                "present" if has_label else "MISSING",
+                len(missing),
+                len(parts),
+                (": " + " | ".join(missing[:3])) if missing else "",
+            )
+        else:
+            note = _squash(AT.UNAVAILABLE_NOTE) in txt
+            ok = note and not has_label
+            obs = "note %s; AI label %s" % (
+                "present" if note else "MISSING",
+                "PRESENT" if has_label else "absent",
+            )
+        out.append(
+            chk(
+                "ANALYST_TAKE_RENDERED",
+                ok,
+                ERROR,
+                "the page shows exactly the validated take with its label, or only the "
+                "'unavailable' note",
+                obs,
+            )
+        )
+    return out
+
+
 # ── the whole report ────────────────────────────────────────────────────
 
 
@@ -594,6 +688,7 @@ def report(view, snap, core_pdf, appendix_pdf=None, estimates=None, run_mutation
             _, ctext = _pdf_pages_text(core_pdf)
             _, atext = _pdf_pages_text(appendix_pdf) if appendix_pdf else (0, "")
             checks += check_rendered(ctext, atext, view, snap)
+            checks += check_analyst_take(view, snap, ctext)
         except Exception as e:  # pragma: no cover
             checks.append(
                 chk(
@@ -627,6 +722,9 @@ def report(view, snap, core_pdf, appendix_pdf=None, estimates=None, run_mutation
         "checks": checks,
         "blocking_failures": [c["check_id"] for c in fatal],
         "mutation_tests": mutation,
+        # Status, attempts, tokens and estimated cost of the AI section
+        # (None when the run did not attempt one).
+        "analyst_take": (view.get("analyst_take") or {}).get("meta"),
         "ok": bool(not fatal and (mutation.get("all_checks_proven") is not False)),
     }
 

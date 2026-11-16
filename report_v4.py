@@ -31,6 +31,7 @@ from reportlab.platypus import PageBreak, Spacer, Table, TableStyle
 
 import report_v3 as R
 import report_v3_model as M3
+import report_v4_analyst as AT
 import report_v4_model as M4
 import research_snapshot as rs
 from report_v3 import (
@@ -297,6 +298,12 @@ def _page1(snap, view):
     else:
         st.append(para("No filed-fact risk rose to the top three.", "small"))
 
+    # The AI section, when it was attempted but withheld, leaves exactly
+    # one line here; ANALYST_TAKE_RENDERED checks it.
+    _at = view.get("analyst_take")
+    if _at is not None and not _at.get("available"):
+        st.append(para(AT.UNAVAILABLE_NOTE, "small"))
+
     st.append(
         para(
             "Consensus and estimates carry Finnhub's as-of date; "
@@ -315,6 +322,55 @@ def _page1(snap, view):
         return keep
 
     st, _ = _fit_page(st, [], "v4-p1")
+    return st
+
+
+# ── analyst take (AI-written, validated) ────────────────────────────────
+
+
+def _analyst_page(snap, view):
+    """The Analyst take: Claude's summary of this report's own data, drawn
+    only after report_v4_analyst.take_problems() found nothing wrong.
+    Every string passes through para(), i.e. report_v3.safe() and _clean(),
+    and was already normalised to plain latin-1 before it was checked, so
+    the page shows exactly the validated text."""
+    at = view.get("analyst_take") or {}
+    st = [
+        para("Analyst take", "h2"),
+        para(AT.label_for(at), "small"),
+        Spacer(1, 4),
+        para((at.get("summary") or {}).get("text") or "", "body"),
+    ]
+    for key, title in (
+        ("bull_points", "What supports a positive view"),
+        ("bear_points", "What supports a negative view"),
+        ("watch_next", "What to watch next"),
+    ):
+        pts = at.get(key) or []
+        if not pts:
+            continue
+        st.append(para(title, "h2"))
+        for p in pts:
+            # point text, then its evidence ids in small muted type; both
+            # escaped exactly as para() would
+            ids = ", ".join(p.get("evidence_ids") or [])
+            st.append(
+                R.Paragraph(
+                    "&bull; %s <font size='7' color='%s'>[%s]</font>"
+                    % (_clean(safe(p.get("text") or "")), MUTED.hexval(), _clean(safe(ids))),
+                    ST["body"],
+                )
+            )
+    st.append(Spacer(1, 6))
+    st.append(
+        para(
+            "Every number and date above was checked automatically against the "
+            "evidence items it cites (shown in brackets after each point and kept "
+            "in the validation record). The section contains no rating or price target.",
+            "small",
+        )
+    )
+    st, _ = _fit_page(st, [], "v4-analyst")
     return st
 
 
@@ -1316,14 +1372,10 @@ def build_core(snap, view, out_path=None, chart_png=None, chart_meta=None):
     if view.get("flash"):
         story = _flash_page(snap, view)
     else:
-        story = (
-            _page1(snap, view)
-            + [PageBreak()]
-            + _page2(snap, view)
-            + [PageBreak()]
-            + _page3(snap, view)
-            + [PageBreak()]
-        )
+        story = _page1(snap, view) + [PageBreak()]
+        if (view.get("analyst_take") or {}).get("available"):
+            story += _analyst_page(snap, view) + [PageBreak()]
+        story += _page2(snap, view) + [PageBreak()] + _page3(snap, view) + [PageBreak()]
         # Page 4 (valuation) is included only when at least one honest
         # multiple exists — the spec's 'omit rather than pad' rule. Its
         # absence makes the core five pages, not a near-empty sixth.

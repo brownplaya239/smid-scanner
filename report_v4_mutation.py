@@ -109,6 +109,97 @@ def _view_fails(view, snap, est, cid):
     return False
 
 
+def grounded_take(view, snap):
+    """A minimal analyst take that passes every ANALYST_* check on this
+    view: each part quotes one number from one real evidence item and
+    cites it. The mutations below each break exactly one rule."""
+    import report_v4_analyst as AT
+
+    pack = AT.evidence_pack(view, snap)
+    item = next(
+        (it for it in pack if it["id"].startswith("FIN-") and AT._numbers(it["text"])),
+        next((it for it in pack if AT._numbers(it["text"])), None),
+    )
+    if item is None:
+        return None
+    tok = AT._numbers(item["text"])[0][0]
+    ids = [item["id"]]
+
+    def pt(t):
+        return {"text": t, "evidence_ids": list(ids)}
+
+    return {
+        "available": True,
+        "summary": pt("The report records %s for this line. It comes from the filed data." % tok),
+        "bull_points": [pt("The figure on record is %s." % tok)],
+        "bear_points": [pt("The same figure, %s, is only one quarter." % tok)],
+        "watch_next": [pt("Whether %s holds in the next filing." % tok)],
+        "meta": {"status": "ok", "model_served": AT.MODEL},
+    }
+
+
+def _analyst_mutations(snap, view, proven, unproven):
+    names = list(VV.ANALYST_CHECKS) + ["ANALYST_TAKE_RENDERED"]
+    base = grounded_take(view, snap)
+    if base is None:
+        unproven.extend(names)
+        return
+
+    def fails(take, cid, core_text=None):
+        v = copy.deepcopy(view)
+        v["analyst_take"] = take
+        return any(
+            c["check_id"] == cid and c["status"] == FAIL
+            for c in VV.check_analyst_take(v, snap, core_text)
+        )
+
+    # The unmutated take must pass every check, or a "proof" below would
+    # only show that a broken baseline stays broken.
+    if any(fails(base, cid) for cid in VV.ANALYST_CHECKS):
+        unproven.extend(names)
+        return
+
+    def prove(cid, mutate, core_text=None):
+        t = copy.deepcopy(base)
+        mutate(t)
+        (proven if fails(t, cid, core_text) else unproven).append(cid)
+
+    def m_number(t):  # a planted wrong number
+        t["bull_points"][0]["text"] = "The figure on record is 987654.3."
+
+    prove("ANALYST_NUMBERS_GROUNDED", m_number)
+
+    def m_id(t):  # a citation to evidence that does not exist
+        t["bear_points"][0]["evidence_ids"].append("FIN-made_up")
+
+    prove("ANALYST_EVIDENCE_IDS", m_id)
+
+    def m_advice(t):
+        t["watch_next"][0]["text"] = "Investors should buy the shares before the next filing."
+
+    prove("ANALYST_NO_ADVICE", m_advice)
+
+    def m_ticker(t):  # a ticker that is nowhere in the data
+        t["bull_points"][0]["text"] += " ZQZX looks similar."
+
+    prove("ANALYST_NO_FOREIGN_TICKERS", m_ticker)
+
+    def m_length(t):
+        t["bull_points"] = t["bull_points"] * 6
+
+    prove("ANALYST_LENGTH_CAPS", m_length)
+
+    # Rendered: a withheld take whose page nonetheless carries AI text.
+    import report_v4_analyst as AT
+
+    withheld = {"available": False, "note": AT.UNAVAILABLE_NOTE, "meta": {"status": "invalid"}}
+    (
+        proven
+        if fails(withheld, "ANALYST_TAKE_RENDERED", "x " + AT.label_for(base) + " unchecked text")
+        else unproven
+    ).append("ANALYST_TAKE_RENDERED")
+
+
 def summary():
     snap, view, est = _base()
     if view is None:
@@ -305,6 +396,9 @@ def summary():
         "tiny stub",  # < 800 chars
         {"report_time": "2026-07-23T12:00:00+00:00"},
     )
+
+    # ── AI analyst take: a grounded take passes, each defect fails ──────
+    _analyst_mutations(snap, view, proven, unproven)
 
     return {
         "all_checks_proven": not unproven,
