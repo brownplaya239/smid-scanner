@@ -3766,37 +3766,52 @@ async function _sha256Hex(s) {
 // The network a visitor's address belongs to, for the sign-up limits.
 // IPv4: the full address. IPv6: its /64 prefix, because one home or
 // server is normally handed a whole /64 and could otherwise rotate
-// through billions of addresses to dodge a per-address limit.
+// through billions of addresses to dodge a per-address limit. An IPv4
+// address written in IPv6 form (::ffff:1.2.3.4 or 0:0:0:0:0:ffff:102:304)
+// is plain IPv4. Anything that doesn't parse shares one key, "invalid",
+// so odd spellings can't each get a fresh limit.
+const _IP_INVALID = "invalid";
+function _ipv4Octets(s) {
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(s)) return null;
+  const o = s.split(".").map(Number);
+  return o.every(function (x) { return x <= 255; }) ? o : null;
+}
 function _ipNetwork(ip) {
   const s = String(ip || "").trim().toLowerCase();
-  if (s.indexOf(":") < 0) return s || "?";
+  if (s.indexOf(":") < 0) {
+    const o = _ipv4Octets(s);
+    return o ? o.join(".") : _IP_INVALID;
+  }
   const halves = s.split("::");
-  if (halves.length > 2) return s;
+  if (halves.length > 2) return _IP_INVALID;
   const split = function (h) { return h ? h.split(":") : []; };
   const head = split(halves[0]);
   const tail = split(halves.length === 2 ? halves[1] : "");
-  const all = head.concat(tail);
-  let v4 = "";
-  if (all.length && all[all.length - 1].indexOf(".") >= 0) {
-    v4 = all[all.length - 1];                       // e.g. ::ffff:1.2.3.4
-    (tail.length ? tail : head).pop();
+  // a dotted IPv4 may only appear as the very last part
+  const last = halves.length === 2 ? tail : head;
+  let v4 = null;
+  if (last.length && last[last.length - 1].indexOf(".") >= 0) {
+    v4 = _ipv4Octets(last.pop());
+    if (!v4) return _IP_INVALID;
   }
   const want = v4 ? 6 : 8;
   let groups = head;
   if (halves.length === 2) {
     const fill = want - head.length - tail.length;
-    if (fill < 1) return s;
+    if (fill < 1) return _IP_INVALID;
     groups = head.concat(new Array(fill).fill("0"), tail);
   }
   if (groups.length !== want ||
       !groups.every(function (g) { return /^[0-9a-f]{1,4}$/.test(g); })) {
-    return s;
+    return _IP_INVALID;
   }
   const n = groups.map(function (g) { return parseInt(g, 16); });
-  // an IPv4 address written in IPv6 form (::ffff:1.2.3.4) is just IPv4
-  if (v4 && n.slice(0, 5).every(function (x) { return x === 0; }) &&
-      (n[5] === 0xffff || n[5] === 0)) {
-    return v4;
+  if (v4) n.push(v4[0] * 256 + v4[1], v4[2] * 256 + v4[3]);
+  const zeros5 = n.slice(0, 5).every(function (x) { return x === 0; });
+  // IPv4-mapped (::ffff:a.b.c.d, in dotted or hex form), or the old
+  // IPv4-compatible dotted form (::a.b.c.d)
+  if (zeros5 && (n[5] === 0xffff || (v4 && n[5] === 0))) {
+    return [n[6] >> 8, n[6] & 255, n[7] >> 8, n[7] & 255].join(".");
   }
   return n.slice(0, 4).map(function (x) { return x.toString(16); }).join(":") + "::/64";
 }

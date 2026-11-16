@@ -459,6 +459,9 @@ for (let i = 0; i < 6; i++) {
 }
 await run("v6_other", post({ email: "v6-other@example.org" }, "2001:db8:5:7::1"));
 await run("v4_mapped", post({ email: "v4m@example.org" }, "::ffff:7.7.7.7"));
+await run("v4_mapped_hex", post({ email: "v4mh@example.org" }, "0:0:0:0:0:ffff:707:707"));
+await run("ip_bad_v4", post({ email: "ipbad1@example.org" }, "::ffff:999.2.3.4"));
+await run("ip_garbage", post({ email: "ipbad2@example.org" }, "not-an-ip"));
 
 // failures
 await run("claim_fails", post({ email: "x@example.org" }, "5.5.5.5"),
@@ -665,6 +668,59 @@ def test_ipv6_is_limited_per_64_network(worker_run):
     # an IPv4 address written in IPv6 form counts as that IPv4 address
     (claim,) = _rpc_args(worker_run["v4_mapped"], "brief_signup_claim")
     assert claim["p_ip_hash"] == _sig("brief-ip:7.7.7.7")
+    (claim,) = _rpc_args(worker_run["v4_mapped_hex"], "brief_signup_claim")
+    assert claim["p_ip_hash"] == _sig("brief-ip:7.7.7.7")
+    # malformed addresses all share one "invalid" key
+    for name in ("ip_bad_v4", "ip_garbage"):
+        (claim,) = _rpc_args(worker_run[name], "brief_signup_claim")
+        assert claim["p_ip_hash"] == _sig("brief-ip:invalid"), name
+
+
+IP_CASES = {
+    "1.2.3.4": "1.2.3.4",
+    " 1.2.3.4 ": "1.2.3.4",
+    "001.002.003.004": "1.2.3.4",
+    "::ffff:1.2.3.4": "1.2.3.4",
+    "::FFFF:1.2.3.4": "1.2.3.4",
+    "0:0:0:0:0:ffff:102:304": "1.2.3.4",
+    "::ffff:102:304": "1.2.3.4",
+    "0000:0000:0000:0000:0000:ffff:0102:0304": "1.2.3.4",
+    "::1.2.3.4": "1.2.3.4",
+    "2001:db8:5:6::1": "2001:db8:5:6::/64",
+    "2001:0DB8:0005:0006:aaaa:bbbb:cccc:dddd": "2001:db8:5:6::/64",
+    "::1": "0:0:0:0::/64",
+    "::ffff:999.2.3.4": "invalid",
+    "::ffff:1.2.3": "invalid",
+    "1.2.3.4.5": "invalid",
+    "256.1.1.1": "invalid",
+    "1.2.3.4:80": "invalid",
+    "1:2:3:4:5:6:7:8:9": "invalid",
+    "1::2::3": "invalid",
+    "2001:db8::g": "invalid",
+    "1.2.3.4::": "invalid",
+    "fe80::1%eth0": "invalid",
+    "garbage": "invalid",
+    "": "invalid",
+}
+
+
+def test_ip_network_normalization():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    src = open(os.path.join(_BASE, "cloudflare-worker", "worker.js"), encoding="utf-8").read()
+    fn = src[src.index("const _IP_INVALID") : src.index("async function handleBriefSubscribe")]
+    js = fn + "\nconsole.log(JSON.stringify(JSON.parse(process.argv[1]).map(_ipNetwork)));"
+    p = subprocess.run(
+        [node, "-e", js, json.dumps(list(IP_CASES))],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert p.returncode == 0, p.stderr
+    got = dict(zip(IP_CASES, json.loads(p.stdout), strict=True))
+    assert got == IP_CASES
 
 
 def test_site_wide_limit_spares_repeats(worker_run):
