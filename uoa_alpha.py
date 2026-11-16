@@ -78,6 +78,17 @@ _BOOKS = {
     "call_seller": ("seller", -1),
 }
 
+
+def trade_book(s):
+    """The direction-split book a print belongs to: "call_buy", "put_buy",
+    "seller", or None for mixed / unknown prints (no classified aggressor
+    side). put_buy = flow_side "put_buyer" only — a put with no clear
+    buyer is NOT a put buy. Other modules (hedge_monitor) reuse this so
+    every "put buying" figure means the same prints."""
+    book = _BOOKS.get((s or {}).get("flow_side") or "")
+    return book[0] if book else None
+
+
 METHOD_NOTE = (
     "Stock-based track record: every return, hit rate, MFE/MAE and EV is "
     "the UNDERLYING STOCK's move (vs SPY), not the option's P&L. One alert "

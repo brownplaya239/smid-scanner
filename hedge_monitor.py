@@ -35,6 +35,8 @@ import sys
 import urllib.request
 from datetime import UTC, datetime
 
+from uoa_alpha import trade_book
+
 _BASE = os.path.dirname(os.path.abspath(__file__))
 LATEST = os.path.join(_BASE, "docs", "reports", "uoa_latest.json")
 REGIME = os.path.join(_BASE, "docs", "reports", "regime_history.json")
@@ -44,8 +46,11 @@ WORKER = "https://api.tickerdesk.io/"
 
 # ── FROZEN SPEC (2026-07-21) — changing ANY value forks a new version ──
 FROZEN = {
-    "hm_ver": "v1-2026-07-21",
-    "cohort": "type==put AND flow_side not seller AND 22<=dte<=60",
+    # v2 (2026-11-16): put_buy = flow_side "put_buyer" only (uoa_alpha
+    # direction_split definition). v1 also counted puts with no clear
+    # buyer or seller (mixed / unknown) as put buys.
+    "hm_ver": "v2-2026-11-16",
+    "cohort": "put_buy (flow_side == put_buyer, uoa_alpha.trade_book) AND 22<=dte<=60",
     "adverse_episode": (
         "SPY close-to-close day return <= -1.0%; "
         "adverse dates within 2 trading days of each "
@@ -83,7 +88,7 @@ MEASUREMENT = {
     # meas_ver is a human-readable LABEL; the integrity key is
     # MEAS_HASH, the full sha256 of this canonical spec. Never treat
     # the label as the hash.
-    "meas_ver": "m3-2026-07-21",
+    "meas_ver": "m4-2026-11-16",
     "first_eligible": {
         "rule": (
             "the day's ONE independent observation = the first "
@@ -196,8 +201,9 @@ MEASUREMENT = {
         ),
     },
     "membership_parse": (
-        "uoa_latest rows: type=='put' AND flow_side not "
-        "in (put_seller, call_seller) AND 22<=dte<=60"
+        "uoa_latest rows: uoa_alpha.trade_book(row) == 'put_buy' "
+        "(flow_side == put_buyer; mixed / unknown prints excluded) "
+        "AND 22<=dte<=60"
     ),
     "strength_calc": "sum(member premium) / sum(all-row premium)",
     "fill_construction": (
@@ -350,6 +356,13 @@ def _regime():
     return None
 
 
+def is_cohort_member(r):
+    """A put BUY (classified buyer, the uoa_alpha put_buy book) with
+    22-60 days to expiry. Puts with no clear buyer or seller are out."""
+    dte = r.get("dte")
+    return trade_book(r) == "put_buy" and dte is not None and 22 <= dte <= 60
+
+
 def record():
     snap = _load(LATEST)
     if not snap or not snap.get("rows"):
@@ -359,12 +372,7 @@ def record():
     members = []
     coh_prem = 0.0
     for r in rows:
-        if (
-            r.get("type") == "put"
-            and r.get("flow_side") not in ("put_seller", "call_seller")
-            and r.get("dte") is not None
-            and 22 <= r["dte"] <= 60
-        ):
+        if is_cohort_member(r):
             members.append(
                 {
                     "ticker": r["ticker"],
