@@ -82,7 +82,8 @@ SOCIAL_SCHEDULE = "1"
 # from Slack (GitHub approval still works).
 SLACK_APPROVERS = "U0BU956FT8Q"
 # Slack channel ID for ops alerts (the "news wire is silent" alert, and
-# the alerts in other PRs that share this variable). Deliberately empty:
+# billing alerts such as a Stripe payment whose plan could not be saved —
+# alertOps in worker.js). Deliberately empty:
 # alerts are only written to the worker log until a dedicated TickerDesk
 # ops channel exists. Do NOT point it at #social-review-tickerdesk, which
 # lives in a different business's Slack workspace.

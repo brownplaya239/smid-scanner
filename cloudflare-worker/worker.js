@@ -2565,6 +2565,63 @@ async function handleStripeCheckout(request, env, cors) {
   }
 }
 
+// ── Profile writes from billing (Stripe webhook + portal backfill) ──
+// Every billing write to public.profiles is an UPSERT: it creates the
+// row when it is missing. Before 2026-11-16 these were PATCHes, and the
+// signup trigger that creates profile rows had never been installed, so
+// for most accounts the PATCH matched no row, changed nothing and
+// reported success: a new customer was charged and stayed on Free.
+// (sql/2026-11-16_profiles_for_every_account.sql installs the trigger.)
+//
+// Runs with the service key, so PR #8's guard trigger
+// (td_guard_profile_plan_fields) lets the plan fields through.
+// Returns { ok, status, rows, error }. ok means Supabase confirmed a
+// row now holds the values (at least one row came back).
+async function upsertProfileFields(env, userId, fields) {
+  const url = env.SUPABASE_URL.replace(/\/+$/, "") +
+    "/rest/v1/profiles?on_conflict=id&select=id,subscription_tier";
+  let r;
+  try {
+    r = await fetch(url, {
+      method: "POST",
+      headers: {
+        "apikey": env.SUPABASE_SERVICE_KEY,
+        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify({ id: userId, ...fields }),
+    });
+  } catch (e) {
+    return { ok: false, status: 0, rows: 0,
+             error: "network: " + String((e && e.message) || e) };
+  }
+  const text = await r.text().catch(function () { return ""; });
+  if (!r.ok) {
+    return { ok: false, status: r.status, rows: 0,
+             error: "HTTP " + r.status + " " + text.slice(0, 200) };
+  }
+  let rows = null;
+  try { rows = JSON.parse(text); } catch (_) { /* handled below */ }
+  const n = Array.isArray(rows) ? rows.length : 0;
+  if (n === 0) {
+    return { ok: false, status: r.status, rows: 0,
+             error: "Supabase returned no row" };
+  }
+  return { ok: true, status: r.status, rows: n, error: null };
+}
+
+// Post a one-line ops alert to Slack. Needs SLACK_BOT_TOKEN (already a
+// worker secret) and SLACK_ALERT_CHANNEL (a channel id the bot has been
+// invited to). Without the channel it only logs, so a missing setting
+// never breaks the caller.
+async function alertOps(env, text) {
+  console.error("[ops-alert] " + text);
+  if (!env.SLACK_BOT_TOKEN || !env.SLACK_ALERT_CHANNEL) return;
+  await slackApi(env, "chat.postMessage",
+    { channel: env.SLACK_ALERT_CHANNEL, text: text });
+}
+
 // ── Stripe Customer Portal ────────────────────────────────────────
 // Self-serve billing management for subscribers: cancel, change card,
 // update payment method, view invoices, switch plans. Creates a
@@ -2685,22 +2742,15 @@ async function handleStripePortal(request, env, cors) {
       );
     }
     // Back-fill profiles.stripe_customer_id so future calls hit the
-    // fast path. Best-effort — don't block portal open on failure.
+    // fast path. Upsert, so an account with no profile row gets one.
+    // Best-effort — don't block portal open on failure.
     if (customerId) {
-      try {
-        await fetch(
-          profilesBase + "?id=eq." + encodeURIComponent(userId),
-          { method: "PATCH",
-            headers: {
-              "apikey": env.SUPABASE_SERVICE_KEY,
-              "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-              "Content-Type": "application/json",
-              "Prefer": "return=minimal",
-            },
-            body: JSON.stringify({ stripe_customer_id: customerId }),
-          }
-        );
-      } catch (_) {}
+      const res = await upsertProfileFields(env, userId,
+        { stripe_customer_id: customerId });
+      if (!res.ok) {
+        console.log("portal customer-id backfill failed · user_id=" +
+          userId + " · " + res.error);
+      }
     }
   }
 
@@ -2801,31 +2851,38 @@ async function handleStripeWebhook(request, env, cors) {
     if (id === env.STRIPE_PREMIUM_PRICE_ID) return "premium";
     return null;
   }
-  // updateProfile — single PATCH that merges subscription tier and/or
-  // the Stripe customer_id onto public.profiles. Caller passes only
-  // the fields it wants to change; missing fields are left alone so
-  // a subscription.updated event doesn't clobber the cached customer
-  // id that arrived in checkout.session.completed.
+  // updateProfile — merges subscription tier and/or the Stripe
+  // customer_id onto public.profiles. Caller passes only the fields it
+  // wants to change; missing fields are left alone so a
+  // subscription.updated event doesn't clobber the cached customer id
+  // that arrived in checkout.session.completed.
+  // It is an UPSERT (upsertProfileFields): a user with no profile row
+  // gets one, instead of the old PATCH silently changing nothing.
+  // A failed write is remembered in `failures`; the handler then alerts
+  // and answers 500 so Stripe retries the event (for up to 3 days).
+  const failures = [];
   async function updateProfile(userId, patch) {
     if (!userId || !patch) return;
     const body = {};
-    if (patch.tier) body.subscription_tier = patch.tier;
+    if (patch.tier) {
+      body.subscription_tier = patch.tier;
+      // Stripe now owns the plan, so drop any promo end date. Otherwise a
+      // promo user who then paid would read as Free once the old promo
+      // date passed, while still being charged.
+      body.subscription_expires_at = null;
+    }
     if (patch.stripe_customer_id) {
       body.stripe_customer_id = patch.stripe_customer_id;
     }
     if (Object.keys(body).length === 0) return;
-    const url = env.SUPABASE_URL.replace(/\/+$/, "") +
-      "/rest/v1/profiles?id=eq." + encodeURIComponent(userId);
-    await fetch(url, {
-      method: "PATCH",
-      headers: {
-        "apikey": env.SUPABASE_SERVICE_KEY,
-        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal",
-      },
-      body: JSON.stringify(body),
-    });
+    const res = await upsertProfileFields(env, userId, body);
+    if (res.ok) {
+      console.log("profile saved · user_id=" + userId +
+        " tier=" + (body.subscription_tier || "(unchanged)"));
+    } else {
+      failures.push({ userId: userId, tier: body.subscription_tier || null,
+                      error: res.error });
+    }
   }
 
   const type = evt.type;
@@ -2883,6 +2940,20 @@ async function handleStripeWebhook(request, env, cors) {
     if (userId) await updateProfile(userId, { tier: "free" });
   } else {
     console.log("Ignored event type: " + type);
+  }
+  if (failures.length) {
+    // The customer's plan did NOT change in our database. Tell Sum, and
+    // answer 500 so Stripe retries; the retry is safe (same upsert).
+    const f = failures[0];
+    await alertOps(env, ":rotating_light: Stripe " + type + " (" +
+      (evt.id || "no event id") + ") could not update the profile of user " +
+      f.userId + (f.tier ? " to plan " + f.tier : "") + ". " + f.error +
+      ". Stripe will retry; if this repeats, fix the row in Supabase.");
+    return new Response(JSON.stringify({ received: false,
+      error: "profile update failed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...cors },
+    });
   }
   return new Response(JSON.stringify({ received: true }), {
     status: 200,

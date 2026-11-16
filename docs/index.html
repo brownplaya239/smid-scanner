@@ -8096,6 +8096,44 @@
                name: "Beta",   color: "#a87cff" },
   };
   let CURRENT_USER_EXPIRES_AT = null;  // promo subscription expiry
+  // ensureProfile — make sure the signed-in user has a public.profiles
+  // row (their plan, Daily Brief setting, etc. live there). The signup
+  // trigger handle_new_user() normally creates it; this is the safety
+  // net for accounts it missed (it was not installed until 2026-11-16).
+  // Sends only id + last_seen with ON CONFLICT DO NOTHING, so an
+  // existing row is never touched, and the database's plan guard gives
+  // a new row the Free defaults. Runs once per user per page load;
+  // concurrent callers share one request. Resolves true when the row
+  // is known to exist, false on failure (callers carry on regardless).
+  let _tdProfileEnsuredFor = null;
+  let _tdProfileEnsuring = null;
+  function ensureProfile() {
+    if (!CURRENT_USER || !CURRENT_USER.id) return Promise.resolve(false);
+    const uid = CURRENT_USER.id;
+    if (_tdProfileEnsuredFor === uid) return Promise.resolve(true);
+    if (_tdProfileEnsuring && _tdProfileEnsuring.uid === uid) {
+      return _tdProfileEnsuring.p;
+    }
+    const p = tdSupaRestFetch("/rest/v1/profiles?on_conflict=id", {
+      method: "POST",
+      headers: { "Prefer": "resolution=ignore-duplicates,return=minimal" },
+      body: { id: uid, last_seen: new Date().toISOString() },
+    }).then(function (r) {
+      if (r.ok) { _tdProfileEnsuredFor = uid; return true; }
+      console.warn("[profile] ensure failed: HTTP " + r.status);
+      return false;
+    }, function (e) {
+      console.warn("[profile] ensure failed:", e && e.message);
+      return false;
+    }).finally(function () {
+      if (_tdProfileEnsuring && _tdProfileEnsuring.uid === uid) {
+        _tdProfileEnsuring = null;
+      }
+    });
+    _tdProfileEnsuring = { uid: uid, p: p };
+    return p;
+  }
+  window.tdEnsureProfile = ensureProfile;
   async function refreshPlanState() {
     if (!SUPA || !CURRENT_USER) {
       CURRENT_USER_PLAN = "free";
@@ -8768,6 +8806,9 @@
         }
       } catch (_) {}
       _emitUser();
+      // Signed in from a saved session: create the profile row if this
+      // account never got one. Fire-and-forget; nothing below needs it.
+      if (CURRENT_USER) ensureProfile();
       refreshPlanState();
       loadWatchlist();
       // Post-checkout cache-bust: if the user just returned from Stripe,
@@ -8867,6 +8908,8 @@
       CURRENT_USER = session ? session.user : null;
       if ((CURRENT_USER ? CURRENT_USER.id : null) !== prev) {
         _emitUser();
+        // New sign-in: make sure the account has a profile row.
+        if (CURRENT_USER) ensureProfile();
         // On first sign-in: merge any localStorage watchlist into the
         // account, then clear local so we don't double-add on next signout
         // Refresh plan + report counts whenever auth state changes
@@ -9093,17 +9136,20 @@
       );
       if (error) throw error;
       if (!data || !data.length) {
-        // No profile row exists yet — create one. handle_new_user trigger
-        // should have done this on signup, but older accounts may have
-        // missed it.
-        const { error: e2 } = await tdSupaTimeout(
-          SUPA.from("profiles").upsert({
-            id: CURRENT_USER.id,
-            daily_brief_enabled: next,
-          }),
-          7000, "daily-brief profile upsert"
+        // No profile row yet (an account the signup trigger missed):
+        // create it the one shared way, then save the setting on it.
+        if (!(await ensureProfile())) {
+          throw new Error("Couldn't set up your account profile.");
+        }
+        const { data: d2, error: e2 } = await tdSupaTimeout(
+          SUPA.from("profiles")
+            .update({ daily_brief_enabled: next })
+            .eq("id", CURRENT_USER.id)
+            .select(),
+          7000, "daily-brief update (after profile created)"
         );
         if (e2) throw e2;
+        if (!d2 || !d2.length) throw new Error("Profile not found.");
       }
       DAILY_BRIEF_ENABLED = next;
       renderDailyBriefToggle();
@@ -9475,10 +9521,14 @@
           const cb = document.getElementById("ob-brief-on");
           if (cb && SUPA && CURRENT_USER) {
             try {
-              await SUPA.from("profiles").upsert({
-                id: CURRENT_USER.id,
-                daily_brief_enabled: cb.checked,
-              });
+              await ensureProfile();
+              const { error } = await tdSupaTimeout(
+                SUPA.from("profiles")
+                  .update({ daily_brief_enabled: cb.checked })
+                  .eq("id", CURRENT_USER.id),
+                7000, "onboarding brief preset"
+              );
+              if (error) throw error;
             } catch (e) { console.warn("Brief preset failed:", e); }
           }
         }
