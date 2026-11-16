@@ -6623,7 +6623,7 @@
       <!-- Live ticker table — extracts top breakout candidates from
            today's swing run (A/A+ grades + bull flow if present)
            so users see actionable names without opening every PDF. -->
-      <div class="mom-caution">RISK-OFF tape &mdash; measured outcomes say these long screens run 44% hit / profit factor &lt; 1 at a 5-day hold, and A+ setups win just 20%. Treat as watchlists, not entries, until breadth recovers. Educational research, not investment advice.</div>
+      <div class="mom-caution">RISK-OFF tape &mdash; breadth is weak<span class="mom-caution-stat"></span>. Treat as watchlists, not entries, until breadth recovers. Educational research, not investment advice.</div>
       <div class="live-scan-table" id="breakout-live-table"></div>
       <div class="uoa-subnav" id="breakout-subnav">
         <button data-sub="smid-scanner" class="active">SMID</button>
@@ -6638,7 +6638,7 @@
       <!-- Live ticker table — extracts top setup candidates (A/A+ grade
            tight bases, lower volatility, near 52-wk highs) so users see
            actionable VCP names without opening every PDF. -->
-      <div class="mom-caution">RISK-OFF tape &mdash; measured outcomes say these long screens run 44% hit / profit factor &lt; 1 at a 5-day hold, and A+ setups win just 20%. Treat as watchlists, not entries, until breadth recovers. Educational research, not investment advice.</div>
+      <div class="mom-caution">RISK-OFF tape &mdash; breadth is weak<span class="mom-caution-stat"></span>. Treat as watchlists, not entries, until breadth recovers. Educational research, not investment advice.</div>
       <div class="live-scan-table" id="setup-live-table"></div>
       <div class="uoa-subnav" id="setup-subnav">
         <button data-sub="smid-setup" class="active">SMID</button>
@@ -6677,7 +6677,7 @@
       <h2 class="tab-title">QM Monthly Gainers</h2>
       <p class="tab-sub">Qullamaggie's biggest one-month gainers &mdash; top 2% of the
         market by 1-month gain, ADR% &ge; 5, $100M+ dollar volume. 4:30 PM ET weekdays.</p>
-      <div class="mom-caution">RISK-OFF tape &mdash; measured outcomes say these long screens run 44% hit / profit factor &lt; 1 at a 5-day hold, and A+ setups win just 20%. Treat as watchlists, not entries, until breadth recovers. Educational research, not investment advice.</div>
+      <div class="mom-caution">RISK-OFF tape &mdash; breadth is weak<span class="mom-caution-stat"></span>. Treat as watchlists, not entries, until breadth recovers. Educational research, not investment advice.</div>
       <div class="scan-track" id="qm-track"></div>
       <div class="mom-bar">
         <select id="qm-date"></select>
@@ -6693,7 +6693,7 @@
         to <b>15%+</b> over the last 5 trading days, with the $100M liquidity
         floor. On quiet weeks an "Approaching" fallback surfaces names within
         5% of the threshold. 4:30 PM ET weekdays.</p>
-      <div class="mom-caution">RISK-OFF tape &mdash; measured outcomes say these long screens run 44% hit / profit factor &lt; 1 at a 5-day hold, and A+ setups win just 20%. Treat as watchlists, not entries, until breadth recovers. Educational research, not investment advice.</div>
+      <div class="mom-caution">RISK-OFF tape &mdash; breadth is weak<span class="mom-caution-stat"></span>. Treat as watchlists, not entries, until breadth recovers. Educational research, not investment advice.</div>
       <div class="scan-track" id="sb-track"></div>
       <div class="mom-bar">
         <select id="sb-date"></select>
@@ -12292,7 +12292,7 @@
         { id: "swing_report", path: "./reports/swing_report.json",
           char: "post-close", desc: "Swing grades (Today's Desk, Swing, Action List)" },
         { id: "uoa_latest", path: "./reports/uoa_latest.json",
-          char: "intraday-batch", desc: "Unusual flow (Options Flow, drilldown). Polygon Options Starter — delayed 15m, 6 scans/day." },
+          char: "intraday-batch", desc: "Unusual flow (Options Flow, drilldown). Polygon Options Starter — delayed 15m, every 30 min 9:45 AM–3:45 PM ET (13 scans/day)." },
         { id: "uoa_signals_scored", path: "./reports/uoa_signals_scored.json",
           char: "intraday-batch", heavy: true,
           desc: "Scored signals (Tracked Signals subtab). Rebuilt each UOA scan." },
@@ -12333,16 +12333,17 @@
           '</div>';
       }).join("");
 
-      // Cron schedule summary (read from window vs hardcoded — we know
-      // the schedule from the workflows)
+      // Schedule summary. The Cloudflare worker fires the main jobs on the
+      // ET clock (worker.js UOA_SLOTS / EOD_SLOT / JOB_SCHEDULE); the
+      // GitHub crons are UTC backups, so they shift an hour with DST.
+      // Keep in step with worker.js when a slot changes.
       const schedule = [
-        ["Daily Brief", "8:47 AM ET weekdays"],
-        ["Scanner 10:00 AM", "scanner.yml @ 11:07 ET (EST cron, runs 1hr late in EDT)"],
-        ["Scanner 11:30 AM", "scanner.yml @ 11:37 ET"],
-        ["Scanner 3:00 PM", "scanner.yml @ 3:07 ET"],
-        ["Setup Builder 4:15 PM", "scanner.yml @ 5:17 ET (EST cron, EDT post-close)"],
-        ["UOA scans (every ~30 min)", "~9:35 AM → 3:55 PM ET, :05/:35 grid (~14×/day)"],
-        ["Momentum + Swing", "5:33 PM ET post-close"],
+        ["Daily Brief", "8:45 AM ET weekdays (worker; GitHub backup 12:47 UTC)"],
+        ["UOA scans", "every 30 min, 9:45 AM → 3:45 PM ET (13/day, worker)"],
+        ["Breakout scanners", "scanner.yml GitHub crons 15:07, 15:37, 19:07 UTC (10:07 / 10:37 AM, 2:07 PM ET in winter; an hour later in summer)"],
+        ["Setup Builder + Momentum + Swing", "4:45 PM ET post-close (worker; GitHub backups 21:17 / 21:33 UTC)"],
+        ["Earnings vol backtest", "6:45 PM ET (worker)"],
+        ["UOA matched scorecard", "7:30 PM ET (worker)"],
         ["Push alerts", "after each UOA + Momentum (workflow_run trigger)"],
       ];
 
@@ -19312,6 +19313,37 @@
         .catch(function () {});
     })();
 
+    // Vol-idea "EV" is the average gap between the implied and the actual
+    // move in percentage points (earnings_ideas.py: mv = implied - |move|
+    // for vol_rich, |move| - implied for vol_cheap), not a trade return.
+    // Say so, and say when the events were backfilled and when trading
+    // costs were never tested (earnings_vol_exec: no execution champion).
+    function volIdeaEvLabel(type, s, exec) {
+      if ((type !== "vol_rich" && type !== "vol_cheap") || !s ||
+          s.status !== "active" || typeof s.ev !== "number") return null;
+      const pts = Math.abs(s.ev).toFixed(1);
+      const rich = type === "vol_rich";
+      const beat = (s.ev >= 0) === rich;  // implied above actual?
+      let text = (beat ? "implied move beat actual by "
+                       : "actual move beat implied by ") + pts + " pts avg";
+      const notes = [];
+      if (s.n_reconstructed) {
+        notes.push(s.n_reconstructed >= s.n ? "backfilled"
+          : s.n_reconstructed + " of " + s.n + " backfilled");
+      }
+      const champ = (((exec || {}).expression_registry || {})
+        .execution_challenger || {}).status;
+      if (!champ || champ === "NONE") notes.push("costs untested");
+      if (notes.length) text += " (" + notes.join(", ") + ")";
+      const tip = "Average gap between the options-implied move and the " +
+        "stock's actual move on these reports, in percentage points of the " +
+        "stock price. It is not a trade return." +
+        (s.n_reconstructed ? " Backfilled = the implied move was rebuilt " +
+          "after the fact from the first logged read." : "") +
+        (notes.indexOf("costs untested") >= 0 ? " Bid/ask spreads and " +
+          "fees for actually trading it have not been tested." : "");
+      return { text: text, tip: tip };
+    }
     // ── Earnings Trade Ideas — the site's signals, synthesized per print ──
     // Rendered from earnings_ideas.json (nightly, after earnings_edge).
     // Every card cites its evidence; every idea type carries its own
@@ -19334,6 +19366,7 @@
       function esc(s) {
         return window.escapeHtml ? window.escapeHtml(s) : String(s == null ? "" : s);
       }
+      let EXEC = null;
       function render(d) {
         if (!d || !(d.ideas || []).length) { host.innerHTML = ""; return; }
         const st = d.by_type || {};
@@ -19344,12 +19377,16 @@
           // time, so the win rate carries that baseline (never read vs 50%)
           const fair = s && s.fair_win_rate != null
             ? ' (fair ≈ ' + Math.round(s.fair_win_rate) + '%)' : '';
+          const volEv = volIdeaEvLabel(i.type, s, EXEC);
           const rec = s && s.status === "active"
-            ? '<span class="ei-rec on"' + (fair ? ' title="Win rate a ' +
-                'fairly priced option would have scored on the same ' +
-                'reports — compare with this, not 50%"' : '') + '>' +
+            ? '<span class="ei-rec on"' + (fair || volEv ? ' title="' +
+                esc((fair ? 'Win rate a fairly priced option would have ' +
+                  'scored on the same reports: compare with this, not ' +
+                  '50%. ' : '') + (volEv ? volEv.tip : '')) + '"' : '') + '>' +
               s.win_rate + '%' + fair +
-              (s.ev != null ? ' · EV ' + (s.ev > 0 ? '+' : '') + s.ev + '%' : '') +
+              (volEv ? ' · ' + esc(volEv.text)
+                : s.ev != null ? ' · EV ' + (s.ev > 0 ? '+' : '') + s.ev + '%'
+                : '') +
               ' · n=' + s.n + '</span>'
             : '<span class="ei-rec">track record ' + ((s && s.n) || 0) +
               '/30</span>';
@@ -19397,9 +19434,16 @@
           '. Educational, not advice.</div></div>';
       }
       function load() {
-        fetch("./reports/earnings_ideas.json", { cache: "no-cache" })
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .then(render).catch(function () {});
+        const get = function (u) {
+          return fetch(u, { cache: "no-cache" })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; });
+        };
+        // earnings_vol_exec says whether trading costs were ever tested
+        Promise.all([get("./reports/earnings_ideas.json"),
+                     get("./reports/earnings_vol_exec.json")])
+          .then(function (a) { EXEC = a[1]; render(a[0]); })
+          .catch(function () {});
       }
       load();
       const nav = document.getElementById("nav");
@@ -24398,11 +24442,14 @@
     // every interval tick. Cards do their own freshness staling display,
     // so this just keeps the underlying data current.
     function fetchDeskData() {
-      return Promise.all([
+      // Each source is NAMED, never read back by position: a positional
+      // arr[n] map once fed regime entries to the earnings code and
+      // earnings entries to the breadth lookup.
+      const src = {
         // Desk slice of the flow rows (~90% smaller than uoa_latest: same
         // rows, 16 fields). Falls back to the full file until the first
         // post-deploy scan publishes the slim one.
-        fetchJSON("./reports/uoa_desk.json").then(function (d) {
+        uoa: fetchJSON("./reports/uoa_desk.json").then(function (d) {
           return (d && d.rows && d.rows.length)
             ? d : fetchJSON("./reports/uoa_latest.json");
         }),
@@ -24411,17 +24458,17 @@
         // ~15 MB history — the single biggest initial-load win, esp. on
         // mobile. Fall back to the full file if the summary isn't
         // published yet (first deploy before the next swing run).
-        fetchJSON("./reports/swing_latest_summary.json").then(function (s) {
+        swing: fetchJSON("./reports/swing_latest_summary.json").then(function (s) {
           return (s && s.runs && s.runs.length)
             ? s : fetchJSON("./reports/swing_report.json");
         }),
-        fetchJSON("./reports/momentum_qm.json"),
-        fetchJSON("./reports/momentum_stockbee.json"),
-        fetchJSON("./reports/manifest.json"),
+        qm: fetchJSON("./reports/momentum_qm.json"),
+        sb: fetchJSON("./reports/momentum_stockbee.json"),
+        manifest: fetchJSON("./reports/manifest.json"),
         // Live economic calendar via the worker (ForexFactory proxy) so the
         // Actual column fills in through the day; fall back to the static
         // post-close batch if the worker is unreachable.
-        fetch(WORKER_URL + "/?econ-calendar=1")
+        cal: fetch(WORKER_URL + "/?econ-calendar=1")
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (d) {
             return (d && d.events && d.events.length)
@@ -24430,51 +24477,71 @@
           .catch(function () {
             return fetchJSON("./reports/economic_calendar.json");
           }),
-        fetchJSON("./reports/uoa_meta_cache.json"),
+        uoaMeta: fetchJSON("./reports/uoa_meta_cache.json"),
         // Pre-open OI-confirmed carryover (tiny — a few KB) for the
         // "Overnight Flow" tile. Absent/empty until the morning brief run.
-        fetchJSON("./reports/carryover_flow.json"),
+        carryover: fetchJSON("./reports/carryover_flow.json"),
         // Post-close missed-opportunity self-audit (learning loop 5).
-        fetchJSON("./reports/missed_opportunities.json"),
+        missed: fetchJSON("./reports/missed_opportunities.json"),
         // Nightly self-grade: yesterday's picks vs today's closes.
-        fetchJSON("./reports/evening_review.json"),
+        evening: fetchJSON("./reports/evening_review.json"),
         // Technical fact table (~10KB): EMA/RSI/ATR/RS + correlation map
         // for surfaced names — powers the correlation warning chips.
-        fetchJSON("./reports/technical_facts.json"),
+        facts: fetchJSON("./reports/technical_facts.json"),
         // Engine Room summary (tiny) — health line on the What-Changed tile.
-        fetchJSON("./reports/grade_engine.json"),
+        engine: fetchJSON("./reports/grade_engine.json"),
         // Earnings calendar. TD_DATA.earnings had THREE consumers
         // (watchlist Earnings column, "earnings <=7 days" list, Start
         // Here "reporting within 3 days") but was never assigned — so
         // the column showed "—" for every ticker forever, which reads
         // as "no earnings upcoming" on a name reporting tomorrow.
-        fetchJSON("./reports/earnings_anticipated.json"),
+        earnings: fetchJSON("./reports/earnings_anticipated.json"),
         // Loop-7 regime log (tiny) — the CANONICAL full-universe EOD
         // regime label. The banner's own recompute uses the trimmed
         // 2-run swing summary, which can disagree by several breadth
         // points right at the risk-off threshold.
-        fetchJSON("./reports/regime_history.json"),
-      ]).then(function (arr) {
-        const swing = arr[1], uoaMeta = arr[6];
-        DESK_DATE = (swing && swing.runs && swing.runs.length)
-          ? swing.runs[swing.runs.length - 1].date
-          : new Date().toISOString().slice(0, 10);
-        DESK_META = uoaMeta || {};
-        window.TD_DATA.uoa = arr[0];
-        window.TD_DATA.swing = arr[1];
-        window.TD_DATA.qm = arr[2];
-        window.TD_DATA.sb = arr[3];
-        window.TD_DATA.manifest = arr[4];
-        window.TD_DATA.cal = arr[5];
-        window.TD_DATA.uoaMeta = arr[6];
-        window.TD_DATA.carryover = arr[7];
-        window.TD_DATA.missed = arr[8];
-        window.TD_DATA.evening = arr[9];
-        window.TD_DATA.facts = ((arr[10] || {}).facts) || {};
-        window.TD_DATA.engine = arr[11] || null;
-        window.TD_DATA.regimeHist = arr[12] || null;
-        window.TD_DATA.earnings = arr[13] || null;
-      });
+        regimeHist: fetchJSON("./reports/regime_history.json"),
+        // Measured outcome stats the Risk-off / Defense / Offense cards
+        // quote (all small). Read live so the cards never repeat a stale
+        // hard-coded hit rate.
+        stats: Promise.all([
+          fetchJSON("./reports/uoa_edge.json"),
+          fetchJSON("./reports/uoa_scorecard.json"),
+          fetchJSON("./reports/uoa_research.json"),
+          fetchJSON("./reports/scan_outcomes.json"),
+          fetchJSON("./reports/setup_outcomes.json"),
+        ]).then(function (a) {
+          return { edge: a[0], scorecard: a[1], research: a[2],
+                   scans: a[3], setups: a[4] };
+        }),
+      };
+      const keys = Object.keys(src);
+      return Promise.all(keys.map(function (k) { return src[k]; }))
+        .then(function (vals) {
+          const d = {};
+          keys.forEach(function (k, i) { d[k] = vals[i]; });
+          const swing = d.swing;
+          DESK_DATE = (swing && swing.runs && swing.runs.length)
+            ? swing.runs[swing.runs.length - 1].date
+            : new Date().toISOString().slice(0, 10);
+          DESK_META = d.uoaMeta || {};
+          window.TD_DATA.uoa = d.uoa;
+          window.TD_DATA.swing = d.swing;
+          window.TD_DATA.qm = d.qm;
+          window.TD_DATA.sb = d.sb;
+          window.TD_DATA.manifest = d.manifest;
+          window.TD_DATA.cal = d.cal;
+          window.TD_DATA.uoaMeta = d.uoaMeta;
+          window.TD_DATA.carryover = d.carryover;
+          window.TD_DATA.missed = d.missed;
+          window.TD_DATA.evening = d.evening;
+          window.TD_DATA.facts = ((d.facts || {}).facts) || {};
+          window.TD_DATA.engine = d.engine || null;
+          window.TD_DATA.regimeHist = d.regimeHist || null;
+          window.TD_DATA.earnings = d.earnings || null;
+          window.TD_DATA.stats = d.stats || {};
+          fillMomCautions(window.TD_DATA.stats);
+        });
     }
     // Render the desk grid from whatever is already in window.TD_DATA — no
     // network. fetchDeskData() refreshes that cache; this draws from it.
@@ -24482,13 +24549,102 @@
     // Action List's urgencies) re-render from memory instead of
     // re-downloading ~2.3MB of mostly-static JSON on every weight edit.
     // ── Risk-off Playbook + Defense Watch ────────────────────────────
-    // Both cards surface the ONLY signals the outcome database measures
-    // as positive-edge in weak tape: informed put flow (57% hit /
-    // +0.88% avg excess, n≈20.5k) and the fade side of the momentum
-    // inversion (A+ setups 20% win / −5.1% avg at a 5-day hold; hot
-    // weekly screen profit factor 0.64). Numbers here are the measured
-    // aggregates from uoa_edge/setup_outcomes/scan_outcomes — the card
-    // never invents a stat. Educational research, not advice.
+    // Both cards quote the outcome database: put-buy flow and the momentum
+    // screens' measured 5-day record. Every number is read LIVE from
+    // uoa_edge / uoa_scorecard / uoa_research / scan_outcomes /
+    // setup_outcomes (TD_DATA.stats) — nothing hard-coded, and "edge" is
+    // only claimed when the 95% range excludes zero. A missing file drops
+    // its sentence. Educational research, not advice.
+    function _sgn(v, dp) {
+      const a = Math.abs(v).toFixed(dp == null ? 2 : dp);
+      if (Number(a) === 0) return a;  // never "+0.00" / "-0.00"
+      return (v > 0 ? "+" : "\u2212") + a;
+    }
+    function _nfmt(n) { return (n || 0).toLocaleString("en-US"); }
+    // Put-buy flow read: hit/avg from uoa_edge.direction_split, the 95%
+    // range from the matched-control scorecard, and the research engine's
+    // flow-vs-drift split. null when the direction split isn't published.
+    function deskPutFlowRead(st) {
+      st = st || {};
+      const ps = ((st.edge || {}).direction_split || {}).put_buy;
+      if (!ps || ps.status !== "active" || ps.hit == null || ps.ev == null)
+        return null;
+      const pk = ((st.scorecard || {}).pockets || {}).put_buys || {};
+      const ci = (pk.bootstrap || {}).ci95;
+      const hasCi = Array.isArray(ci) && ci.length === 2 &&
+        typeof ci[0] === "number" && typeof ci[1] === "number";
+      const edge = hasCi && ci[0] > 0;
+      // Three honest reads: whole range above zero, whole range below
+      // zero, or straddling zero.
+      const worse = hasCi && ci[1] < 0;
+      const bk = (((st.research || {}).attribution || {}).books || {})
+        .put_buy || {};
+      const fci = bk.flow_alpha_ci95;
+      const drift = bk.status === "active" && typeof bk.flow_alpha === "number" &&
+        Array.isArray(fci) && fci[0] <= 0 && fci[1] >= 0;
+      let text = "Bought puts: the stock beat SPY in the put\u2019s direction " +
+        ps.hit + "% of the time, " + _sgn(ps.ev) + "% average 5-day " +
+        "excess (n " + _nfmt(ps.n) + ").";
+      if (hasCi) {
+        const rng = _sgn(ci[0]) + "% to " + _sgn(ci[1]) + "%";
+        if (edge) {
+          text += " The matched-control 95% range (" + rng +
+            ") stays above zero.";
+        } else if (worse) {
+          text += " Measurably worse than the market: the whole " +
+            "matched-control 95% range (" + rng + ") is below zero.";
+        } else {
+          text += " Not a proven edge: the matched-control 95% range (" +
+            rng + ") includes zero.";
+        }
+      } else {
+        text += " Not a proven edge: no confidence range is published yet.";
+      }
+      if (drift) {
+        text += " The research engine finds the flow itself adds about " +
+          "nothing (" + _sgn(bk.flow_alpha) + "%) beyond the flagged " +
+          "stocks\u2019 own drift.";
+      }
+      return { hit: ps.hit, edge: edge, text: text,
+               badge: ps.hit + "% hit \u00b7 " +
+                 (edge ? "measured edge"
+                   : worse ? "measurably worse than the market"
+                   : "not a proven edge") };
+    }
+    // Momentum screens' measured 5-day record (scan_outcomes) and the A+
+    // swing grade's (setup_outcomes). Empty strings when not published.
+    function deskMomentumRead(st) {
+      st = st || {};
+      const ov = (st.scans || {}).overall || {};
+      const sb = ((st.scans || {}).by_scan || {}).stockbee || {};
+      const ap = ((st.setups || {}).grades || {})["A+"] || {};
+      const out = { screens: "", aplus: "", hot: "", loses: false };
+      if (ov.status === "active" && ov.win_rate != null) {
+        out.screens = "momentum-long screens run " + ov.win_rate + "% hit" +
+          (ov.profit_factor != null ? " / profit factor " + ov.profit_factor
+            : "") +
+          " at a " + (ov.hold_d || 5) + "-day hold (n " + _nfmt(ov.n) + ")";
+        out.loses = (typeof ov.ev === "number" && ov.ev < 0) ||
+          (typeof ov.profit_factor === "number" && ov.profit_factor < 1);
+      }
+      if (ap.status === "active" && ap.win_rate != null) {
+        out.aplus = "A+ setups win " + ap.win_rate + "%" +
+          (typeof ap.avg === "number" ? " (" + _sgn(ap.avg, 1) + "% avg)" : "");
+      }
+      if (sb.status === "active" && sb.profit_factor != null) {
+        out.hot = "hot weekly screen profit factor " + sb.profit_factor +
+          ", n=" + _nfmt(sb.n);
+      }
+      return out;
+    }
+    // The CSS-gated risk-off strips on the momentum/breakout tabs.
+    function fillMomCautions(st) {
+      const m = deskMomentumRead(st);
+      const line = [m.screens, m.aplus].filter(Boolean).join(", and ");
+      document.querySelectorAll(".mom-caution-stat").forEach(function (el) {
+        el.textContent = line ? "; measured outcomes: " + line : "";
+      });
+    }
     function _putClusters(uoa) {
       const by = {};
       ((uoa && uoa.rows) || []).forEach(function (r) {
@@ -24540,23 +24696,28 @@
         });
       } catch (_) {}
       fade.sort(function (a, b) { return (b.chg || 0) - (a.chg || 0); });
+      const st = (window.TD_DATA || {}).stats || {};
+      const mom = deskMomentumRead(st);
+      const put = deskPutFlowRead(st);
+      const fadeStat = [mom.aplus, mom.hot].filter(Boolean).join("; ");
       const fadeRows = fade.slice(0, 10).map(function (f) {
         return '<span class="ro-fade-chip" data-t="' + esc(f.t) + '" title="' +
-          esc(f.why) + ' — cohort historically mean-reverts at a 5-day ' +
-          'hold (A+ setups: 20% win, −5.1% avg; hot weekly screen: ' +
-          'profit factor 0.64, n=292).">' + esc(f.t) + '</span>';
+          esc(f.why + (fadeStat ? " \u2014 measured 5-day outcomes: " +
+            fadeStat + "." : "")) + '">' + esc(f.t) + '</span>';
       }).join("");
+      const roRead = (mom.screens
+        ? (mom.loses ? "the outcome DB says offense loses here: "
+                     : "outcome DB: ") + mom.screens +
+          (mom.aplus ? ", and " + mom.aplus : "") + ". "
+        : "") + (put ? put.text : "");
       return '<div class="desk-card ro-card"><h3>Risk-off playbook' +
         '<span class="desk-stamp dst-warn" title="Shown only while the ' +
         'regime read is RISK-OFF (universe breadth ≤ 42%). Every number ' +
         'is a measured aggregate from the outcome database — nothing is ' +
         'a forecast. Educational research, not investment advice.">' +
         'measured stats · not advice</span></h3>' +
-        '<div class="ro-read">Breadth ' + (rg.breadth || 0) + "% — the " +
-        "outcome DB says offense loses here: momentum-long screens run " +
-        "44% hit / profit factor &lt; 1 at a 5-day hold, and A+ setups " +
-        "win just 20%. The one measured positive edge is informed put " +
-        "flow (57% hit, +0.88% avg excess, n≈20.5k).</div>" +
+        '<div class="ro-read">Breadth ' + (rg.breadth || 0) + "%" +
+        (roRead ? " \u2014 " + esc(roRead) : "") + "</div>" +
         '<div class="ro-sub">Informed put clusters: see the Defense ' +
         "pane below (your names + market-wide).</div>" +
         (fadeRows ? '<div class="ro-sub">Extended names — historically ' +
@@ -24584,7 +24745,8 @@
     }
     // Offense pane — the ONLY long-side cohorts the outcome database
     // measures at or above coin-flip. Deliberately thin: momentum-long
-    // lists (44% hit, PF<1) never appear here. Sections:
+    // lists (measured below coin-flip in scan_outcomes) never appear
+    // here. Sections:
     //   1) OI-confirmed bullish carryover — whale positions HELD
     //      overnight (OI printed next morning; the confirmed cohort is
     //      a hypothesis-lab survivor at +4pp over baseline).
@@ -24636,6 +24798,8 @@
     function cardOffense(carry, engine, splitSet) {
       try {
         const esc = window.escapeHtml;
+        const _momNote = deskMomentumRead((window.TD_DATA || {}).stats)
+          .screens;
         const held = ((carry || {}).contracts || []).filter(function (x) {
           return x.held && x.direction === "bullish";
         }).sort(function (a, b) {
@@ -24675,9 +24839,10 @@
           "long-side edges" +
           '<span class="desk-stamp dst-fresh" title="Only cohorts the ' +
           "outcome database measures at or above coin-flip appear here " +
-          "— momentum-long screens (44% hit, profit factor < 1 at 5d) " +
-          "are deliberately excluded. Educational research, not " +
-          'investment advice.">outcome-DB gated · not advice</span></h3>' +
+          "— momentum-long screens are deliberately excluded" +
+          esc(_momNote ? " (" + _momNote + ")" : "") + ". Educational " +
+          'research, not investment advice.">outcome-DB gated · not advice' +
+          "</span></h3>" +
           (heldRows
             ? '<div class="ro-sub">Whale positions held overnight ' +
               "(OI-confirmed" +
@@ -24707,6 +24872,7 @@
     function cardDefenseWatch(uoa, splitSet) {
       try {
         const esc = window.escapeHtml;
+        const _put = deskPutFlowRead((window.TD_DATA || {}).stats);
         const wl = (window.tdWatchlist && window.tdWatchlist()) || null;
         const clusters = _putClusters(uoa);
         const mine = (wl && wl.size)
@@ -24732,12 +24898,12 @@
         }
         return '<div class="desk-card dw-card"><h3>Defense — informed ' +
           "put flow" +
-          '<span class="desk-stamp dst-warn" title="Put-buyer clusters ' +
-          "from today's flow batches. Historically the single strongest " +
-          "cohort in the outcome database: 57% hit rate, +0.88% average " +
-          "5-day excess for the put side across ≈20,500 matured " +
-          "signals. Delayed 15m. Educational research, not investment " +
-          'advice.">57% hit cohort · delayed 15m</span></h3>' +
+          '<span class="desk-stamp dst-warn" title="' + esc("Put-buyer " +
+          "clusters from today's flow batches. " +
+          (_put ? _put.text : "Measured outcome stats are not loaded.") +
+          " Delayed 15m. Educational research, not investment advice.") +
+          '">' + esc(_put ? _put.badge : "measured stats") +
+          " · delayed 15m</span></h3>" +
           (mine.length
             ? '<div class="ro-sub">Your names' +
               _asOf((uoa || {}).generated, "Flow batch") + "</div>" +
@@ -26511,8 +26677,9 @@
       return '<div class="ecard"><div class="et">'+label+'</div>'+
         '<div class="ev '+cls+'">'+sign+stat.avg+'%</div>'+
         '<div class="es" title="Stock move after the alert in the flow\'s ' +
-          'direction (bought puts graded bearish), directional alerts only.">' +
-          stat.hit_rate+'% hit &middot; '+stat.n+' alerts'+
+          'direction (bought puts graded bearish), directional alerts only. ' +
+          'The hit rate is the raw stock move, not measured against SPY.">' +
+          stat.hit_rate+'% stock moved its way (not vs SPY) &middot; '+stat.n+' alerts'+
         (stat.avg_excess!=null ? ' &middot; '+(stat.avg_excess>0?"+":"")+stat.avg_excess+'% vs SPY' : '')+
         '</div></div>';
     }
@@ -29687,6 +29854,16 @@
         });
       return false;
     }
+    // Tradeable = the cohort's own bar (win rate above 50% and positive
+    // average excess) AND n >= 30 AND the 95% range of its +5d excess vs
+    // SPY sits above zero. A small or noisy cohort never gets the badge.
+    function perfTradeable(c) {
+      const ac = (c && c.alpha_confidence) || {};
+      const rich = (c && c.rich) || {};
+      const ci = rich.ci95;
+      return !!ac.tradeable && (ac.n || 0) >= 30 && (rich.n || 0) >= 30 &&
+        Array.isArray(ci) && typeof ci[0] === "number" && ci[0] > 0;
+    }
     function perfCohortRows(view) {
       const map = (EDGE && EDGE["by_" + view]) || {};
       const keys = Object.keys(map);
@@ -29711,7 +29888,7 @@
           mfe: ex.avg_mfe, mae: ex.avg_mae,
           ac: ac,
           conf: ac.score == null ? -1 : ac.score,
-          tradeable: !!ac.tradeable,
+          tradeable: perfTradeable(c),
         };
       });
       return rows;
@@ -29785,7 +29962,8 @@
         '<div class="ph-stat"><span class="ph-l" title="Share of ' +
           'directional alerts (calls bought / puts bought) where the stock ' +
           'moved the flow\'s way by the next close. Premium selling and' +
-          'mixed prints are not graded.">+1d hit rate · dir-adj</span>' +
+          'mixed prints are not graded. This is the raw stock move, not ' +
+          'measured against SPY.">+1d stock moved its way (not vs SPY)</span>' +
           '<b class="' + (ov.hit_rate >= 50 ? "perf-pos" : "perf-neg") +
           '">' + (ov.hit_rate != null ? ov.hit_rate + "%" : "—") +
           '<span class="ph-sub">n=' + (ov.n || 0).toLocaleString() + '</span></b></div>' +
@@ -29837,8 +30015,9 @@
               (p[0] === PERF_MIN_CONF ? ' selected' : '') + '>' + p[1] + '</option>';
           }).join("") + '</select>' +
         '<label class="perf-trade" title="Cohorts currently clearing ' +
-          'the tradeable bar: win rate above 50% AND positive average ' +
-          'excess vs SPY, at n≥10. A count of 0 is the system being ' +
+          'the tradeable bar: win rate above 50%, positive average ' +
+          'excess vs SPY, at least 30 alerts, AND a 95% range on the ' +
+          '+5d excess that stays above zero. A count of 0 is the system being ' +
           'honest — no cohort clears the bar on current data, so ' +
           'nothing gets dressed up as tradeable.">' +
           '<input type="checkbox" id="perf-tradeable"' +
@@ -32024,6 +32203,11 @@
       return '<div class="co-tile"><div class="v">' + v +
         '</div><div class="k">' + k + '</div></div>';
     }
+    // "30%" share of tracked callouts, or "—" when nothing is tracked.
+    function coShare(k, tracked) {
+      if (!tracked || typeof k !== "number") return "\u2014";
+      return Math.round(100 * k / tracked) + "%";
+    }
     function excludedNote(x) {
       var bits = [];
       if (x.excluded_no_trade) bits.push(x.excluded_no_trade +
@@ -32047,34 +32231,39 @@
         return;
       }
       var r = d.rolling || {};
+      // Lead with what a holder actually got (median final), then the
+      // still-open marks; best-case peak exits come last, as a share of
+      // the callouts tracked.
       var h = '<div class="co-roll">' +
-        tile((r.tracked || 0) + ' <small>of ' + (r.n || 0) + '</small>',
-             "Callouts tracked (" + (r.days || 0) + "d)" +
-             (r.excluded_no_trade ? " \u00b7 " + r.excluded_no_trade +
-               " excluded, no trade after callout" : "")) +
-        tile(r.hit_100 || 0, "Hit +100% at peak") +
-        tile(r.hit_50 || 0, "Hit +50% at peak") +
-        tile(pct(r.median_peak_pct), "Median peak") +
         tile(pct(r.median_final_pct),
-             "Median final \u00b7 " + (r.matured || 0) + " finished" +
+             "Median final result \u00b7 " + (r.matured || 0) + " finished" +
              staleMark(r.final_stale, "finished callouts")) +
         tile(pct(r.median_latest_pct),
              "Median latest \u00b7 " + (r.open || 0) + " still open" +
              staleMark(r.latest_stale, "open callouts")) +
+        tile((r.tracked || 0) + ' <small>of ' + (r.n || 0) + '</small>',
+             "Callouts tracked (" + (r.days || 0) + "d)" +
+             (r.excluded_no_trade ? " \u00b7 " + r.excluded_no_trade +
+               " excluded, no trade after callout" : "")) +
+        tile(pct(r.median_peak_pct), "Median peak (best possible exit)") +
+        tile(coShare(r.hit_50, r.tracked),
+             "Touched +50% at some point (of tracked)") +
+        tile(coShare(r.hit_100, r.tracked),
+             "Touched +100% at some point (of tracked)") +
         '</div>';
       d.days.slice(0, 10).forEach(function (day) {
         h += '<div class="co-day"><div class="co-day-h"><b>' +
           esc(fmtDay(day.date)) + '</b><span class="ctx">Best ' +
           Math.min(day.top.length, 5) + ' of ' + (day.tracked || 0) +
           ' tracked (' + day.n + ' contracts reached the Top 25 that day' +
-          excludedNote(day) + ') \u00b7 ' + day.hit_100 +
-          ' hit +100% \u00b7 ' + day.hit_50 +
-          ' hit +50% at peak \u00b7 median peak ' +
-          pct(day.median_peak_pct) +
+          excludedNote(day) + ')' +
           (day.matured ? ' \u00b7 median final ' + pct(day.median_final_pct) +
             ' (' + day.matured + ' finished)' : '') +
           (day.open ? ' \u00b7 median latest ' + pct(day.median_latest_pct) +
             ' (' + day.open + ' still open)' : '') +
+          ' \u00b7 at peak: ' + coShare(day.hit_50, day.tracked) +
+          ' touched +50%, ' + coShare(day.hit_100, day.tracked) +
+          ' touched +100% \u00b7 median peak ' + pct(day.median_peak_pct) +
           '</span></div>' +
           '<div class="co-wrap"><table class="co-tbl"><tr>' +
           '<th>Contract</th>' +

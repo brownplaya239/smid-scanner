@@ -12,35 +12,134 @@ Runs in CI after the report JSONs are refreshed so the live-stat
 callouts track the latest ledger. Pure static output — no client JS.
 """
 
+import itertools
 import json
+import math
 import os
 import re
 import sys
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 R = lambda *p: os.path.join(_BASE, *p)
-OUT_DIR = R("docs")
+# Overridable so tests can build from fixture JSON into a temp folder.
+OUT_DIR = os.environ.get("TD_SITE_OUT") or R("docs")
+REPORTS_DIR = os.environ.get("TD_REPORTS_DIR") or R("docs", "reports")
+WORKER_JS = R("cloudflare-worker", "worker.js")
 SITE = "https://tickerdesk.io"
 
 
 def _load(path, default=None):
     try:
-        with open(R("docs", "reports", path), encoding="utf-8") as f:
+        with open(os.path.join(REPORTS_DIR, path), encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return {} if default is None else default
 
 
+def _num(v):
+    """v as a float, or None for anything that is not a finite real number.
+
+    Every published stat goes through this: a string, NaN or infinity in the
+    data means the stat is left out, never pasted into the page."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+        return None
+    return float(v)
+
+
 def _fmt_int(n):
+    """'6,951' for a finite number, else None."""
+    v = _num(n)
+    return None if v is None else f"{int(v):,}"
+
+
+def _numtxt(v):
+    """A finite number as plain text ('54', '0.66'), else None."""
+    return None if _num(v) is None else str(v)
+
+
+def _pct(v, dp=2):
+    """Signed percent for HTML: +0.33% / &minus;0.23%."""
+    v = _num(v)
+    if v is None:
+        return None
+    v = round(v, dp)
+    s = f"{abs(v):.{dp}f}%"
+    return ("+" if v > 0 else "&minus;" if v < 0 else "") + s
+
+
+def _ci_bounds(ci):
+    if isinstance(ci, (list, tuple)) and len(ci) == 2:
+        lo, hi = _num(ci[0]), _num(ci[1])
+        if lo is not None and hi is not None:
+            return lo, hi
+    return None
+
+
+def _ci_text(ci):
+    b = _ci_bounds(ci)
+    return None if b is None else _pct(b[0]) + " to " + _pct(b[1])
+
+
+def _ci_read(ci):
+    """Plain-English read of a 95% range: does it rule out zero?"""
+    b = _ci_bounds(ci)
+    if b is None:
+        return None
+    if b[0] > 0:
+        return "measurably positive"
+    if b[1] < 0:
+        return "measurably negative"
+    return "not distinguishable from zero"
+
+
+def _date_of(iso):
+    """'2026-11-16T19:17:37+00:00' -> 'November 16, 2026' (US/Eastern)."""
     try:
-        return f"{int(n):,}"
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        d = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+        if d.tzinfo is not None:
+            d = d.astimezone(ZoneInfo("America/New_York"))
+        return d.strftime("%B ") + str(d.day) + d.strftime(", %Y")
     except Exception:
         return None
+
+
+# ── scan cadence (read from the worker that actually fires the scans) ─────
+def uoa_slots():
+    """The ET clock times the Cloudflare worker dispatches the flow scan."""
+    try:
+        with open(WORKER_JS, encoding="utf-8") as f:
+            m = re.search(r"const UOA_SLOTS\s*=\s*\[([^\]]*)\]", f.read())
+        return re.findall(r'"(\d{2}:\d{2})"', m.group(1)) if m else []
+    except Exception:
+        return []
+
+
+def _clock(hhmm):
+    h, m = (int(x) for x in hhmm.split(":"))
+    return f"{h % 12 or 12}:{m:02d} {'AM' if h < 12 else 'PM'}"
+
+
+def scan_cadence(slots=None):
+    """'every 30 minutes from 9:45 AM to 3:45 PM ET' or None."""
+    slots = uoa_slots() if slots is None else slots
+    if len(slots) < 2:
+        return None
+    mins = [int(s[:2]) * 60 + int(s[3:]) for s in slots]
+    gaps = {b - a for a, b in itertools.pairwise(mins)}
+    every = f"every {gaps.pop()} minutes" if len(gaps) == 1 else f"{len(slots)} times a day"
+    return f"{every} from {_clock(slots[0])} to {_clock(slots[-1])} ET"
 
 
 # ── live stats (defensive — return None when absent) ──────────────────────
 EDGE = _load("uoa_edge.json")
 LEVELS = _load("level_stats.json")
+TOP25 = _load("uoa_top25_daily.json")
+RESEARCH = _load("uoa_research.json")
+HLAB = _load("hypothesis_lab.json")
+SCANS = _load("scan_outcomes.json")
 
 
 def edge_stat():
@@ -48,30 +147,44 @@ def edge_stat():
     ro = (EDGE.get("rich_overall") or {}).get("5") or {}
     oi = EDGE.get("oi_confirmation") or {}
     out = {}
-    if EDGE.get("total_signals"):
+    # Only finite numbers get in; anything else (a string, NaN, a stray
+    # HTML snippet) drops the stat. Text values are pre-formatted here.
+    if _num(EDGE.get("total_signals")):
         out["total"] = _fmt_int(EDGE["total_signals"])
-    if EDGE.get("matured_5d"):
+    if _num(EDGE.get("matured_5d")):
         out["matured"] = _fmt_int(EDGE["matured_5d"])
-    if ro.get("ev") is not None:
+    if _num(ro.get("ev")) is not None:
         out["ev"] = ro["ev"]
-    if ro.get("win_rate") is not None:
-        out["win"] = ro["win_rate"]
-    if ro.get("profit_factor") is not None:
-        out["pf"] = ro["profit_factor"]
-    if oi.get("confirm_rate") is not None:
-        out["oi_rate"] = oi["confirm_rate"]
-    if oi.get("checked"):
+    if _numtxt(ro.get("win_rate")) is not None:
+        out["win"] = _numtxt(ro["win_rate"])
+    if _numtxt(ro.get("profit_factor")) is not None:
+        out["pf"] = _numtxt(ro["profit_factor"])
+    if _ci_bounds(ro.get("ci95")):
+        out["ci"] = ro["ci95"]
+    if _numtxt(oi.get("confirm_rate")) is not None:
+        out["oi_rate"] = _numtxt(oi["confirm_rate"])
+    if _num(oi.get("checked")):
         out["oi_checked"] = _fmt_int(oi["checked"])
     gs = (EDGE.get("by_type") or {}).get("golden_sweep") or {}
-    grich = gs.get("rich") or gs
-    if grich.get("n"):
-        out["gs_n"] = _fmt_int(grich["n"])
-    if LEVELS.get("sessions"):
+    grich = gs.get("rich") or {}
+    if (
+        grich.get("status") == "active"
+        and _num(grich.get("n"))
+        and _num(grich.get("ev")) is not None
+    ):
+        out["gs"] = grich
+    if _num(LEVELS.get("sessions")):
         out["lvl_sessions"] = LEVELS["sessions"]
+    if _num(TOP25.get("universe_total")):
+        out["universe"] = _fmt_int(TOP25["universe_total"])
+    asof = _date_of(EDGE.get("generated"))
+    if asof:
+        out["asof"] = asof
     return out
 
 
 ST = edge_stat()
+CADENCE = scan_cadence()
 
 
 # ── shared template ───────────────────────────────────────────────────────
@@ -230,27 +343,81 @@ def render(page, all_pages):
 
 
 # ── page specs ────────────────────────────────────────────────────────────
+def _asof_note():
+    return (" Numbers as of " + ST["asof"] + ".") if ST.get("asof") else ""
+
+
 def _flow_callout():
     if not (ST.get("total") and ST.get("ev") is not None):
         return None
+    read = _ci_read(ST.get("ci"))
+    if read == "measurably positive":
+        verdict = "Overall the flagged flow has done slightly better than the market"
+    elif read == "measurably negative":
+        verdict = "Overall, following every flagged alert has lost slightly against the market"
+    else:
+        verdict = "Overall, following every flagged alert has been close to a coin flip"
+    ci = _ci_text(ST.get("ci"))
     return (
         '<div class="stat-row">'
         "<div><b>" + ST["total"] + "</b>alerts tracked</div>"
         "<div><b>"
-        + ("+" if ST["ev"] >= 0 else "")
-        + str(ST["ev"])
-        + "%</b>avg +5d stock excess vs SPY, direction-adjusted</div>"
-        "<div><b>"
-        + str(ST.get("win", ""))
-        + "%</b>win rate · PF "
-        + str(ST.get("pf", ""))
-        + "</div></div>"
-        '<p style="margin:10px 0 0;font-size:13px;color:#9a9a9a">These '
-        "are the honest aggregate numbers — a near-coin-flip baseline. "
-        "They measure the underlying stock (bought puts graded as bearish "
-        "calls), not option P&amp;L. "
-        "The edge lives in specific cohorts, and we publish where it "
-        "doesn't work too.</p>"
+        + _pct(ST["ev"])
+        + "</b>avg +5d stock excess vs SPY, direction-adjusted</div>"
+        + (
+            "<div><b>"
+            + ST["win"]
+            + "%</b>win rate"
+            + (" · PF " + ST["pf"] if ST.get("pf") is not None else "")
+            + "</div>"
+            if ST.get("win") is not None
+            else ""
+        )
+        + "</div>"
+        '<p style="margin:10px 0 0;font-size:13px;color:#9a9a9a">'
+        + verdict
+        + (" (95% range " + ci + ")" if ci else "")
+        + ". These numbers measure the underlying stock (bought puts graded "
+        "as bearish calls), not option P&amp;L. The "
+        "<a href='/transparency'>transparency page</a> breaks it down by "
+        "cohort, including the ones that don't work." + _asof_note() + "</p>"
+    )
+
+
+def _gs_callout():
+    g = ST.get("gs")
+    if not g:
+        return None
+    read = _ci_read(g.get("ci95"))
+    ci = _ci_text(g.get("ci95"))
+    return (
+        '<div class="stat-row">'
+        "<div><b>" + _fmt_int(g["n"]) + "</b>golden sweeps graded at +5 days</div>"
+        "<div><b>" + _pct(g["ev"]) + "</b>avg +5d stock excess vs SPY, "
+        "in the sweep's direction</div>"
+        + (
+            "<div><b>"
+            + _numtxt(g.get("win_rate"))
+            + "%</b>win rate"
+            + (
+                " · PF " + _numtxt(g.get("profit_factor"))
+                if _numtxt(g.get("profit_factor")) is not None
+                else ""
+            )
+            + "</div>"
+            if _numtxt(g.get("win_rate")) is not None
+            else ""
+        )
+        + "</div>"
+        '<p style="margin:10px 0 0;font-size:13px;color:#9a9a9a">'
+        + (
+            "The 95% range is " + ci + ", so the golden-sweep result is " + read + ". "
+            if ci and read
+            else ""
+        )
+        + "Measured on the underlying stock, not the option."
+        + _asof_note()
+        + "</p>"
     )
 
 
@@ -259,9 +426,14 @@ def _oi_callout():
         return None
     return (
         '<div class="stat-row">'
-        "<div><b>" + str(ST["oi_rate"]) + "%</b>of alerts confirmed by "
+        "<div><b>" + ST["oi_rate"] + "%</b>of alerts confirmed by "
         "next-day open interest</div>"
-        "<div><b>" + str(ST.get("oi_checked", "")) + "</b>alerts OI-checked</div></div>"
+        + (
+            "<div><b>" + ST["oi_checked"] + "</b>alerts OI-checked</div>"
+            if ST.get("oi_checked")
+            else ""
+        )
+        + "</div>"
     )
 
 
@@ -270,12 +442,29 @@ def _levels_callout():
         return None
     return (
         '<div class="stat-row"><div><b>'
-        + str(ST["lvl_sessions"])
+        + _fmt_int(ST["lvl_sessions"])
         + "</b>sessions of level statistics per symbol</div></div>"
         '<p style="margin:10px 0 0;font-size:13px;color:#9a9a9a">Each '
         "key level ships with its measured touch / hold / break rate — "
         "not just a line on a chart.</p>"
     )
+
+
+def _sessions_phrase():
+    """'339 sessions' from level_stats, or a hedge when it isn't published."""
+    return (
+        (_fmt_int(ST["lvl_sessions"]) + " sessions") if ST.get("lvl_sessions") else "many sessions"
+    )
+
+
+def _universe_phrase():
+    if ST.get("universe"):
+        return ST["universe"] + " optionable names (the latest session's universe)"
+    return "a broad universe of liquid optionable names"
+
+
+def _cadence_phrase():
+    return CADENCE or "several times each market day"
 
 
 PAGES = [
@@ -285,7 +474,11 @@ PAGES = [
         "meta": "A daily options-flow scanner that flags unusual options activity, sweeps, and repeat buyers — then grades every signal against real closes and publishes what didn't work too.",
         "h1": "Options flow scanner that grades itself",
         "sub": "Unusual options activity, golden sweeps, and repeat-buyer flow — with the one thing most scanners hide: what happened next.",
-        "intro": "<p>Most options-flow tools show you a firehose of big trades and leave you to guess which ones matter. TickerDesk scans ~180 liquid optionable names six times a market day (15-minute delayed), flags the unusual activity, and then <b>tracks every flagged signal to a real outcome</b> at +1/+3/+5/+10/+20 days versus SPY.</p>",
+        "intro": "<p>Most options-flow tools show you a firehose of big trades and leave you to guess which ones matter. TickerDesk scans "
+        + _universe_phrase()
+        + " "
+        + _cadence_phrase()
+        + " (15-minute delayed data), flags the unusual activity, and then <b>tracks every flagged signal to a real outcome</b> at +1/+3/+5/+10/+20 days versus SPY.</p>",
         "callout": _flow_callout(),
         "body": (
             "<h2>What it flags</h2><ul>"
@@ -300,11 +493,13 @@ PAGES = [
         "faq": [
             (
                 "Is the options flow real-time?",
-                "Data is 15-minute delayed (Polygon Options Starter), clearly labeled everywhere. The scan runs six times per market day.",
+                "Data is 15-minute delayed (Polygon Options Starter), clearly labeled everywhere. The scan runs "
+                + _cadence_phrase()
+                + " on market days.",
             ),
             (
                 "Does options flow actually work?",
-                "On the full ledger, following flow blindly is close to a coin flip — we publish that. The edge is in specific cohorts and decays within days. The <a href='/transparency'>transparency page</a> has the numbers.",
+                "We grade every alert and publish the result, good or bad. The <a href='/transparency'>transparency page</a> has the current numbers, with a 95% range on each cohort so you can see which differences are bigger than the noise.",
             ),
         ],
         "cta_href": "/#uoa",
@@ -346,7 +541,7 @@ PAGES = [
         "h1": "Golden sweeps, with a real track record",
         "sub": "The most aggressive footprint in the tape — swept across exchanges, paying up for urgency.",
         "intro": "<p>A golden sweep is an order large and urgent enough to sweep multiple exchanges and pay the offer. It's the closest thing options flow has to a conviction tell. TickerDesk flags them intraday, confirms them against next-day open interest, and grades the cohort so you know how this signal type has actually performed.</p>",
-        "callout": _flow_callout(),
+        "callout": _gs_callout(),
         "body": (
             "<h2>What makes a sweep 'golden'</h2><ul>"
             "<li>Multi-exchange execution — filled across venues in a hurry.</li>"
@@ -354,7 +549,7 @@ PAGES = [
             "<li>Size relative to the contract's normal liquidity.</li>"
             "</ul>"
             "<h2>Then the honest part</h2>"
-            "<p>Golden sweeps are a real cohort in our edge attribution, tracked against SPY across horizons. You see the win rate and expected value, not just the alert.</p>"
+            "<p>Golden sweeps are graded as their own cohort, against SPY across horizons. You see the win rate, the average result and its 95% range, not just the alert, including when the cohort has underperformed.</p>"
         ),
         "faq": [
             (
@@ -363,7 +558,9 @@ PAGES = [
             ),
             (
                 "How fast do I see them?",
-                "Within the 15-minute-delayed scan cadence, six times per market day.",
+                "On the next scan: the flow scan runs "
+                + _cadence_phrase()
+                + ", on 15-minute delayed data.",
             ),
         ],
         "cta_href": "/#uoa",
@@ -375,7 +572,9 @@ PAGES = [
         "meta": "Daily key levels for SPY, QQQ and IWM: prior-day high/low, VWAP, opening range, VPOC/VAH/VAL, dealer gamma walls and expected move — each with its measured hold/break rate.",
         "h1": "SPY / QQQ / IWM levels that carry their own stats",
         "sub": "The index structure map for 0DTE and weekly options — every level graded by how it has actually behaved.",
-        "intro": "<p>Anyone can draw prior-day high, VWAP and the opening range. The question is which one holds. TickerDesk computes the full level set for SPY, QQQ and IWM each day and attaches a <b>measured touch, hold and break rate</b> to every level from hundreds of sessions of history.</p>",
+        "intro": "<p>Anyone can draw prior-day high, VWAP and the opening range. The question is which one holds. TickerDesk computes the full level set for SPY, QQQ and IWM each day and attaches a <b>measured touch, hold and break rate</b> to every level from "
+        + _sessions_phrase()
+        + " of history.</p>",
         "callout": _levels_callout(),
         "body": (
             "<h2>The level set</h2><ul>"
@@ -393,7 +592,9 @@ PAGES = [
             ),
             (
                 "Where do the hold/break rates come from?",
-                "From an engine that replays ~250 sessions of 5-minute bars per symbol and measures how each level actually behaved on first touch.",
+                "From an engine that replays "
+                + _sessions_phrase()
+                + " of 5-minute bars per symbol and measures how each level actually behaved on first touch.",
             ),
         ],
         "cta_href": "/#charts",
@@ -462,7 +663,7 @@ PAGES = [
         "meta": "A daily VCP screener for volatility-contraction-pattern setups: tightening range, declining volume, and a defined pivot — each setup scored for quality.",
         "h1": "VCP screener with quality scores",
         "sub": "Volatility contraction pattern setups — tightening base, drying volume, a clear pivot.",
-        "intro": "<p>The Volatility Contraction Pattern (VCP) is a base that tightens through progressively smaller pullbacks on declining volume before a breakout. TickerDesk's Setup Builder screens for VCP structure each afternoon and scores every candidate on setup quality so you're not eyeballing a hundred charts.</p>",
+        "intro": "<p>The Volatility Contraction Pattern (VCP) is a base that tightens through progressively smaller pullbacks on declining volume before a breakout. TickerDesk's Setup Builder screens for VCP structure after each close and scores every candidate on setup quality so you're not eyeballing a hundred charts.</p>",
         "body": (
             "<h2>What the screen looks for</h2><ul>"
             "<li>A series of contractions — each pullback shallower than the last.</li>"
@@ -476,7 +677,7 @@ PAGES = [
                 "What is a VCP?",
                 "A volatility contraction pattern — a consolidation that tightens through successive smaller pullbacks on falling volume, popularized by Mark Minervini, often preceding a breakout.",
             ),
-            ("How often does it update?", "Once per day after the close (16:15 ET)."),
+            ("How often does it update?", "Once per day, after the close."),
         ],
         "cta_href": "/#setup",
         "cta_label": "Open the VCP screener",
@@ -564,6 +765,433 @@ for _p in PAGES:
     _p["link_label"] = LINK_LABELS.get(_p["slug"], _p["slug"])
 
 
+# ── transparency page (generated from the same live JSON) ────────────────
+T_CSS = """
+  body { margin:0; padding:48px 20px 80px; background:#000; color:#e8e8e8;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+    line-height:1.6; }
+  main { max-width:680px; margin:0 auto; }
+  .nav { display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid #2b2b2b; padding-bottom:16px; margin-bottom:32px; }
+  .nav a { color:#ff9e1b; text-decoration:none; font-size:13px; font-weight:600; }
+  .nav a:hover { text-decoration:underline; }
+  h1 { font-size:28px; font-weight:800; margin:0 0 8px; }
+  h2 { font-size:18px; font-weight:700; margin:36px 0 10px; }
+  .sub { color:#7a7a7a; font-size:13px; margin-bottom:32px; }
+  p, li { font-size:14.5px; color:#c9c9c9; }
+  a { color:#ff9e1b; }
+  .stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:10px; margin:18px 0; }
+  .stat { background:#0e0e0e; border:1px solid #2b2b2b; border-radius:8px;
+    padding:14px 12px; }
+  .stat b { display:block; font-size:20px; font-weight:800; color:#e8e8e8;
+    font-variant-numeric:tabular-nums; }
+  .stat span { font-size:11px; color:#7a7a7a; line-height:1.4; display:block;
+    margin-top:4px; }
+  table { width:100%; border-collapse:collapse; margin:14px 0; font-size:13px; }
+  th, td { text-align:left; padding:7px 10px; border-bottom:1px solid #1e1e1e;
+    font-variant-numeric:tabular-nums; }
+  th { color:#7a7a7a; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  .note { background:#0e0e0e; border-left:3px solid #ff9e1b; border-radius:0 8px 8px 0;
+    padding:12px 16px; font-size:13.5px; color:#b4b4b4; margin:18px 0; }
+  .cta { display:inline-block; background:#ff9e1b; color:#000; font-weight:700;
+    padding:10px 22px; border-radius:8px; text-decoration:none; margin-top:8px; }
+  footer { margin-top:48px; padding-top:16px; border-top:1px solid #2b2b2b;
+    font-size:12px; color:#7a7a7a; }
+"""
+
+# (label, path into uoa_edge.json) for the cohort table; a row whose source
+# is missing or still accruing is left out, never filled from an old copy.
+T_COHORTS = [
+    ("Golden sweeps ($1M+ buy-side sweeps)", ("by_type", "golden_sweep")),
+    ("Flow into earnings", ("by_tag", "Into ERN")),
+    ("Expiries 15&ndash;90 days out", ("by_dte", "swing")),
+    ("Expiries 3&ndash;12 months out", ("by_dte", "positioning")),
+    ("Repeat buyers", ("by_tag", "Repeat")),
+    ("Top-scored alerts (score 80+)", ("by_score", "80-100")),
+]
+T_BOOKS = [("put_buy", "Puts bought"), ("call_buy", "Calls bought"), ("seller", "Premium sold")]
+
+
+def _signed(v, fmt):
+    """Signed number with an HTML minus sign."""
+    return format(v, fmt).replace("-", "&minus;")
+
+
+def _cohort_row(label, rich):
+    if not rich or rich.get("status") != "active" or not _num(rich.get("n")):
+        return ""
+    ev, win = _pct(rich.get("ev")), _numtxt(rich.get("win_rate"))
+    if ev is None or win is None:
+        return ""
+    return (
+        "<tr><td>"
+        + label
+        + "</td><td>"
+        + win
+        + "%</td><td>"
+        + ev
+        + "</td><td>"
+        + (_ci_text(rich.get("ci95")) or "&mdash;")
+        + "</td><td>"
+        + (_ci_read(rich.get("ci95")) or "&mdash;")
+        + "</td><td>"
+        + _fmt_int(rich["n"])
+        + "</td></tr>"
+    )
+
+
+def _t_headline():
+    ro = (EDGE.get("rich_overall") or {}).get("5") or {}
+    tiles = []
+    since = _date_of(EDGE.get("oldest_signal_ts"))
+    if ST.get("total"):
+        tiles.append((ST["total"], "alerts tracked" + (" since " + since if since else "")))
+    if ST.get("matured"):
+        tiles.append((ST["matured"], "matured &amp; graded at the +5-day horizon"))
+    if ST.get("ev") is not None:
+        ci = _ci_text(ST.get("ci"))
+        tiles.append(
+            (
+                _pct(ST["ev"]),
+                "average +5d excess return vs SPY, in the flow's direction"
+                + (" &middot; 95% range " + ci if ci else ""),
+            )
+        )
+    if ST.get("win") is not None:
+        bits = []
+        if _pct(ro.get("avg_win")) and _pct(ro.get("avg_loss")):
+            bits.append(
+                "winners average " + _pct(ro["avg_win"]) + ", losers " + _pct(ro["avg_loss"])
+            )
+        if ST.get("pf") is not None:
+            bits.append("profit factor " + ST["pf"])
+        tiles.append((ST["win"] + "%", "win rate" + "".join(" &middot; " + b for b in bits)))
+    if not tiles:
+        return ""
+    html = (
+        '<h2>The headline, honestly</h2>\n  <div class="stat-grid">'
+        + "".join(
+            '<div class="stat"><b>' + v + "</b><span>" + k + "</span></div>" for v, k in tiles
+        )
+        + "</div>"
+    )
+    read = _ci_read(ST.get("ci"))
+    if read == "not distinguishable from zero":
+        html += (
+            "\n  <p><b>Translation: buying every flow signal blindly is a coin flip.</b> "
+            "The average is not distinguishable from zero. We publish that because it's "
+            "true, and because it's the honest baseline that makes the cohort numbers "
+            "below meaningful instead of marketing.</p>"
+        )
+    elif read == "measurably negative":
+        html += (
+            "\n  <p><b>Translation: buying every flow signal blindly has lost slightly "
+            "against the market.</b> We publish that because it's true, and because it's "
+            "the honest baseline for the cohort numbers below.</p>"
+        )
+    elif read == "measurably positive":
+        html += (
+            "\n  <p><b>Translation: the flagged flow as a whole has done slightly better "
+            "than the market so far.</b> The margin is small; check the cohorts below and "
+            "their 95% ranges before leaning on it.</p>"
+        )
+    return html
+
+
+def _t_cohorts():
+    rows = ""
+    for label, (group, key) in T_COHORTS:
+        rows += _cohort_row(label, ((EDGE.get(group) or {}).get(key) or {}).get("rich"))
+    if not rows:
+        return ""
+    return (
+        '<h2>By cohort</h2>\n  <p>The signal isn\'t "flow good." The question is <i>which</i> '
+        "flow, and whether the difference is bigger than the noise. Each row is the +5-day "
+        "stock move vs SPY in the flow's direction, with its 95% range. A range that "
+        "includes zero means we can't tell the result apart from luck.</p>\n  <table>"
+        "<tr><th>Cohort</th><th>Win rate</th><th>Avg +5d vs SPY</th><th>95% range</th>"
+        "<th>Read</th><th>n</th></tr>" + rows + "</table>"
+    )
+
+
+def _t_attribution():
+    books = (RESEARCH.get("attribution") or {}).get("books") or {}
+    items = []
+    for key, label in T_BOOKS:
+        b = books.get(key) or {}
+        if b.get("status") != "active" or _pct(b.get("dir_ev")) is None:
+            continue
+        fa, fci = _pct(b.get("flow_alpha")), _ci_text(b.get("flow_alpha_ci95"))
+        if fa is None or fci is None:
+            continue
+        hit = _num(b.get("hit"))
+        items.append(
+            "<li><b>"
+            + label
+            + "</b>"
+            + (" (" + _fmt_int(b.get("n")) + " alerts)" if _fmt_int(b.get("n")) else "")
+            + ": "
+            + (str(round(hit)) + "% beat SPY in the flow's direction, " if hit is not None else "")
+            + _pct(b["dir_ev"])
+            + " average vs SPY. After removing that day's drift of all "
+            "flagged stocks, the flow itself adds "
+            + fa
+            + " (95% range "
+            + fci
+            + "), "
+            + (_ci_read(b.get("flow_alpha_ci95")) or "")
+            + ".</li>"
+        )
+    if not items:
+        return ""
+    html = (
+        "<h2>Does the flow itself add anything?</h2>\n  <p>Part of any result is simply "
+        "how the flagged stocks drifted that week. Our research engine splits each book "
+        "into that drift and the part the flow's direction adds on top:</p>\n  <ul>"
+        + "".join(items)
+        + "</ul>"
+    )
+    pb = books.get("put_buy") or {}
+    if (
+        pb.get("status") == "active"
+        and (_num(pb.get("dir_ev")) or 0) > 0
+        and _ci_read(pb.get("flow_alpha_ci95")) == "not distinguishable from zero"
+    ):
+        html += (
+            "\n  <p>So when put buyers look right, it is mostly because the stocks they "
+            "were flagged on drifted down anyway, not because the puts predicted it.</p>"
+        )
+    return html
+
+
+def _t_doesnt_work():
+    items = []
+    ic = EDGE.get("ic") or {}
+    icv = _num(ic.get("ic_spearman"))
+    if icv is not None and _num(ic.get("n")):
+        dec = EDGE.get("score_deciles") or {}
+        tmb = _num(dec.get("top_minus_bottom"))
+        items.append(
+            "<li><b>"
+            + ("Our score barely ranks." if abs(icv) < 0.05 else "Score ranking.")
+            + "</b> The rank correlation (IC) between our trade "
+            "score and the result is "
+            + _signed(icv, ".3f")
+            + " across "
+            + _fmt_int(ic["n"])
+            + " alerts"
+            + ("; we treat 0.05 or more as meaningful" if abs(icv) < 0.05 else "")
+            + "."
+            + (
+                " The top tenth of scores beat the bottom tenth by "
+                + _signed(tmb, ".2f")
+                + " points."
+                if tmb is not None and dec.get("status") == "active"
+                else ""
+            )
+            + " We use the score as an admission filter, not a ranking.</li>"
+        )
+    ro = EDGE.get("rich_overall") or {}
+    hz = [(h, ro.get(h) or {}) for h in ("5", "10", "20")]
+    hz = [(h, r) for h, r in hz if r.get("status") == "active" and _pct(r.get("ev")) is not None]
+    if len(hz) >= 2:
+        items.append(
+            "<li><b>"
+            + (
+                "Holding longer makes it worse."
+                if _num(hz[-1][1]["ev"]) < _num(hz[0][1]["ev"])
+                else "By holding period."
+            )
+            + "</b> Average excess vs SPY: "
+            + "; ".join(
+                "+"
+                + h
+                + "d "
+                + _pct(r["ev"])
+                + " ("
+                + (_ci_read(r.get("ci95")) or "no range")
+                + ")"
+                for h, r in hz
+            )
+            + ".</li>"
+        )
+    surv = HLAB.get("survivors")
+    if HLAB.get("status") == "active" and _num(HLAB.get("n_tested")) and isinstance(surv, list):
+        mt = HLAB.get("multiple_testing") or {}
+        ran = _date_of(HLAB.get("generated"))
+        items.append(
+            "<li><b>Most ideas fail.</b> Our hypothesis lab has tested "
+            + _fmt_int(HLAB["n_tested"])
+            + " feature combinations against later, out-of-sample data. "
+            + _fmt_int(len(surv))
+            + " survived"
+            + (
+                " and " + _fmt_int(HLAB["graveyard"]) + " are in the graveyard"
+                if _fmt_int(HLAB.get("graveyard")) is not None
+                else ""
+            )
+            + "."
+            + (
+                " After correcting for testing so many, "
+                + _fmt_int(mt["bh_survivors"])
+                + (" still passes." if mt["bh_survivors"] == 1 else " still pass.")
+                if _fmt_int(mt.get("bh_survivors")) is not None
+                else ""
+            )
+            + " Survivors are candidates for review, not proven signals."
+            + (" (Lab last run " + ran + ".)" if ran else "")
+            + "</li>"
+        )
+    ov = SCANS.get("overall") or {}
+    if ov.get("status") == "active" and _pct(ov.get("ev")) is not None:
+        # Each clause needs its own source field; a missing one is left out.
+        win, hold, n = (
+            _numtxt(ov.get("win_rate")),
+            _fmt_int(ov.get("hold_d")),
+            _fmt_int(ov.get("n")),
+        )
+        items.append(
+            "<li><b>"
+            + ("Momentum lists fade." if ov["ev"] < 0 else "Momentum lists.")
+            + "</b> Names on the QM Monthly and Stockbee Weekly lists "
+            + (
+                "won " + win + "% of the time with a " + _pct(ov["ev"]) + " average"
+                if win
+                else "averaged " + _pct(ov["ev"])
+            )
+            + (" over the next " + hold + " sessions" if hold and hold != "0" else "")
+            + (" (" + n + " graded)" if n else "")
+            + ".</li>"
+        )
+    if not items:
+        return ""
+    return "<h2>What we've found doesn't work</h2>\n  <ul>" + "".join(items) + "</ul>"
+
+
+def _t_calibration():
+    drifts = [
+        _num(b.get("drift"))
+        for b in (EDGE.get("calibration") or {}).values()
+        if isinstance(b, dict) and _num(b.get("drift")) is not None
+    ]
+    if not drifts:
+        return ""
+    lo, hi = min(drifts), max(drifts)
+    rng = _signed(lo, "+g") + ("" if lo == hi else " to " + _signed(hi, "+g")) + " points"
+    return (
+        "\n    <li>A nightly calibration check compares trained expectations with the live "
+        "tape and publishes the drift, currently " + rng + " depending on score band.</li>"
+    )
+
+
+def transparency_html():
+    asof = ST.get("asof")
+    total = ST.get("total")
+    desc = (
+        "Does options flow actually work? We track every signal we publish"
+        + (" (" + total + " so far)" if total else "")
+        + " and grade them against real closes. The honest numbers: averages, win "
+        "rates, ranges, and what doesn't work."
+    )
+    og = (
+        (total + " alerts tracked, " if total else "Every alert ")
+        + "graded against real closes. Averages, win rates, 95% ranges, and the cohorts "
+        "that don't work, published, not hidden."
+    )
+    sub = (
+        ("Numbers as of " + asof + " &middot; rebuilt" if asof else "Rebuilt")
+        + ' from the live data every weeknight &middot; the <a href="/#uoa">live '
+        "Performance dashboard</a> updates more often &middot; every figure is "
+        "self-graded against real closing prices, never estimated"
+    )
+    intro = (
+        "<p>Most options-flow products show you the winners. We log <b>every</b> alert "
+        "our scanner publishes"
+        + (" (" + total + " so far)" if total else "")
+        + ", wait for real market closes, and grade all of them. Wins, losses, and the "
+        "cohorts that turned out to be noise. One alert is a contract's first flag of the "
+        "day; repeat scans of the same contract are folded in. Results measure the "
+        "underlying stock against SPY, in the flow's direction (a bought put counts as a "
+        "bet on the stock falling), not option P&amp;L.</p>"
+    )
+    how = (
+        "<h2>How the grading works</h2>\n  <ul>"
+        "\n    <li>Every published alert is logged the moment it appears: no retroactive "
+        "additions, no deletions.</li>"
+        "\n    <li>Returns are graded against real closing prices at +1/+3/+5/+10/+20 "
+        "days, benchmarked against SPY.</li>"
+        "\n    <li>Next-day open-interest checks tell us whether flagged positions were "
+        "actually opened and held.</li>"
+        "\n    <li>Cohort statistics wait for a minimum sample and ship with 95% ranges. "
+        'Below the minimum they say "accruing", never a made-up number.</li>'
+        + _t_calibration()
+        + "\n  </ul>"
+    )
+    sections = "\n\n  ".join(
+        s for s in (_t_headline(), _t_cohorts(), _t_attribution(), _t_doesnt_work(), how) if s
+    )
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="{desc}" />
+<link rel="icon" href="favicon.png" />
+<link rel="canonical" href="{site}/transparency" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="TickerDesk" />
+<meta property="og:title" content="Does Options Flow Work? Our Self-Graded Numbers — TickerDesk" />
+<meta property="og:description" content="{og}" />
+<meta property="og:url" content="{site}/transparency" />
+<meta property="og:image" content="{site}/og-image.jpg" />
+<title>Does Options Flow Work? Our Self-Graded Numbers — TickerDesk</title>
+<!-- Generated by landing_pages.py from the live report JSON. Do not hand-edit. -->
+<style>{css}</style>
+</head>
+<body>
+<main>
+  <div class="nav">
+    <a href="/">&larr; TickerDesk</a>
+    <a href="/#uoa">Live dashboard &rarr;</a>
+  </div>
+
+  <h1>Does options flow actually work?</h1>
+  <p class="sub">{sub}</p>
+
+  {intro}
+
+  {sections}
+
+  <div class="note">
+    <b>What this isn't:</b> a track record of trades, a promise of returns, or
+    financial advice. It's the measured behavior of a signal engine, published so
+    you can judge it the way we do. Data is 15-minute delayed. Transaction costs
+    are not modeled and matter at these margins.
+  </div>
+
+  <p><a class="cta" href="/#uoa">See the live numbers &rarr;</a></p>
+
+  <footer>
+    <a href="/">TickerDesk</a> &middot; <a href="/terms">Terms</a> &middot;
+    <a href="/privacy">Privacy</a> &middot; Educational research, not investment
+    advice. This page is rebuilt from the live data every weeknight; a number
+    whose source is unavailable is left out rather than shown stale.
+  </footer>
+</main>
+</body>
+</html>
+""".format(
+        desc=esc(desc).replace('"', "&quot;"),
+        og=esc(og).replace('"', "&quot;"),
+        site=SITE,
+        css=T_CSS,
+        sub=sub,
+        intro=intro,
+        sections=sections,
+    )
+
+
 def main():
     written = []
     for page in PAGES:
@@ -573,7 +1201,9 @@ def main():
             f.write(html)
         written.append(page["slug"])
     _write_sitemap(written)
-    print("  landing pages: %d written (%s)" % (len(written), ", ".join(written)))
+    with open(os.path.join(OUT_DIR, "transparency.html"), "w", encoding="utf-8") as f:
+        f.write(transparency_html())
+    print("  landing pages: %d written (%s) + transparency" % (len(written), ", ".join(written)))
     return 0
 
 
@@ -582,7 +1212,7 @@ def _write_sitemap(slugs):
     static = [
         ("/", "daily", "1.0"),
         ("/earnings", "daily", "0.9"),  # path-routed app tab (site_paths.py)
-        ("/transparency", "weekly", "0.8"),
+        ("/transparency", "daily", "0.8"),
         ("/glossary", "monthly", "0.6"),
         ("/sample-report", "monthly", "0.6"),
     ]
