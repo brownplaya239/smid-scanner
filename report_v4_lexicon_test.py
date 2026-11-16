@@ -126,3 +126,75 @@ def test_contract_the_noun_in_a_kpi_name_is_allowed_but_the_verb_is_not():
     assert not LX.hits(LX.DIRECTION_RX, "annual contract value")
     assert LX.hits(LX.DIRECTION_RX, "margins contracted") == ["contracted"]
     assert LX.hits(LX.DIRECTION_RX, "margins contract") == ["contract"]
+
+
+# ── re-check 3: honest set phrases; qualifiers before a placeholder ─────
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The question is whether margins hold up.",
+        "One risk is the renewal cycle.",
+        "One question is how the segment mix changes.",
+        "The second question is how the segment mix changes.",
+        "The second risk is customer concentration.",
+        "Most of the revenue comes from X.",
+        "This is one of the figures to watch.",
+    ],
+)
+def test_reviewer_honest_sentences_pass_every_list(text):
+    for rx in (LX.NUMBER_RX, LX.DIRECTION_RX, LX.EVALUATIVE_RX, LX.ADVICE_RX):
+        assert not LX.hits(rx, text), (text, rx.pattern[:40], LX.hits(rx, text))
+
+
+@pytest.mark.parametrize(
+    "text,rx",
+    [
+        ("Most of X is recurring.", "DIRECTION_RX"),
+        ("One of X is recurring.", "NUMBER_RX"),
+        ("It is one of the X segments.", "NUMBER_RX"),
+        ("The second quarter is on file.", "NUMBER_RX"),
+        ("This is the most in its group.", "DIRECTION_RX"),
+        ("One customer accounts for X.", "NUMBER_RX"),
+        ("Revenue is up.", "DIRECTION_RX"),
+        ("Revenue held up.", "DIRECTION_RX"),
+        ("Hold the shares.", "ADVICE_RX"),
+        ("Keep holding them.", "ADVICE_RX"),
+    ],
+)
+def test_set_phrase_exceptions_stay_narrow(text, rx):
+    assert LX.hits(getattr(LX, rx), text), text
+
+
+@pytest.mark.parametrize(
+    "text,want",
+    [
+        ("over {{revenue_q}}", ["over"]),
+        ("a mere {{cash}}", ["mere"]),
+        ("about, {{cash}}", ["about"]),
+        ("only ({{cash}})", ["only"]),
+        ("close to {{cash}}", ["close to"]),
+        ("as much as {{cash}}", ["as much as"]),
+        ("at least {{cash}}", ["at least"]),
+        ("up to {{cash}}", ["up to"]),
+        ("barely {{cash}}", ["barely"]),
+        ("just {{cash}}", ["just"]),
+    ],
+)
+def test_qualifier_right_before_a_placeholder_is_caught(text, want):
+    assert LX.hits(LX.BEFORE_PLACEHOLDER_RX, text) == want
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Revenue of {{revenue_q}} is on file.",
+        "Over the latest quarter, revenue was {{revenue_q}}.",
+        "It is about the renewal cycle, with cash at {{cash}}.",
+        "Turnover {{x}} is a word that ends in over.",
+        "The handover {{x}} happened.",
+    ],
+)
+def test_qualifier_words_elsewhere_are_left_alone(text):
+    assert not LX.hits(LX.BEFORE_PLACEHOLDER_RX, text), text

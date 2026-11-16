@@ -27,16 +27,34 @@ def _rx(*alts, flags=re.IGNORECASE):
     return re.compile(W % "|".join(alts), flags)
 
 
+# report_v4_analyst.free_text() replaces each placeholder with this letter,
+# so a pattern can tell "one of the segments" (plain wording) from "one of
+# {{x}}" (a quantity claim on a value). Matched case-sensitively.
+SLOT = "X"
+_NOT_SLOT = r"(?!(?-i:%s)(?![A-Za-z]))" % SLOT
+# A few set phrases use "one", "second" and "most" as plain wording, not a
+# count or a ranking: "one risk is", "the second question is", "one of the
+# segments", "most of the revenue". Next to a placeholder they stay banned.
+_DET = r"(?:the|its|their|this|these|those|our)"
+_SET_ONE = r"(?!\s+(?:risk|question)s?(?![A-Za-z]))(?!\s+of\s+%s\s+%s)" % (_DET, _NOT_SLOT)
+_SET_SECOND = r"(?!\s+(?:risk|question)(?![A-Za-z]))"
+_SET_MOST = r"(?!\s+of\s+%s\s+%s)" % (_DET, _NOT_SLOT)
+
+
 # ── numbers, units, sizes ───────────────────────────────────────────────
 
 NUMBER_WORDS = (
-    r"zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen",
+    r"zero|one"
+    + _SET_ONE
+    + r"|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen",
     r"fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty",
     r"sixty|seventy|eighty|ninety|hundreds?|thousands?|millions?|billions?|trillions?",
     r"dozens?|percent|percents|percentage|percentages|pct|bps|basis\s+points?",
     r"half|halves|halved|halving|thirds?",
     r"doubl\w*|twice|tripl\w*|quadrupl\w*|times",
-    r"first|second|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth",
+    r"first|second"
+    + _SET_SECOND
+    + r"|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth",
     r"\w+teenth|twentieth",
     r"dollars?|cents?|usd",
     r"(?:a|one|two|three)[\s-]+quarters?|quarters?\s+of",
@@ -58,6 +76,22 @@ QUALIFIERS = (
     r"in\s+excess\s+of|north\s+of|south\s+of|just\s+(?:over|under|shy\s+of)",
 )
 NUMBER_RX = _rx(*NUMBER_WORDS, *MAGNITUDE, *QUALIFIERS)
+# A qualifier or put-down written right before a placeholder: "over
+# {{revenue}}" prints "over $5.00B" for an exact figure, "a mere {{cash}}"
+# adds an opinion. The placeholder prints its own bound; the model may not.
+# Run on the TEMPLATE (placeholders intact); a little whitespace or
+# punctuation may sit between the word and the "{{".
+BEFORE_PLACEHOLDER = (
+    r"over|under|about|around|approximately|approx|circa|close\s+to|as\s+much\s+as",
+    r"as\s+little\s+as|as\s+many\s+as|as\s+few\s+as|up\s+to|at\s+least|at\s+most",
+    r"more\s+than|less\s+than|fewer\s+than|nearly|almost|mere|merely|only|barely|just",
+    r"roughly|some|fully|well|a\s+full|a\s+whopping|whopping|scant|paltry|modest",
+)
+BEFORE_PLACEHOLDER_RX = re.compile(
+    r"(?<![A-Za-z])(?:%s)(?![A-Za-z])(?=[\s,.:;\"'()\[\]~-]{0,4}\{\{)"
+    % "|".join(BEFORE_PLACEHOLDER),
+    re.IGNORECASE,
+)
 DIGIT_RX = re.compile(r"[0-9$%£¥€¼½¾²³¹]")
 # Month and weekday names are matched capitalised (so the verb "may" and
 # the noun "march" in lower case are not), plus relative day words.
@@ -88,7 +122,8 @@ DIRECTION_STEMS = (
     # "contract" the verb, not "annual contract value" (a KPI's name).
     r"contract(?:ed|ing|ion|ions|ionary)|contracts?(?![\s-]+value)",
     r"improv\w*|worsen\w*|deteriorat\w*|erod\w*|erosion",
-    r"up|down|upward\w*|downward\w*|upturn\w*|downturn\w*|uptick\w*|downtick\w*",
+    # "whether margins hold up" says nothing about a direction.
+    r"(?<!hold\s)(?<!holds\s)(?<!holding\s)up|down|upward\w*|downward\w*|upturn\w*|downturn\w*|uptick\w*|downtick\w*",
     r"beat|beats|beating|missed|miss|misses|outperform\w*|underperform\w*",
     r"exceed\w*|outpac\w*|surpass\w*|trail|trails|trailed|lag|lags|lagged|lagging",
     r"topp(?:ed|ing)",
@@ -100,7 +135,7 @@ COMPARISON = (
 )
 RECORDS = (
     r"highest|lowest|largest|smallest|biggest|fastest|slowest|strongest|weakest",
-    r"best|worst|greatest|record\w*|all[\s-]time|ever|peak\w*|most|least",
+    r"best|worst|greatest|record\w*|all[\s-]time|ever|peak\w*|most" + _SET_MOST + r"|least",
     r"unprecedented|never|always",
 )
 DIRECTION_RX = _rx(*DIRECTION_STEMS, *COMPARISON, *RECORDS)
@@ -127,7 +162,8 @@ EVALUATIVE_RX = _rx(*EVALUATIVE)
 
 ADVICE = (
     r"buy|buys|buying|buyers?|sell|sells|selling|sellers?|sell[\s-]side",
-    r"hold|holds|holding|invest|invests|invested|investing",
+    # "whether margins hold up" is not advice to hold the shares.
+    r"(?:hold|holds|holding)(?!\s+up(?![A-Za-z]))|invest|invests|invested|investing",
     r"accumulat\w*|allocat\w*|position|positions|positioned|positioning",
     r"portfolios?|savings?|should|must|ought|recommend\w*|advis\w*|advice",
     r"consider\w*|entry|entries|exit|exits|exiting|targets?|targeted|targeting",

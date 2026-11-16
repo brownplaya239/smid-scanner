@@ -318,8 +318,12 @@ BOUND_NOUN = {
 
 
 def bound_of(row):
-    """The bound a KPI row states, from its kind ("money_floor") or its
-    basis text ("crossed (floor)", "more than", "approximately" ...)."""
+    """The bound a KPI row states: the one the parser read from the words
+    before the number ("approximately $10.9 billion" -> approx), else from
+    its kind ("money_floor") or its basis text ("crossed (floor)" ...)."""
+    stated = str(row.get("bound") or "").lower()
+    if stated in BOUNDS and stated != "exact":
+        return stated
     kind = str(row.get("kind") or "").lower()
     basis = str(row.get("basis") or "").lower()
     if kind.endswith("_floor") or re.search(r"floor|crossed|at least|or more", basis):
@@ -548,7 +552,10 @@ def fact_list(view, snap=None):
                 ""
                 if bound == "exact"
                 else "; the release gives a %s, not an exact figure (%s)"
-                % (BOUND_NOUN[bound], plain(r.get("basis") or r.get("kind")))
+                % (
+                    BOUND_NOUN[bound],
+                    plain(r.get("bound_phrase") or r.get("basis") or r.get("kind")),
+                )
             ),
         )
         add(
@@ -829,7 +836,7 @@ def render(template, by_id):
 
 def free_text(template):
     """The model's own words: the template with tokens blanked to ' X '."""
-    return re.sub(r"\s+", " ", TOKEN_RX.sub(" X ", template or "")).strip()
+    return re.sub(r"\s+", " ", TOKEN_RX.sub(" %s " % LX.SLOT, template or "")).strip()
 
 
 # ── the word lists live in report_v4_lexicon (applied to free_text only) ─
@@ -977,6 +984,19 @@ def take_problems(take, facts, ticker):
                     "ANALYST_NO_FREE_NUMBERS",
                     "%s writes numbers, sizes, bounds, units or dates outside placeholders: %s"
                     % (where, ", ".join(bad)),
+                )
+            )
+
+        # A bound or put-down the model wrote itself, right before a
+        # placeholder ("over {{revenue}}", "a mere {{cash}}"). The value
+        # prints its own bound; any other qualifier is the model's claim.
+        lead = LX.hits(LX.BEFORE_PLACEHOLDER_RX, tpl)
+        if lead:
+            probs.append(
+                (
+                    "ANALYST_NO_FREE_NUMBERS",
+                    "%s puts its own qualifier before a placeholder (the value prints its own "
+                    "bound): %s" % (where, ", ".join(lead)),
                 )
             )
 
@@ -1165,7 +1185,9 @@ third, "a quarter of", double, twice, triple, first, second, times ...), currenc
 percent sign, date, month or weekday name. Write "the latest quarter", not "a quarter" \
 or "Q3". Use "might" instead of the word "May". Do not use "one" as a pronoun.
 - any size or bound word: several-fold, tenfold, "x times", several, numerous, exactly, \
-approximately, roughly, nearly, almost, "at least", "at most", "in excess of".
+approximately, roughly, nearly, almost, "at least", "at most", "in excess of"; and \
+right before a placeholder also over, under, about, around, "up to", "close to", only, \
+just, mere, barely. The placeholder prints any bound itself.
 - any direction or movement word, in any form: rose, fell, grew, declined, increased, \
 gained, lost, loss, profit, up, down, beat, missed, higher, lower, above, below, exceeded, \
 more than, improved, positive, negative, soared, surged, jumped, spiked, rallied, climbed, \
@@ -1273,7 +1295,8 @@ position, or gives a rating, price target or valuation verdict (cheap, expensive
 undervalued ...).
 - otherwise "unsupported" if anything in it is not established by the facts it cites: a \
 value described as a different metric, period or company than its fact names; a value \
-whose fact has a bound (bound not "exact", e.g. "at least") presented as exact, or an \
+whose fact has a bound (bound not "exact", e.g. "at least") presented as exact; an exact \
+value (bound "exact") shown with a qualifier such as about, over, up to, only or a mere; an \
 estimate or annualised figure presented as a reported result; an opinion or judgement \
 (strong, weak, healthy, bright, impressive, concerning ...) or a characterisation the \
 cited values do not plainly show; or any claim about products, competition, management, \

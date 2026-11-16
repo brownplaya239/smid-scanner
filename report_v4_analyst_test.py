@@ -770,6 +770,126 @@ def test_free_bound_words_are_rejected(facts):
         assert "ANALYST_NO_FREE_NUMBERS" in _check(text, facts, ["kpi_ai_acv"]), text
 
 
+# ── re-check 3: approximate and "more than" KPIs keep their bound ───────
+
+
+def _approx_crpo(view):
+    """The view with cRPO stated as "approximately" and the deal count as
+    "More than", as sec_exhibit.parse_kpis now records them."""
+    v = copy.deepcopy(view)
+    for r in v["financials"]["saas_kpis"]["rows"]:
+        if r["key"] == "crpo":
+            r.update(bound="approx", bound_phrase="approximately")
+        if r["key"] == "acv_over_1m_net_new_deals":
+            r.update(bound="over", bound_phrase="more than")
+    return v
+
+
+def test_bound_of_honours_the_parsed_bound():
+    assert AT.bound_of({"kind": "money", "bound": "approx"}) == "approx"
+    assert AT.bound_of({"kind": "count", "bound": "over"}) == "over"
+    assert AT.bound_of({"kind": "money_floor", "bound": "at_least"}) == "at_least"
+    # an unknown or missing bound falls back to kind and basis
+    assert AT.bound_of({"kind": "money", "bound": "bogus"}) == "exact"
+    assert AT.bound_of({"kind": "money", "bound": None}) == "exact"
+
+
+def test_approximate_and_lower_limit_kpis_print_with_their_bound(base):
+    snap, view, _ = base
+    by_id = {f["fact_id"]: f for f in AT.fact_list(_approx_crpo(view), snap)}
+    crpo, deals = by_id["kpi_crpo"], by_id["kpi_acv_over_1m_net_new_deals"]
+    assert crpo["bound"] == "approx" and AT.fmt_value(crpo).startswith("about $")
+    assert "approximation" in crpo["basis"] and "(approximately)" in crpo["basis"]
+    assert deals["bound"] == "over" and AT.fmt_value(deals).startswith("over ")
+    assert "(more than)" in deals["basis"]
+    assert AT.forms_for(crpo, by_id) == ["plain"]
+
+
+def test_an_exact_rendering_of_an_approximate_kpi_fails_the_gate(base):
+    snap, view, _ = base
+    v = _approx_crpo(view)
+    by_id = {f["fact_id"]: f for f in AT.fact_list(v, snap)}
+    crpo = by_id["kpi_crpo"]
+    good = MUT.grounded_take(v, snap)
+    p = good["bull_points"][0]
+    p["template"], p["fact_ids"] = "The company reports cRPO of {{kpi_crpo}}.", ["kpi_crpo"]
+    p["text"] = AT.render(p["template"], by_id)
+    v["analyst_take"] = good
+    assert all(c["status"] == "PASS" for c in VV.check_analyst_take(v, snap))
+    p["text"] = p["text"].replace(AT.fmt_value(crpo), AT.fmt_value(crpo, crpo["value"]))
+    assert "about" not in p["text"]
+    (r,) = [
+        c for c in VV.check_analyst_take(v, snap) if c["check_id"] == "ANALYST_RENDER_MATCHES_DATA"
+    ]
+    assert r["status"] == "FAIL"
+
+
+def test_the_kpi_table_keeps_the_bound(base):
+    snap, view, _ = base
+    pages = VV._pdf_page_texts(R4.build_core(snap, _approx_crpo(view)))
+    text = " ".join(pages)
+    assert "~$" in text and "> " in text and "≥ " in text
+
+
+# ── re-check 3: qualifiers before a placeholder; honest set phrases ─────
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Revenue was over {{revenue_q}} in the latest quarter.",
+        "Cash stands at a mere {{revenue_q}}.",
+        "Revenue was about {{revenue_q}}.",
+        "Revenue came to only {{revenue_q}}.",
+        "Revenue was just ({{revenue_q}}).",
+        "Revenue was up to {{revenue_q}}.",
+        "Revenue was close to {{revenue_q}}.",
+        "Revenue was as much as {{revenue_q}}.",
+        "Revenue was barely {{revenue_q}}.",
+        "Revenue was around, {{revenue_q}}.",
+        "Revenue was under {{revenue_q}}.",
+        "Revenue was circa {{revenue_q}}.",
+    ],
+)
+def test_a_qualifier_before_a_placeholder_is_rejected(text, facts):
+    assert "ANALYST_NO_FREE_NUMBERS" in _check(text, facts, ["revenue_q"]), text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The question is whether margins hold up, with revenue at {{revenue_q}}.",
+        "One risk is that revenue of {{revenue_q}} depends on renewals.",
+        "The second question is how revenue of {{revenue_q}} is split.",
+        "Most of the revenue comes from {{revenue_q}} on file.",
+        "Revenue of {{revenue_q}} is one of the figures to watch.",
+        "Over the latest quarter the company reported revenue of {{revenue_q}}.",
+    ],
+)
+def test_honest_set_phrases_pass(text, facts):
+    assert not _check(text, facts, ["revenue_q"]), text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Most of {{revenue_q}} is recurring.",
+        "One of {{revenue_q}} is recurring.",
+        "Revenue is one of the {{revenue_q}} figures.",
+        "The second quarter showed {{revenue_q}}.",
+        "Investors should hold the shares at {{revenue_q}}.",
+    ],
+)
+def test_quantity_claims_and_advice_next_to_a_placeholder_still_fail(text, facts):
+    assert _check(text, facts, ["revenue_q"]), text
+
+
+def test_judge_prompt_rejects_a_qualifier_on_an_exact_value():
+    assert 'an exact value (bound "exact") shown with a qualifier' in " ".join(
+        AT.JUDGE_SYSTEM.split()
+    )
+
+
 # ── re-check 2: free direction, size and judgement words ────────────────
 
 

@@ -627,10 +627,12 @@ def _page3(snap, view):
         for r in kp["rows"]:
             if r.get("kind") in ("money", "money_floor"):
                 val = _money(r.get("value"))
-                if r.get("kind") == "money_floor":
-                    val = "&ge; " + val
             else:
                 val = "{:,}".format(int(r["value"])) if r.get("value") is not None else "n/a"
+            # a figure the release states only as a bound or approximation
+            # ("crossed", "approximately", "more than") keeps its qualifier
+            if r.get("value") is not None:
+                val = _KPI_BOUND_MARK[AT.bound_of(r)] + val
             gy = "+%.1f%%" % r["growth_yoy_pct"] if r.get("growth_yoy_pct") is not None else "—"
             krows.append([_clean(r["label"]), val, gy])
         st.append(
@@ -654,6 +656,15 @@ def _page3(snap, view):
 
     st, _ = _fit_page(st, [], "v4-p3")
     return st
+
+
+_KPI_BOUND_MARK = {
+    "exact": "",
+    "at_least": "&ge; ",
+    "over": "&gt; ",
+    "under": "&lt; ",
+    "approx": "~",
+}
 
 
 # ── page 4: valuation ───────────────────────────────────────────────────

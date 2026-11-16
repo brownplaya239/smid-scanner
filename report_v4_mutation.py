@@ -170,10 +170,10 @@ def _analyst_mutations(snap, view, proven, unproven):
     fid = base["bull_points"][0]["fact_ids"][0]
     shown = AT.fmt_value(by_id[fid])
 
-    def fails(printed, checked, cid):
+    def fails(printed, checked, cid, view_=None):
         """Render `printed` into a real core PDF, then gate it as if the
         record were `checked`. True if `cid` fails."""
-        v = copy.deepcopy(view)
+        v = copy.deepcopy(view_ or view)
         v["analyst_take"] = printed
         pages = VV._pdf_page_texts(R4.build_core(snap, v))
         v["analyst_take"] = checked
@@ -302,6 +302,36 @@ def _analyst_mutations(snap, view, proven, unproven):
             )
 
         prove("ANALYST_RENDER_MATCHES_DATA", m_bound, retext=False)
+
+    # A KPI the release states as "approximately $10.9 billion" (parsed
+    # bound "approx") printed as the exact "$10.90B". The proof also needs
+    # the correct "about $10.90B" to pass, so it shows the bound is what
+    # the gate checks.
+    approx_view = copy.deepcopy(view)
+    rows = ((approx_view.get("financials") or {}).get("saas_kpis") or {}).get("rows") or []
+    row = next((r for r in rows if AT.bound_of(r) == "exact" and r.get("value")), None)
+    if row is not None:
+        row.update(bound="approx", bound_phrase="approximately")
+        a_by_id = {f["fact_id"]: f for f in AT.fact_list(approx_view, snap)}
+        a_fact = a_by_id["kpi_%s" % AT._slug(row.get("key"))]
+        right = copy.deepcopy(base)
+        p = right["bull_points"][0]
+        p["template"] = "The company reports {{%s}} for this metric." % a_fact["fact_id"]
+        p["fact_ids"] = [a_fact["fact_id"]]
+        p["text"] = AT.render(p["template"], a_by_id)
+        wrong = copy.deepcopy(right)
+        wrong["bull_points"][0]["text"] = p["text"].replace(
+            AT.fmt_value(a_fact), AT.fmt_value(a_fact, a_fact["value"])
+        )
+        cid = "ANALYST_RENDER_MATCHES_DATA"
+        ok = (
+            a_fact["bound"] == "approx"
+            and not fails(right, right, cid, approx_view)
+            and fails(wrong, wrong, cid, approx_view)
+        )
+        results[cid] = results.get(cid, True) and ok
+    else:
+        results["ANALYST_RENDER_MATCHES_DATA"] = False
 
     # The judge did not clear a point.
     def m_judge(t):
