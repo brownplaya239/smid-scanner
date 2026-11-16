@@ -42,12 +42,16 @@ stay as backstops.
 | Sun ~10 AM + 7 PM, Mon 8 AM | `economic_calendar.yml` | Rolls the economic calendar to the new week |
 | on demand | `ticker-lookup.yml` | Ad-hoc single-ticker lookup (`workflow_dispatch`) |
 
-`scanner.yml` asks `scan_slot.py` what to do: mode `breakout` scans the
-latest slot that has started, `auto` (crons, EOD) uses setups from 4:00 PM.
-A slot whose PDF is already in `docs/reports/` is skipped, so extra triggers
-add nothing; `force` overrides. 45 min after each breakout slot the worker
-posts to Slack (`SLACK_ALERT_CHANNEL`) if the report is missing. The
-worker's holiday table must match `exchange_calendar.py` (tested).
+`scanner.yml` asks `scan_slot.py plan` what to do. Each worker dispatch
+names its slot (`slot` input, e.g. `2026-11-17T10:00ET`; setups are
+`<date>T16:00ET`); a backstop cron maps to its slot via `CRON_SLOTS`. After
+each universe scans cleanly and publishes, `scan_slot.py record` writes a
+completion record to R2 `scan_runs/<date>.json`, even when the scan found
+nothing. A slot with a record is skipped, so extra triggers add nothing;
+`force` overrides. A run that starts after a later slot began serves that
+later slot. 45 min after each breakout slot the worker reads the same
+record and posts to Slack (`SLACK_ALERT_CHANNEL`) if a universe is missing.
+The worker's holiday table must match `exchange_calendar.py` (tested).
 
 ---
 

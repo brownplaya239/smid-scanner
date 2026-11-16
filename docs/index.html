@@ -23031,7 +23031,11 @@
     // live worker feed dates events MM-DD-YYYY; the published file
     // (economic_calendar.py) writes YYYY-MM-DD. Stale = the newest event
     // is before this week's Monday (todayISO is the Eastern date).
-    function econCalStatus(cal, todayISO) {
+    // A live day-only response (the worker's Nasdaq feed: scope "day",
+    // `date` = the day it asked for) fetched for today within 6 hours is
+    // current even when it lists nothing: Nasdaq returns only that day,
+    // so an empty list is a quiet day, weekend or holiday (`live: true`).
+    function econCalStatus(cal, todayISO, nowMs) {
       const iso = function (d) {
         const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(d || "");
         return m ? m[3] + "-" + m[1] + "-" + m[2] : String(d || "").slice(0, 10);
@@ -23047,8 +23051,20 @@
       const back = (t.getUTCDay() + 6) % 7;          // days since Monday
       t.setUTCDate(t.getUTCDate() - back);
       const monday = t.toISOString().slice(0, 10);
-      return { todays: todays, newest: newest,
-               stale: !todays.length && newest < monday };
+      const upd = Date.parse((cal && cal.updated) || "");
+      const now = nowMs == null ? Date.now() : nowMs;
+      // a worker deployed before `date`/`scope` existed: Nasdaq-live is
+      // day-only, and its day is the Eastern date it was fetched on
+      const asked = (cal && cal.date) || (isNaN(upd) ? "" :
+        new Date(upd).toLocaleDateString("en-CA",
+          { timeZone: "America/New_York" }));
+      const dayOnly = !!cal && (cal.scope === "day" ||
+        (cal.scope == null && cal.source === "nasdaq-live"));
+      const live = dayOnly && /-live$/.test(cal.source || "") &&
+        asked === todayISO && !isNaN(upd) &&
+        upd <= now + 300e3 && now - upd < 6 * 3600e3;
+      return { todays: todays, newest: newest, live: live,
+               stale: !live && !todays.length && newest < monday };
     }
 
     function cardCalendar(cal, todayISO) {
@@ -24633,10 +24649,13 @@
         // Live economic calendar via the worker (ForexFactory proxy) so the
         // Actual column fills in through the day; fall back to the static
         // post-close batch if the worker is unreachable.
+        // A fresh live day with no events is kept: it means a quiet day,
+        // and the weekly file can be last week's (econCalStatus).
         cal: fetch(WORKER_URL + "/?econ-calendar=1")
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (d) {
-            return (d && d.events && d.events.length)
+            return (d && d.events && (d.events.length ||
+                    econCalStatus(d, window.tdTodayET()).live))
               ? d : fetchJSON("./reports/economic_calendar.json");
           })
           .catch(function () {

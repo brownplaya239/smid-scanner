@@ -1,11 +1,13 @@
 """Breakout-scan scheduling, the stale economic-calendar check and the
 earnings-idea timing (2026-11-16 audit, A4-A6).
 
-Python: scan_slot.plan (which scanner.yml run scans what) and
+Python: scan_slot.plan (which scanner.yml run scans what, by slot id and
+completion record), the backstop cron -> slot map, scan_slot record, and
 economic_calendar.calendar_stale. Node (skipped without node): the
-worker's breakout slot clock + missing-report check + Nasdaq date-offset
-vote, and the site's econCalStatus / earnTiming, extracted from the real
-files."""
+worker's breakout slot clock, completion-record alert, the scheduled
+handler end to end (real worker module, fetch / R2 / clock mocked), the
+Nasdaq date-offset vote (incl. holiday weeks), and the site's
+econCalStatus / earnTiming, extracted from the real files."""
 
 import json
 import os
@@ -13,7 +15,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -37,76 +39,218 @@ def et(y, mo, d, h, mi):
 
 # ── scan_slot.plan ─────────────────────────────────────────────────────
 # Mon 2026-11-16 is a session; Thu 11-26 Thanksgiving; Fri 11-27 half day.
+# `records` = completion records by slot id, as scan_slot.record writes.
+
+S1000 = "2026-11-16T10:00ET"
+S1130 = "2026-11-16T11:30ET"
+S1500 = "2026-11-16T15:00ET"
+SETUP = "2026-11-16T16:00ET"
+
+
+def done(*pairs):
+    """{slot: {universe: record}} for (slot, universe) pairs, each a clean
+    run that archived nothing (no candidates)."""
+    out = {}
+    for sid, u in pairs:
+        out.setdefault(sid, {})[u] = {"reports": []}
+    return out
 
 
 def test_breakout_waits_for_the_first_slot():
-    p = scan_slot.plan(et(2026, 11, 16, 9, 45), "breakout", [])
+    p = scan_slot.plan(et(2026, 11, 16, 9, 45), "breakout")
     assert p["kind"] is None
     assert "before the first" in p["reason"]
 
 
-def test_breakout_slot_runs_both_universes_when_nothing_archived():
-    p = scan_slot.plan(et(2026, 11, 16, 10, 2), "breakout", [])
+def test_breakout_slot_runs_both_universes_when_nothing_recorded():
+    p = scan_slot.plan(et(2026, 11, 16, 10, 2), "breakout", slot=S1000)
     assert p["kind"] == "breakout"
+    assert p["slot"] == S1000
     assert p["run"] == {"smid": True, "iwm": True}
 
 
 def test_breakout_slot_fills_only_the_missing_universe():
-    files = ["docs/reports/smid_scanner_2026-11-16_1004.pdf"]
-    p = scan_slot.plan(et(2026, 11, 16, 10, 20), "breakout", files)
+    p = scan_slot.plan(et(2026, 11, 16, 10, 20), "breakout", done((S1000, "smid")), slot=S1000)
     assert p["run"] == {"smid": False, "iwm": True}
 
 
-def test_breakout_slot_that_already_ran_is_skipped():
-    files = ["smid_scanner_2026-11-16_1004.pdf", "iwm_scanner_2026-11-16_1009.pdf"]
-    p = scan_slot.plan(et(2026, 11, 16, 11, 0), "breakout", files)
+def test_empty_successful_scans_count_as_done():
+    # both scans finished cleanly with no candidates: no PDF, but recorded
+    recs = done((S1000, "smid"), (S1000, "iwm"))
+    p = scan_slot.plan(et(2026, 11, 16, 11, 0), "breakout", recs, files=[], slot=S1000)
     assert p["kind"] is None
     assert "already ran" in p["reason"]
+    # a late backstop for the same slot (no slot input, by the clock) too
+    assert scan_slot.plan(et(2026, 11, 16, 11, 5), "auto", recs)["kind"] is None
+    # an empty setup build counts as today's build
+    recs = done((SETUP, "smid"), (SETUP, "iwm"))
+    assert scan_slot.plan(et(2026, 11, 16, 21, 5), "auto", recs)["kind"] is None
+    assert scan_slot.plan(et(2026, 11, 16, 16, 50), "setup", recs, slot=SETUP)["kind"] is None
 
 
-def test_next_slot_needs_its_own_report():
-    # the 10:00 reports do not cover the 11:30 slot
-    files = ["smid_scanner_2026-11-16_1004.pdf", "iwm_scanner_2026-11-16_1009.pdf"]
-    p = scan_slot.plan(et(2026, 11, 16, 11, 31), "breakout", files)
+def test_report_from_a_delayed_earlier_slot_does_not_cover_the_next_slot():
+    # the 10:00 run started 10:05 and finished at 11:35: its PDFs are
+    # stamped 1135, but its record is the 10:00 slot's. The queued 11:30
+    # run still scans both universes.
+    files = ["smid_scanner_2026-11-16_1135.pdf", "iwm_scanner_2026-11-16_1135.pdf"]
+    recs = done((S1000, "smid"), (S1000, "iwm"))
+    p = scan_slot.plan(et(2026, 11, 16, 11, 36), "breakout", recs, files, slot=S1130)
+    assert p["slot"] == S1130
     assert p["run"] == {"smid": True, "iwm": True}
-    # ...and a report from yesterday's 15:00 slot does not cover today's
-    old = ["smid_scanner_2026-11-13_1504.pdf", "iwm_scanner_2026-11-13_1509.pdf"]
-    p = scan_slot.plan(et(2026, 11, 16, 15, 1), "breakout", old)
+
+
+def test_run_that_starts_after_the_next_slot_serves_the_next_slot():
+    # the 10:00 dispatch sat in the queue until 11:40: it scans for 11:30
+    p = scan_slot.plan(et(2026, 11, 16, 11, 40), "breakout", slot=S1000)
+    assert p["slot"] == S1130
+    assert p["run"] == {"smid": True, "iwm": True}
+    assert "replaced" in p["reason"]
+    # ...so the 11:30 dispatch queued behind it skips
+    recs = done((S1130, "smid"), (S1130, "iwm"))
+    assert scan_slot.plan(et(2026, 11, 16, 11, 55), "breakout", recs, slot=S1130)["kind"] is None
+
+
+def test_slot_not_started_or_from_another_day_is_skipped():
+    p = scan_slot.plan(et(2026, 11, 16, 11, 0), "breakout", slot=S1130)
+    assert p["kind"] is None and "not started" in p["reason"]
+    p = scan_slot.plan(et(2026, 11, 17, 10, 5), "breakout", slot=S1000)
+    assert p["kind"] is None and "not today" in p["reason"]
+    p = scan_slot.plan(et(2026, 11, 16, 10, 5), "breakout", slot="2026-11-16T10:15ET")
+    assert p["kind"] is None and "not a breakout slot" in p["reason"]
+
+
+def test_next_slot_needs_its_own_record():
+    recs = done((S1000, "smid"), (S1000, "iwm"))
+    p = scan_slot.plan(et(2026, 11, 16, 11, 31), "breakout", recs, slot=S1130)
+    assert p["run"] == {"smid": True, "iwm": True}
+    # ...and yesterday's 15:00 record does not cover today's
+    old = done(("2026-11-13T15:00ET", "smid"), ("2026-11-13T15:00ET", "iwm"))
+    p = scan_slot.plan(et(2026, 11, 16, 15, 1), "breakout", old, slot=S1500)
     assert p["run"] == {"smid": True, "iwm": True}
 
 
 def test_no_breakout_scan_after_the_close():
-    p = scan_slot.plan(et(2026, 11, 16, 16, 20), "breakout", [])
+    p = scan_slot.plan(et(2026, 11, 16, 16, 20), "breakout")
     assert p["kind"] is None
+    # a backstop for the 3:00 slot that GitHub starts at 4:20 PM
+    assert scan_slot.plan(et(2026, 11, 16, 16, 20), "auto", slot=S1500)["kind"] is None
 
 
 def test_holiday_and_weekend_skip():
-    assert scan_slot.plan(et(2026, 11, 26, 10, 1), "breakout", [])["kind"] is None
-    assert scan_slot.plan(et(2026, 11, 21, 10, 1), "breakout", [])["kind"] is None
-    assert scan_slot.plan(et(2026, 11, 26, 16, 50), "auto", [])["kind"] is None
+    assert scan_slot.plan(et(2026, 11, 26, 10, 1), "breakout")["kind"] is None
+    assert scan_slot.plan(et(2026, 11, 21, 10, 1), "breakout")["kind"] is None
+    assert scan_slot.plan(et(2026, 11, 26, 16, 50), "auto")["kind"] is None
+    p = scan_slot.plan(et(2026, 11, 26, 16, 50), "setup", slot="2026-11-26T16:00ET")
+    assert p["kind"] is None
 
 
 def test_half_day_skips_the_afternoon_slot():
-    assert scan_slot.plan(et(2026, 11, 27, 10, 1), "breakout", [])["kind"] == "breakout"
-    assert scan_slot.plan(et(2026, 11, 27, 15, 1), "breakout", [])["kind"] is None
+    assert scan_slot.plan(et(2026, 11, 27, 10, 1), "breakout")["kind"] == "breakout"
+    assert scan_slot.plan(et(2026, 11, 27, 15, 1), "breakout")["kind"] is None
 
 
 def test_auto_mode_follows_the_clock_and_builds_setups_once():
-    assert scan_slot.plan(et(2026, 11, 16, 11, 40), "auto", [])["kind"] == "breakout"
-    p = scan_slot.plan(et(2026, 11, 16, 16, 47), "auto", [])
-    assert p["kind"] == "setup"
+    assert scan_slot.plan(et(2026, 11, 16, 11, 40), "auto")["kind"] == "breakout"
+    p = scan_slot.plan(et(2026, 11, 16, 16, 47), "setup", slot=SETUP)
+    assert p["kind"] == "setup" and p["slot"] == SETUP
     assert p["run"] == {"smid": True, "iwm": True}
-    # the late GitHub backstop at ~9 PM finds today's setups and skips
-    done = ["smid_setup_2026-11-16_1647.pdf", "iwm_setup_2026-11-16_1655.pdf"]
-    assert scan_slot.plan(et(2026, 11, 16, 21, 5), "auto", done)["kind"] is None
+    # the late GitHub backstop at ~9 PM finds today's record and skips
+    recs = done((SETUP, "smid"), (SETUP, "iwm"))
+    assert scan_slot.plan(et(2026, 11, 16, 21, 5), "auto", recs)["kind"] is None
+    # ...or today's setup PDFs, for builds from before records existed
+    pdfs = ["smid_setup_2026-11-16_1647.pdf", "iwm_setup_2026-11-16_1655.pdf"]
+    assert scan_slot.plan(et(2026, 11, 16, 21, 5), "auto", None, pdfs)["kind"] is None
     # a setup run asked for before the close waits
-    assert scan_slot.plan(et(2026, 11, 16, 15, 30), "setup", [])["kind"] is None
+    assert scan_slot.plan(et(2026, 11, 16, 15, 30), "setup")["kind"] is None
 
 
 def test_force_runs_anyway():
-    files = ["smid_scanner_2026-11-16_1004.pdf", "iwm_scanner_2026-11-16_1009.pdf"]
-    p = scan_slot.plan(et(2026, 11, 16, 10, 30), "breakout", files, force=True)
+    recs = done((S1000, "smid"), (S1000, "iwm"))
+    p = scan_slot.plan(et(2026, 11, 16, 10, 30), "breakout", recs, force=True, slot=S1000)
     assert p["run"] == {"smid": True, "iwm": True}
+    assert p["slot"] == S1000
+
+
+def test_backstop_crons_map_to_their_slots():
+    def utc(*a):
+        return datetime(*a, tzinfo=UTC)
+
+    # the "10:07 AM" cron that GitHub started at 4:20 PM ET Monday
+    assert scan_slot.slot_for_cron("7 15 * * 1-5", utc(2026, 11, 16, 21, 20)) == S1000
+    assert scan_slot.slot_for_cron("37 16 * * 1-5", utc(2026, 11, 16, 16, 40)) == S1130
+    assert scan_slot.slot_for_cron("7 20 * * 1-5", utc(2026, 11, 16, 23, 0)) == S1500
+    # the setup cron started after midnight UTC still means Monday's build
+    assert scan_slot.slot_for_cron("17 21 * * 1-5", utc(2026, 11, 17, 4, 20)) == SETUP
+    # Friday's setup cron started on Monday at 03:00 UTC: Friday's slot
+    got = scan_slot.slot_for_cron("17 21 * * 1-5", utc(2026, 11, 16, 3, 0))
+    assert got == "2026-11-13T16:00ET"
+    assert scan_slot.slot_for_cron("0 9 * * *", utc(2026, 11, 16, 9, 0)) is None
+    # every cron line in scanner.yml has a slot
+    with open(os.path.join(_BASE, ".github", "workflows", "scanner.yml"), encoding="utf-8") as f:
+        crons = re.findall(r"cron: '([^']+)'", f.read())
+    assert sorted(crons) == sorted(scan_slot.CRON_SLOTS)
+
+
+def test_late_backstop_for_a_previous_day_does_not_run():
+    # Friday's setup cron arriving Monday 10:30 ET
+    p = scan_slot.plan(et(2026, 11, 16, 10, 30), "auto", slot="2026-11-13T16:00ET")
+    assert p["kind"] is None and "not today" in p["reason"]
+
+
+def test_record_marks_an_empty_scan_done(monkeypatch, tmp_path):
+    store = {}
+
+    class FakeR2:
+        @staticmethod
+        def get_json(key):
+            return store.get(key)
+
+        @staticmethod
+        def put_json(key, obj):
+            store[key] = json.loads(json.dumps(obj))
+
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    (reports / "smid_scanner_2026-11-16_0944.pdf").write_bytes(b"old")
+    snap = tmp_path / "before.json"
+    monkeypatch.setattr(scan_slot, "REPORTS_DIR", str(reports))
+    monkeypatch.setattr(scan_slot, "SNAPSHOT", str(snap))
+    monkeypatch.setattr(scan_slot, "_r2", lambda: FakeR2)
+    snap.write_text(json.dumps(["smid_scanner_2026-11-16_0944.pdf"]))
+
+    # SMID found nothing (no new PDF); IWM archived one
+    scan_slot.main(["record", "--slot", S1000, "--universe", "smid"])
+    (reports / "iwm_scanner_2026-11-16_1012.pdf").write_bytes(b"new")
+    scan_slot.main(["record", "--slot", S1000, "--universe", "iwm"])
+
+    doc = store["scan_runs/2026-11-16.json"]
+    assert doc["date"] == "2026-11-16"
+    assert doc["slots"][S1000]["smid"]["reports"] == []
+    assert doc["slots"][S1000]["iwm"]["reports"] == ["iwm_scanner_2026-11-16_1012.pdf"]
+    assert doc["slots"][S1000]["smid"]["kind"] == "breakout"
+    # and the next trigger for that slot skips
+    p = scan_slot.plan(et(2026, 11, 16, 10, 40), "breakout", doc["slots"], slot=S1000)
+    assert p["kind"] is None
+
+
+def test_records_are_read_from_r2(monkeypatch):
+    class FakeR2:
+        @staticmethod
+        def get_json(key):
+            assert key == "scan_runs/2026-11-16.json"
+            return {"slots": done((S1000, "smid"))}
+
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "test")
+    monkeypatch.setattr(scan_slot, "_r2", lambda: FakeR2)
+    assert scan_slot.load_records(date(2026, 11, 16)) == done((S1000, "smid"))
+
+    class Broken:
+        @staticmethod
+        def get_json(key):
+            raise OSError("R2 down")
+
+    monkeypatch.setattr(scan_slot, "_r2", lambda: Broken)
+    assert scan_slot.load_records(date(2026, 11, 16)) == {}
 
 
 # ── economic_calendar.calendar_stale ───────────────────────────────────
@@ -253,7 +397,10 @@ console.log(JSON.stringify(cases));
 
 @needs_node
 def test_worker_learns_nasdaq_date_offset():
-    js = _between(_worker(), "const ECON_WEEKDAY_ANCHORS", "function _econUsTitles")
+    src = _worker()
+    js = _between(src, "const MARKET_HOLIDAYS", "function _hhmmToMin") + _between(
+        src, "const ECON_WEEKDAY_ANCHORS", "function _econUsTitles"
+    )
     r = _node(
         js
         + """
@@ -263,7 +410,8 @@ console.log(JSON.stringify({
   lagging: econDateShift([
     { query: "2026-11-16", titles: [] },
     { query: "2026-11-17", titles: ["NY Empire State Manufacturing Index",
-                                    "3-Month Bill Auction"] },
+                                    "3-Month Bill Auction",
+                                    "6-Month Bill Auction"] },
   ]),
   lagging_thu: econDateShift([
     { query: "2026-11-19", titles: ["MBA Mortgage Applications",
@@ -275,9 +423,49 @@ console.log(JSON.stringify({
     { query: "2026-11-19", titles: ["Initial Jobless Claims"] },
   ]),
   no_evidence: econDateShift([
+    { query: "2026-11-17", titles: ["NY Empire State Manufacturing Index"] },
+  ]),
+  // a correctly dated Tuesday: Redbook alone is enough to stay at 0
+  correct_tue: econDateShift([
     { query: "2026-11-17", titles: ["Redbook"] },
   ]),
+  // one anchor alone is not enough to shift
+  single_anchor: econDateShift([
+    { query: "2026-11-17", titles: ["3-Month Bill Auction"] },
+  ]),
+  // anchors that disagree: no shift
+  disagree: econDateShift([
+    { query: "2026-11-19", titles: ["MBA Mortgage Applications",
+                                    "Crude Oil Inventories"] },
+    { query: "2026-11-18", titles: ["MBA Mortgage Applications"] },
+  ]),
+  // Columbus Day Mon 2026-10-12: the CORRECT feed lists both bill
+  // auctions on Tuesday 10-13. Must not read as a one-day lag.
+  columbus_correct: econDateShift([
+    { query: "2026-10-13", titles: ["3-Month Bill Auction",
+                                    "6-Month Bill Auction"] },
+    { query: "2026-10-14", titles: ["MBA Mortgage Applications"] },
+  ]),
+  // Thanksgiving week 2026: claims move to Wednesday 11-25
+  thanksgiving_correct: econDateShift([
+    { query: "2026-11-25", titles: ["Initial Jobless Claims",
+                                    "Natural Gas Storage",
+                                    "MBA Mortgage Applications"] },
+  ]),
+  // Veterans Day Wed 2026-11-11 (bond market shut, stocks open)
+  veterans_week: econDateShift([
+    { query: "2026-11-12", titles: ["MBA Mortgage Applications",
+                                    "Crude Oil Inventories"] },
+  ]),
+  // the Monday after a holiday week is judged on its own week
+  monday_after_veterans: econDateShift([
+    { query: "2026-11-17", titles: ["3-Month Bill Auction",
+                                    "6-Month Bill Auction"] },
+  ]),
   plus1: _isoAddDays("2026-11-30", 1),
+  hw_columbus: _econHolidayWeek("2026-10-15"),
+  hw_plain: _econHolidayWeek("2026-11-18"),
+  hw_unknown_year: _econHolidayWeek("2031-03-04"),
 }));
 """
     )
@@ -285,7 +473,17 @@ console.log(JSON.stringify({
     assert r["lagging_thu"] == 1
     assert r["correct"] == 0
     assert r["no_evidence"] is None
+    assert r["correct_tue"] == 0
+    assert r["single_anchor"] is None
+    assert r["disagree"] is None
+    assert r["columbus_correct"] is None
+    assert r["thanksgiving_correct"] is None
+    assert r["veterans_week"] is None
+    assert r["monday_after_veterans"] == 1
     assert r["plus1"] == "2026-12-01"
+    assert r["hw_columbus"] is True
+    assert r["hw_plain"] is False
+    assert r["hw_unknown_year"] is True
 
 
 @needs_node
@@ -296,12 +494,38 @@ def test_site_econ_calendar_status():
         + """
 const last = { events: [{ date: "2026-11-09" }, { date: "2026-11-13" }] };
 const live = { events: [{ date: "11-16-2026", title: "Empire" }] };
+// Mon 2026-11-16 10:00 AM ET
+const now = Date.parse("2026-11-16T15:00:00Z");
+const liveDay = function (extra) {
+  return Object.assign({ source: "nasdaq-live", scope: "day", date: "2026-11-16",
+    updated: "2026-11-16T14:58:00Z", events: [] }, extra || {});
+};
 console.log(JSON.stringify({
-  monday_last_week: econCalStatus(last, "2026-11-16"),
-  friday_same_week: econCalStatus(last, "2026-11-13"),
-  sunday_after: econCalStatus(last, "2026-11-15"),
-  live_today: econCalStatus(live, "2026-11-16"),
-  quiet_day: econCalStatus({ events: [{ date: "2026-11-17" }] }, "2026-11-16"),
+  monday_last_week: econCalStatus(last, "2026-11-16", now),
+  friday_same_week: econCalStatus(last, "2026-11-13", now),
+  sunday_after: econCalStatus(last, "2026-11-15", now),
+  live_today: econCalStatus(live, "2026-11-16", now),
+  quiet_day: econCalStatus({ events: [{ date: "2026-11-17" }] }, "2026-11-16", now),
+  // a fresh, empty live day: a quiet day, not an old calendar
+  live_empty: econCalStatus(liveDay(), "2026-11-16", now),
+  // weekend + holiday: Nasdaq lists nothing, still not "out of date"
+  live_empty_sat: econCalStatus(liveDay({ date: "2026-11-21",
+    updated: "2026-11-21T15:00:00Z" }), "2026-11-21",
+    Date.parse("2026-11-21T15:05:00Z")),
+  live_empty_thanksgiving: econCalStatus(liveDay({ date: "2026-11-26",
+    updated: "2026-11-26T15:00:00Z" }), "2026-11-26",
+    Date.parse("2026-11-26T15:05:00Z")),
+  // worker deployed before date/scope: Nasdaq-live fetched today
+  live_empty_old_worker: econCalStatus({ source: "nasdaq-live",
+    updated: "2026-11-16T14:58:00Z", events: [] }, "2026-11-16", now),
+  // a live day fetched yesterday or 7h ago is not today's
+  live_empty_yesterday: econCalStatus(liveDay({ date: "2026-11-13",
+    updated: "2026-11-13T15:00:00Z" }), "2026-11-16", now),
+  live_empty_old: econCalStatus(liveDay({ updated: "2026-11-16T07:59:00Z" }),
+    "2026-11-16", now),
+  // the weekly file is never day-only
+  archive_empty: econCalStatus({ updated: "2026-11-16T14:58:00Z", events: [] },
+    "2026-11-16", now),
 }));
 """
     )
@@ -312,7 +536,138 @@ console.log(JSON.stringify({
     assert r["sunday_after"]["stale"] is False
     assert r["live_today"]["stale"] is False
     assert len(r["live_today"]["todays"]) == 1
-    assert r["quiet_day"] == {"todays": [], "newest": "2026-11-17", "stale": False}
+    assert r["quiet_day"] == {"todays": [], "newest": "2026-11-17", "live": False, "stale": False}
+    for k in (
+        "live_empty",
+        "live_empty_sat",
+        "live_empty_thanksgiving",
+        "live_empty_old_worker",
+    ):
+        assert r[k]["live"] is True, k
+        assert r[k]["stale"] is False, k
+    for k in ("live_empty_yesterday", "live_empty_old", "archive_empty"):
+        assert r[k]["live"] is False, k
+        assert r[k]["stale"] is True, k
+
+
+def test_site_keeps_a_fresh_empty_live_calendar():
+    # the desk used to swap any empty live response for the weekly file
+    src = _html()
+    i = src.index('fetch(WORKER_URL + "/?econ-calendar=1")')
+    assert "econCalStatus(d, window.tdTodayET()).live" in src[i : i + 600]
+
+
+# The scheduled handler end to end: the real worker module, with fetch,
+# the R2 binding and the clock replaced. Returns what it sent out.
+_SCHEDULED_HARNESS = """
+import { pathToFileURL } from "node:url";
+const NOW = Date.parse(process.argv[3]);
+const RealDate = Date;
+globalThis.Date = class extends RealDate {
+  constructor(...a) { if (a.length) super(...a); else super(NOW); }
+  static now() { return NOW; }
+};
+const calls = [];
+globalThis.fetch = async function (url, init) {
+  const body = init && init.body ? JSON.parse(init.body) : null;
+  calls.push({ url: String(url), method: (init && init.method) || "GET", body });
+  if (String(url).indexOf("https://slack.com/") === 0) {
+    return new Response(JSON.stringify({ ok: true }));
+  }
+  if (String(url).indexOf("api.github.com") >= 0) {
+    return new Response(null, { status: 204 });
+  }
+  return new Response("{}", { status: 404 });
+};
+const record = JSON.parse(process.argv[4]);
+const reads = [];
+const env = {
+  PAT: "test-pat", SLACK_BOT_TOKEN: "xoxb-test", SLACK_ALERT_CHANNEL: "C0TEST",
+  DATA: { get: async function (k) {
+    reads.push(k);
+    return record === null ? null
+      : { json: async function () { return record; } };
+  } },
+};
+const waits = [];
+const mod = await import(pathToFileURL(process.argv[2]).href);
+await mod.default.scheduled({ cron: "*/15 * * * *" }, env,
+  { waitUntil: function (p) { waits.push(p); } });
+await Promise.all(waits);
+console.log(JSON.stringify({ calls, reads }));
+"""
+
+
+def _scheduled(now_utc, record=None):
+    d = tempfile.mkdtemp()
+    try:
+        worker = os.path.join(d, "worker.mjs")
+        shutil.copyfile(WORKER, worker)
+        harness = os.path.join(d, "harness.mjs")
+        with open(harness, "w", encoding="utf-8") as f:
+            f.write(_SCHEDULED_HARNESS)
+        out = subprocess.run(
+            [NODE, harness, worker, now_utc, json.dumps(record)],
+            capture_output=True,
+            encoding="utf-8",
+            check=True,
+            timeout=60,
+        )
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+def _dispatches(r, workflow):
+    return [
+        c["body"]
+        for c in r["calls"]
+        if c["url"].endswith("/actions/workflows/%s/dispatches" % workflow)
+    ]
+
+
+def _slack(r):
+    return [c["body"] for c in r["calls"] if c["url"].startswith("https://slack.com/")]
+
+
+@needs_node
+def test_scheduled_handler_dispatches_the_breakout_slot():
+    # Tue 2026-11-17 10:00 AM ET (EST)
+    r = _scheduled("2026-11-17T15:00:20Z")
+    assert _dispatches(r, "scanner.yml") == [
+        {"ref": "master", "inputs": {"mode": "breakout", "slot": "2026-11-17T10:00ET"}}
+    ]
+    assert _slack(r) == []
+    # 11:30 and 3:00 PM name their own slots
+    r = _scheduled("2026-11-17T16:30:05Z")
+    assert _dispatches(r, "scanner.yml")[0]["inputs"]["slot"] == "2026-11-17T11:30ET"
+    # 4:45 PM: the setup build, slot <date>T16:00ET
+    r = _scheduled("2026-11-17T21:45:05Z")
+    assert _dispatches(r, "scanner.yml") == [
+        {"ref": "master", "inputs": {"mode": "setup", "slot": "2026-11-17T16:00ET"}}
+    ]
+    # Thanksgiving: no breakout dispatch
+    assert _dispatches(_scheduled("2026-11-26T15:00:20Z"), "scanner.yml") == []
+
+
+@needs_node
+def test_scheduled_handler_alerts_only_for_unrecorded_universes():
+    sid = "2026-11-17T10:00ET"
+    at = "2026-11-17T15:45:10Z"  # 10:45 AM ET, 45 min after the slot
+    # both universes finished cleanly with no candidates: no alert
+    rec = {"slots": {sid: {"smid": {"reports": []}, "iwm": {"reports": []}}}}
+    r = _scheduled(at, rec)
+    assert r["reads"] == ["scan_runs/2026-11-17.json"]
+    assert _slack(r) == []
+    # IWM never finished: alert names IWM only
+    r = _scheduled(at, {"slots": {sid: {"smid": {"reports": []}}}})
+    (msg,) = _slack(r)
+    assert msg["channel"] == "C0TEST"
+    assert "IWM did not finish the 10:00 AM ET slot (2026-11-17)" in msg["text"]
+    assert "SMID" not in msg["text"]
+    # a record only for the 11:30 slot does not cover 10:00
+    r = _scheduled(at, {"slots": {"2026-11-17T11:30ET": {"smid": {}, "iwm": {}}}})
+    assert "SMID and IWM" in _slack(r)[0]["text"]
 
 
 @needs_node

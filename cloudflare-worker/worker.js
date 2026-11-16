@@ -512,8 +512,10 @@ const EOD_SLOT = "16:45";
 
 // Breakout scans (scanner.yml, mode=breakout) on the ET clock. GitHub's
 // own cron for them starts 5-7 hours late, so after 2026-11-09 no
-// breakout scan ran at all. scanner.yml skips a slot whose report is
-// already archived (scan_slot.py), so its late GitHub backstop is a no-op.
+// breakout scan ran at all. Each dispatch names its slot (slotId()), and
+// scanner.yml skips a slot that has a completion record in R2
+// scan_runs/<date>.json (scan_slot.py), so its late GitHub backstop is a
+// no-op.
 const BREAKOUT_SLOTS = ["10:00", "11:30", "15:00"];
 // How long after a slot to look for its report before alerting Slack.
 const BREAKOUT_ALERT_DELAY_MIN = 45;
@@ -559,8 +561,23 @@ function breakoutDue(dow, date, hhmm) {
   return out;
 }
 
-// Archived scanner PDFs are named <universe>_scanner_YYYY-MM-DD_HHMM.pdf
-// (ET). Universes with no breakout report stamped at/after `slot` today.
+// "2026-11-17T10:00ET": the id scan_slot.py keys completion records by.
+function slotId(date, hhmm) {
+  return date + "T" + hhmm + "ET";
+}
+
+// Universes ("smid", "iwm") with no completion record for this slot in
+// the day's R2 scan_runs/<date>.json object (written by scan_slot.py
+// record after each clean scan + publish, including scans that found no
+// candidates and so archived no PDF).
+function missingFromRecord(doc, sid) {
+  const done = (doc && doc.slots && doc.slots[sid]) || {};
+  return ["smid", "iwm"].filter(function (u) { return !done[u]; });
+}
+
+// Fallback when the record can't be read: archived scanner PDFs are named
+// <universe>_scanner_YYYY-MM-DD_HHMM.pdf (ET). Universes with no breakout
+// report stamped at/after `slot` today.
 function missingBreakoutReports(manifest, date, slot) {
   const since = slot.replace(":", "");
   const reports = (manifest && manifest.reports) || {};
@@ -577,34 +594,50 @@ function etDateISO(d) {
     { timeZone: "America/New_York" });
 }
 
-// ~45 min after a breakout slot: if the archive has no report for it,
-// say so in Slack (SLACK_ALERT_CHANNEL; off when unset).
-async function checkBreakoutReport(env, slot) {
-  const date = etDateISO();
-  let manifest = null;
+// ~45 min after a breakout slot: if the slot's completion record lacks a
+// universe, say so in Slack (SLACK_ALERT_CHANNEL; off when unset). A
+// clean scan with no candidates has a record, so it does not alert.
+async function checkBreakoutReport(env, slot, date) {
+  date = date || etDateISO();
+  const sid = slotId(date, slot);
+  let missing = null, how = "";
   try {
-    // manifest.json is git-only (served by GitHub Pages, not R2): this is
-    // the same list the Breakout tab shows
-    const r = await fetch("https://tickerdesk.io/reports/manifest.json?cb=" +
-      Date.now(), { signal: AbortSignal.timeout(10000),
-                    headers: { "User-Agent": "tickerdesk-cron-backstop" } });
-    if (r.ok) manifest = await r.json();
+    if (!env.DATA) throw new Error("no DATA binding");
+    const o = await env.DATA.get("scan_runs/" + date + ".json");
+    missing = missingFromRecord(o ? await o.json() : null, sid);
   } catch (e) {
-    console.log("[cron] breakout check: manifest read failed: " + e.message);
+    console.log("[cron] breakout check: record read failed: " + e.message);
   }
-  const missing = manifest ? missingBreakoutReports(manifest, date, slot)
-                           : ["smid-scanner", "iwm-scanner"];
+  if (missing === null) {
+    // record unreadable: fall back to the report list the Breakout tab
+    // shows (manifest.json is git-only, served by GitHub Pages)
+    how = " (completion record unreadable; checked the report list)";
+    try {
+      const r = await fetch("https://tickerdesk.io/reports/manifest.json?cb=" +
+        Date.now(), { signal: AbortSignal.timeout(10000),
+                      headers: { "User-Agent": "tickerdesk-cron-backstop" } });
+      if (r.ok) {
+        missing = missingBreakoutReports(await r.json(), date, slot)
+          .map(function (k) { return k.split("-")[0]; });
+      }
+    } catch (e) {
+      console.log("[cron] breakout check: manifest read failed: " + e.message);
+    }
+    if (missing === null) {
+      missing = ["smid", "iwm"];
+      how = " (completion record and report list both unreadable)";
+    }
+  }
   if (!missing.length) {
-    console.log("[cron] breakout " + slot + " ET report present");
+    console.log("[cron] breakout " + sid + " completed");
     return;
   }
   const h = parseInt(slot.slice(0, 2), 10);
   const label = (h > 12 ? h - 12 : h) + slot.slice(2) + (h >= 12 ? " PM" : " AM");
-  const text = ":warning: Breakout scan missing: no " +
-    missing.map(function (k) { return k.split("-")[0].toUpperCase(); })
-      .join(" or ") + " report for the " + label + " ET slot (" + date +
-    ") " + BREAKOUT_ALERT_DELAY_MIN + " minutes later" +
-    (manifest ? "" : " (manifest unreadable)") +
+  const text = ":warning: Breakout scan missing: " +
+    missing.map(function (k) { return k.toUpperCase(); }).join(" and ") +
+    " did not finish the " + label + " ET slot (" + date + ") " +
+    BREAKOUT_ALERT_DELAY_MIN + " minutes later" + how +
     ". Runs: https://github.com/" + (env.REPO || "brownplaya239/smid-scanner") +
     "/actions/workflows/scanner.yml";
   console.log("[cron] " + text);
@@ -3771,15 +3804,46 @@ async function _econNasdaqRows(dateISO) {
   return (j && j.data && j.data.rows) || [];
 }
 
-// Weekly US releases that always land on the same weekday (1=Mon). They
-// tell us which calendar day a Nasdaq response really covers.
+// Weekly US releases that land on the same weekday (1=Mon) in a normal
+// week. They tell us which calendar day a Nasdaq response really covers.
+// Holidays move them (a Monday holiday pushes the bill auctions to
+// Tuesday), so samples from holiday weeks are not counted (econDateShift).
 const ECON_WEEKDAY_ANCHORS = [
+  [/^3-month bill auction/i, 1],
+  [/^6-month bill auction/i, 1],
+  [/^redbook/i, 2],
   [/mba mortgage applications/i, 3],
   [/crude oil inventories/i, 3],
   [/initial jobless claims/i, 4],
+  [/natural gas storage/i, 4],
   [/baker hughes/i, 5],
-  [/^3-month bill auction/i, 1],
 ];
+
+// Federal holidays the stock market trades through but Treasury auctions
+// and agency releases do not (Columbus Day, Veterans Day). With
+// MARKET_HOLIDAYS they mark the weeks whose release days may move.
+const FEDERAL_ONLY_HOLIDAYS = [
+  "2025-10-13", "2025-11-11",
+  "2026-10-12", "2026-11-11",
+  "2027-10-11", "2027-11-11",
+];
+
+// True when the Mon-Fri week containing `iso` has a market or federal
+// holiday, or `iso` is in a year the tables don't cover.
+function _econHolidayWeek(iso) {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7);   // its Monday
+  const year = iso.slice(0, 4);
+  if (!MARKET_HOLIDAYS.some(function (h) { return h.slice(0, 4) === year; }))
+    return true;                                  // unknown year: no trust
+  for (let i = 0; i < 5; i++) {
+    const day = d.toISOString().slice(0, 10);
+    if (MARKET_HOLIDAYS.indexOf(day) >= 0 ||
+        FEDERAL_ONLY_HOLIDAYS.indexOf(day) >= 0) return true;
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return false;
+}
 
 function _isoAddDays(iso, n) {
   const d = new Date(iso + "T12:00:00Z");
@@ -3792,29 +3856,41 @@ function _isoAddDays(iso, n) {
 // print; date=2026-11-16 held only Sunday-evening Asia releases), so the
 // desk's live call came back empty. Vote with the fixed-weekday releases:
 // returns the day offset to ADD to the wanted date when querying (1 when
-// Nasdaq lags a day, 0 when it is right), or null with no evidence.
+// Nasdaq lags a day, 0 when it is right), or null without clear evidence.
 // `samples` = [{ query: "YYYY-MM-DD", titles: [US event names] }].
+// Rules, so a correctly dated feed is never shifted:
+//   * an anchor is not counted when the queried day's week, or the week
+//     of the day the anchor points to, has a holiday: releases and
+//     auctions move in those weeks (a correct Tuesday bill auction after
+//     a Monday holiday would otherwise vote for a one-day lag);
+//   * every counted anchor must agree (any disagreement -> null);
+//   * a nonzero shift needs at least two different anchors behind it.
 function econDateShift(samples) {
   const votes = {};
   (samples || []).forEach(function (sm) {
+    if (_econHolidayWeek(sm.query)) return;
     const qdow = new Date(sm.query + "T12:00:00Z").getUTCDay();
     const seen = {};
     (sm.titles || []).forEach(function (t) {
-      ECON_WEEKDAY_ANCHORS.forEach(function (a) {
-        if (!a[0].test(String(t || "").trim()) || seen[a[1]]) return;
-        seen[a[1]] = 1;
+      ECON_WEEKDAY_ANCHORS.forEach(function (a, ai) {
+        if (!a[0].test(String(t || "").trim()) || seen[ai]) return;
+        seen[ai] = 1;
         // the response is for weekday a[1]; query = that day + shift
         let sh = ((qdow - a[1]) % 7 + 7) % 7;
         if (sh === 6) sh = -1;
-        if (sh <= 1) votes[sh] = (votes[sh] || 0) + 1;
+        if (sh > 1) sh = 99;               // no plausible shift: disagrees
+        else if (_econHolidayWeek(_isoAddDays(sm.query, -sh))) return;
+        votes[sh] = votes[sh] || {};
+        votes[sh][ai] = 1;
       });
     });
   });
-  let best = null;
-  Object.keys(votes).forEach(function (k) {
-    if (best === null || votes[k] > votes[best]) best = k;
-  });
-  return best === null ? null : parseInt(best, 10);
+  const keys = Object.keys(votes);
+  if (keys.length !== 1 || keys[0] === "99") return null;
+  const shift = parseInt(keys[0], 10);
+  const anchors = Object.keys(votes[keys[0]]).length;
+  if (shift !== 0 && anchors < 2) return null;
+  return shift;
 }
 
 function _econUsTitles(rows) {
@@ -3910,12 +3986,14 @@ async function fetchEconCalendar() {
     // only swapped a correct empty day for FF's 429s on Cloudflare IPs
     // (502 all weekend, found 2026-09-27). FF is for Nasdaq ERRORS only.
     const events = await _econFromNasdaq(etDate);   // has Actual
+    // `date` + `scope`: this is ONE day's list, so an empty one means a
+    // quiet day, not an out-of-date calendar (the site checks both)
     return { updated: new Date().toISOString(), tz: "America/New_York",
-      source: "nasdaq-live", events };
+      source: "nasdaq-live", date: etDate, scope: "day", events };
   } catch (e) { /* Nasdaq unreachable: fall through to FF */ }
   const events = await _econFromFF();               // schedule only, no actuals
   return { updated: new Date().toISOString(), tz: "America/New_York",
-    source: "forexfactory-live", events };
+    source: "forexfactory-live", date: etDate, scope: "week", events };
 }
 
 /** My Reports — GET /my-reports (Bearer JWT). Lists the signed-in user's
@@ -5984,14 +6062,18 @@ export default {
           jobs.push(dispatch("uoa_monitor.yml"));
         }
       }
-      const brk = breakoutDue(c.dow, etDateISO(), c.hhmm);
+      const today = etDateISO();
+      const brk = breakoutDue(c.dow, today, c.hhmm);
       if (brk.dispatch) {
-        jobs.push(dispatch("scanner.yml", { mode: "breakout" }));
+        jobs.push(dispatch("scanner.yml",
+          { mode: "breakout", slot: slotId(today, c.hhmm) }));
       }
-      if (brk.check) jobs.push(checkBreakoutReport(env, brk.check));
+      if (brk.check) jobs.push(checkBreakoutReport(env, brk.check, today));
       if (weekday && c.hhmm === EOD_SLOT) {
-        jobs.push(dispatch("scanner.yml"), dispatch("momentum.yml"),
-                  healPublish());
+        // the setup build's slot is <date>T16:00ET (scan_slot.SETUP_FROM)
+        jobs.push(dispatch("scanner.yml",
+                    { mode: "setup", slot: slotId(today, "16:00") }),
+                  dispatch("momentum.yml"), healPublish());
       }
       if (env.SOCIAL_SCHEDULE === "1") {              // social off switch
         SOCIAL_SCHEDULE.filter(isDue).forEach(function (x) {

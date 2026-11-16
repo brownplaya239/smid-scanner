@@ -12,12 +12,17 @@ name: SMID Breakout Scanner
 # 10:00, 11:30 and 3:00 PM ET on trading days, and with no inputs at
 # 4:45 PM ET for the setup builders (BREAKOUT_SLOTS / EOD_SLOT in
 # cloudflare-worker/worker.js). The crons below stay as a backstop.
-# scan_slot.py makes every trigger idempotent: a run skips a slot whose
-# report is already archived, so the late backstop runs add nothing.
+# Every worker dispatch names its slot (input `slot`, e.g.
+# 2026-11-17T10:00ET); a backstop cron run maps its cron line to the slot
+# it stands in for. scan_slot.py makes every trigger idempotent: a run
+# skips a slot that has a completion record (R2 scan_runs/<date>.json,
+# written after each universe's scan succeeds, even with no candidates),
+# so the late backstop runs add nothing.
 on:
   schedule:
     # Backstop crons, literal UTC (EST times; an hour later in EDT).
-    # Each one only fills a slot the worker missed (see scan_slot.py).
+    # Each one only fills a slot the worker missed (see scan_slot.py;
+    # CRON_SLOTS there maps these exact lines to their slots).
     - cron: '7 15 * * 1-5'     # 10:07 AM EST breakout slot
     - cron: '37 16 * * 1-5'    # 11:37 AM EST breakout slot
     - cron: '7 20 * * 1-5'     # 3:07 PM EST breakout slot
@@ -30,13 +35,18 @@ on:
         type: choice
         options: [auto, breakout, setup]
         default: auto
+      slot:
+        description: "Slot id from the worker, e.g. 2026-11-17T10:00ET (blank = by the clock)"
+        type: string
+        default: ""
       force:
-        description: "Run even if this slot's report already exists"
+        description: "Run even if this slot already ran"
         type: boolean
         default: false
 
 # One run at a time: a worker dispatch and a backstop cron that land
-# together queue up, and the second one sees the first one's report.
+# together queue up, and the second one sees the first one's completion
+# record. This also keeps scan_slot.py's record writes from racing.
 concurrency:
   group: scanner
   cancel-in-progress: false
@@ -77,10 +87,15 @@ jobs:
         id: slot
         env:
           MODE: ${{ inputs.mode || 'auto' }}
+          SLOT: ${{ inputs.slot || '' }}
+          CRON: ${{ github.event.schedule || '' }}
           FORCE: ${{ inputs.force && '--force' || '' }}
-        run: uv run python scan_slot.py --mode "$MODE" $FORCE
+          # reads the completion records (R2 scan_runs/<date>.json)
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: uv run python scan_slot.py plan --mode "$MODE" --slot "$SLOT" --cron "$CRON" $FORCE
 
       - name: Run scans
+        id: scans
         if: steps.slot.outputs.kind != 'none'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -97,18 +112,41 @@ jobs:
             SCRIPT=scanner.py
           fi
           echo "Running $SCRIPT (smid=$RUN_SMID iwm=$RUN_IWM)"
+          # `|| R=$?`: the step shell runs with -e, so a bare failing scan
+          # would end the step before the other universe runs
           R1=0; R2=0
-          if [ "$RUN_SMID" = "true" ]; then uv run python "$SCRIPT";       R1=$?; fi
-          if [ "$RUN_IWM" = "true" ];  then uv run python "$SCRIPT" --iwm; R2=$?; fi
+          if [ "$RUN_SMID" = "true" ]; then uv run python "$SCRIPT"       || R1=$?; fi
+          if [ "$RUN_IWM" = "true" ];  then uv run python "$SCRIPT" --iwm || R2=$?; fi
 
           echo "SMID exit: $R1  |  IWM exit: $R2"
+          # which universes finished cleanly (an empty scan counts): the
+          # record step marks only these as done
+          if [ "$RUN_SMID" = "true" ] && [ $R1 -eq 0 ]; then echo "smid_ok=true" >> "$GITHUB_OUTPUT"; fi
+          if [ "$RUN_IWM" = "true" ] && [ $R2 -eq 0 ]; then echo "iwm_ok=true" >> "$GITHUB_OUTPUT"; fi
           if [ $R1 -ne 0 ] || [ $R2 -ne 0 ]; then
             echo "::error::A scan process failed (SMID=$R1 IWM=$R2)"
             exit 1
           fi
 
+      # Runs even when one universe failed, so the other one's report
+      # still publishes (the job stays red).
       - name: Publish reports to site archive
-        if: steps.slot.outputs.kind != 'none'
+        id: publish
+        if: ${{ !cancelled() && steps.slot.outputs.kind != 'none' && steps.scans.outcome != 'skipped' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: bash scripts/publish_reports.sh
+
+      # Completion records: what makes later triggers skip this slot and
+      # what the worker's missing-report alert reads. Written only after a
+      # clean scan AND publish; a scan with no candidates still counts.
+      - name: Record completed scans
+        if: ${{ !cancelled() && steps.publish.outcome == 'success' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          SLOT: ${{ steps.slot.outputs.slot }}
+          SMID_OK: ${{ steps.scans.outputs.smid_ok }}
+          IWM_OK: ${{ steps.scans.outputs.iwm_ok }}
+        run: |
+          if [ "$SMID_OK" = "true" ]; then uv run python scan_slot.py record --slot "$SLOT" --universe smid; fi
+          if [ "$IWM_OK" = "true" ];  then uv run python scan_slot.py record --slot "$SLOT" --universe iwm; fi
