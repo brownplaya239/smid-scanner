@@ -6623,7 +6623,7 @@
     <!-- Report tabs -->
     <section class="panel" id="panel-breakout">
       <h2 class="tab-title">Breakout Scans</h2>
-      <p class="tab-sub">Intraday breakout scans &mdash; batch runs at 10:00, 11:30 &amp; 3:00 PM ET weekdays.</p>
+      <p class="tab-sub">Intraday breakout scans &mdash; started at 10:00 AM, 11:30 AM &amp; 3:00 PM ET on market days; each report usually posts 10&ndash;20 minutes later.</p>
       <!-- Live ticker table — extracts top breakout candidates from
            today's swing run (A/A+ grades + bull flow if present)
            so users see actionable names without opening every PDF. -->
@@ -12314,8 +12314,9 @@
       const schedule = [
         ["Daily Brief", "8:45 AM ET weekdays (worker; GitHub backup 12:47 UTC)"],
         ["UOA scans", "every 30 min, 9:45 AM → 3:45 PM ET (13/day, worker)"],
-        ["Breakout scanners", "scanner.yml GitHub crons 15:07, 15:37, 19:07 UTC (10:07 / 10:37 AM, 2:07 PM ET in winter; an hour later in summer)"],
-        ["Setup Builder + Momentum + Swing", "4:45 PM ET post-close (worker; GitHub backups 21:17 / 21:33 UTC)"],
+        ["Breakout scans", "10:00, 11:30 AM, 3:00 PM ET (worker dispatch; GitHub crons are late backups; Slack alert if missing 45 min later)"],
+        ["Setup Builder + Momentum + Swing", "4:45 PM ET post-close (worker; setup builders once per day; GitHub backups 21:17 / 21:33 UTC)"],
+        ["Economic calendar", "Sun ~10 AM + 7 PM ET, Mon 8:00 AM ET, weekdays with Momentum"],
         ["Earnings vol backtest", "6:45 PM ET (worker)"],
         ["UOA matched scorecard", "7:30 PM ET (worker)"],
         ["Push alerts", "after each UOA + Momentum (workflow_run trigger)"],
@@ -19289,6 +19290,43 @@
           "fees for actually trading it have not been tested." : "");
       return { text: text, tip: tip };
     }
+
+    // When an earnings report lands relative to now (Eastern time).
+    // dateISO YYYY-MM-DD, session BMO / AMC / anything else (unknown).
+    // { past: true } once it has happened: any earlier date, BMO from
+    // 9:30 AM ET on its day, AMC from 4:00 PM ET. Otherwise { label }:
+    // "today" (weekdays only, never on a weekend), "tomorrow", or
+    // "in Nd" counted in Eastern calendar days. Pure, for the tests.
+    function earnTiming(dateISO, session, nowMs) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO || "")) return null;
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York", hourCycle: "h23", year: "numeric",
+        month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+      }).formatToParts(new Date(nowMs));
+      const g = function (t) {
+        return (parts.find(function (p) { return p.type === t; }) || {}).value;
+      };
+      const today = g("year") + "-" + g("month") + "-" + g("day");
+      const mins = (parseInt(g("hour"), 10) % 24) * 60 + parseInt(g("minute"), 10);
+      const day = function (iso) { return Date.UTC(+iso.slice(0, 4),
+        +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5; };
+      const gap = day(dateISO) - day(today);
+      const ses = String(session || "").toUpperCase();
+      if (gap < 0) return { past: true };
+      if (gap === 0) {
+        if (ses === "BMO" && mins >= 9 * 60 + 30) return { past: true };
+        if (ses === "AMC" && mins >= 16 * 60) return { past: true };
+        const dow = new Date(day(today) * 864e5).getUTCDay();
+        if (dow === 0 || dow === 6) {
+          // weekend-dated report: name the day rather than say "today"
+          return { past: false, label: ["Sun", "Mon", "Tue", "Wed", "Thu",
+            "Fri", "Sat"][dow] + " " + dateISO.slice(5).replace("-", "/") };
+        }
+        return { past: false, label: "today" };
+      }
+      return { past: false, label: gap === 1 ? "tomorrow" : "in " + gap + "d" };
+    }
+
     // ── Earnings Trade Ideas — the site's signals, synthesized per print ──
     // Rendered from earnings_ideas.json (nightly, after earnings_edge).
     // Every card cites its evidence; every idea type carries its own
@@ -19313,9 +19351,17 @@
       }
       let EXEC = null;
       function render(d) {
-        if (!d || !(d.ideas || []).length) { host.innerHTML = ""; return; }
+        // timing comes from the date + session against the Eastern clock
+        // now, not the file's `days`, which is frozen when it is written
+        // (Friday night's file said "BMO in 2d" all day Monday)
+        const now = Date.now();
+        const live = ((d && d.ideas) || []).map(function (i) {
+          return { i: i, tm: earnTiming(i.date, i.session, now) };
+        }).filter(function (x) { return x.tm && !x.tm.past; });
+        if (!live.length) { host.innerHTML = ""; return; }
         const st = d.by_type || {};
-        const rows = d.ideas.map(function (i) {
+        const rows = live.map(function (x) {
+          const i = x.i;
           const tm = TYPE_META[i.type] || [i.type, "", ""];
           const s = st[i.type];
           // vol types: a fairly priced straddle still "wins" ~58-63% of the
@@ -19344,8 +19390,7 @@
               '(n≥30 each, shrunk & clamped). Ideas re-rank by this within each day.">' +
               'conf ' + i.conf + '</span>'
             : '';
-          const when = i.days === 0 ? "today" : i.days === 1 ? "tomorrow"
-            : "in " + i.days + "d";
+          const when = x.tm.label;
           return '<div class="ei-card">' +
             '<div class="ei-top">' +
               '<span class="ei-tk" data-t="' + esc(i.t) + '">' + esc(i.t) + '</span>' +
@@ -22982,6 +23027,46 @@
         insight(_bkInsight) + hdr + body, null, stamp);
     }
 
+    // Today's events + whether the calendar is from an earlier week. The
+    // live worker feed dates events MM-DD-YYYY; the published file
+    // (economic_calendar.py) writes YYYY-MM-DD. Stale = the newest event
+    // is before this week's Monday (todayISO is the Eastern date).
+    // A live day-only response (the worker's Nasdaq feed: scope "day",
+    // `date` = the day it asked for) fetched for today within 6 hours is
+    // current even when it lists nothing: Nasdaq returns only that day,
+    // so an empty list is a quiet day, weekend or holiday (`live: true`).
+    function econCalStatus(cal, todayISO, nowMs) {
+      const iso = function (d) {
+        const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(d || "");
+        return m ? m[3] + "-" + m[1] + "-" + m[2] : String(d || "").slice(0, 10);
+      };
+      const evs = (cal && cal.events) || [];
+      let newest = "";
+      const todays = evs.filter(function (e) {
+        const d = iso(e.date);
+        if (d > newest) newest = d;
+        return d === todayISO;
+      });
+      const t = new Date(todayISO + "T12:00:00Z");
+      const back = (t.getUTCDay() + 6) % 7;          // days since Monday
+      t.setUTCDate(t.getUTCDate() - back);
+      const monday = t.toISOString().slice(0, 10);
+      const upd = Date.parse((cal && cal.updated) || "");
+      const now = nowMs == null ? Date.now() : nowMs;
+      // a worker deployed before `date`/`scope` existed: Nasdaq-live is
+      // day-only, and its day is the Eastern date it was fetched on
+      const asked = (cal && cal.date) || (isNaN(upd) ? "" :
+        new Date(upd).toLocaleDateString("en-CA",
+          { timeZone: "America/New_York" }));
+      const dayOnly = !!cal && (cal.scope === "day" ||
+        (cal.scope == null && cal.source === "nasdaq-live"));
+      const live = dayOnly && /-live$/.test(cal.source || "") &&
+        asked === todayISO && !isNaN(upd) &&
+        upd <= now + 300e3 && now - upd < 6 * 3600e3;
+      return { todays: todays, newest: newest, live: live,
+               stale: !live && !todays.length && newest < monday };
+    }
+
     function cardCalendar(cal, todayISO) {
       const esc = window.escapeHtml;
       // Live feed (worker ForexFactory proxy) → live stamp so users know
@@ -23002,10 +23087,17 @@
       if (!cal || !cal.events)
         return desk("Today's Economic Calendar", empty("No calendar data yet."),
                     null, stamp);
-      // FF feed uses MM-DD-YYYY; todayISO is YYYY-MM-DD
-      const p = todayISO.split("-");
-      const todayFF = p[1] + "-" + p[2] + "-" + p[0];
-      const todays = cal.events.filter(function (e) { return e.date === todayFF; });
+      const cs = econCalStatus(cal, todayISO);
+      const todays = cs.todays;
+      // A calendar from an earlier week can't say today is quiet: say it
+      // is out of date instead (Mon 2026-11-16 showed "No US releases"
+      // off the previous week's file).
+      if (cs.stale) return desk("Today's Economic Calendar",
+        empty("Economic calendar not updated for this week (latest " +
+              "release listed: " + esc(cs.newest || "none") + "). Check " +
+              "today's US releases elsewhere before trading."),
+        null, { cls: "old", label: "Out of date",
+                full: "The calendar file has no releases for this week." });
       if (!todays.length) return desk("Today's Economic Calendar",
         empty("No US releases scheduled today."), null, stamp);
       const impCls = function (imp) {
@@ -23027,7 +23119,7 @@
             // Every field here is scraped (ForexFactory / Nasdaq) — the
             // title attribute was quote-escaped but the visible text was
             // raw, so an event NAME could inject on every desk load.
-            '<span class="cal-time">' + esc(e.time || "") + '</span>' +
+            '<span class="cal-time">' + esc(e.time || e.time_et || "") + '</span>' +
             '<span class="cal-title" title="' + esc(e.title || "") +
               '">' + esc(e.title || "") + '</span>' +
             '<span class="cal-imp ' + impCls(e.impact) + '" title="' +
@@ -24557,10 +24649,13 @@
         // Live economic calendar via the worker (ForexFactory proxy) so the
         // Actual column fills in through the day; fall back to the static
         // post-close batch if the worker is unreachable.
+        // A fresh live day with no events is kept: it means a quiet day,
+        // and the weekly file can be last week's (econCalStatus).
         cal: fetch(WORKER_URL + "/?econ-calendar=1")
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (d) {
-            return (d && d.events && d.events.length)
+            return (d && d.events && (d.events.length ||
+                    econCalStatus(d, window.tdTodayET()).live))
               ? d : fetchJSON("./reports/economic_calendar.json");
           })
           .catch(function () {

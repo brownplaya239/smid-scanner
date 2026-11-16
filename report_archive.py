@@ -152,8 +152,13 @@ def rebuild_manifest(keep_per_type=None):
 
 
 def archive(pdf_bytes, filename):
-    """Convenience: save a PDF and rebuild the manifest in one call."""
-    save_report(pdf_bytes, filename)
+    """Convenience: save a PDF and rebuild the manifest in one call.
+
+    Raises if the PDF could not be written, so a scan whose report was
+    never saved can't be counted as a finished (empty) scan. Callers that
+    want archiving to be best-effort catch the error themselves."""
+    if save_report(pdf_bytes, filename) is None:
+        raise RuntimeError(f"could not write report PDF {filename}")
     rebuild_manifest()
 
 

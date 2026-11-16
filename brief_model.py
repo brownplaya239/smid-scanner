@@ -351,6 +351,20 @@ def build(
                 "sub": "Times converted to Eastern from each source's own zone.",
             }
         )
+    elif market.get("calendar_stale"):
+        # the calendar file is from an earlier week: an empty section
+        # would read as "no releases today", so say it is out of date
+        sections.append(
+            {
+                "id": "calendar",
+                "title": "Macro calendar",
+                "kind": "event",
+                "records": [],
+                "sub": "",
+                "empty_line": "Economic calendar not updated for this week. "
+                "Check today's US releases before trading.",
+            }
+        )
 
     # ── news, with an explicit empty state
     sel = news or {}

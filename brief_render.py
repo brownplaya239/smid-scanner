@@ -579,6 +579,10 @@ def render_link(sec, site):
 
 
 def render_event(sec, site):
+    if not sec["records"]:
+        return _card(
+            sec["title"], _line(esc(sec.get("empty_line") or ""), SMALL_PX, DIM), sub=sec.get("sub")
+        )
     rows = []
     for e in sec["records"]:
         sc = {"COMPLETED": MUTED, "IN PROGRESS": AMBER, "UNSCHEDULED": MUTED}.get(

@@ -13,8 +13,11 @@
 # manifest.json is the only file that can conflict (report PDFs have unique
 # timestamped names) — on conflict it is simply regenerated from the PDFs.
 #
-# Exits 0 on a lost git race (the next run re-publishes). Exits 1 only if the R2
-# data upload fails — that loses the batch, so it must fail loudly.
+# Exits 0 when everything published (or there was nothing new). Exits 1 if
+# the R2 data upload fails, or if the git push still fails after 5 attempts:
+# the commit only exists on this runner, so its PDFs would be lost and the
+# job must go red (scanner.yml then does not mark the slot done, so a later
+# trigger re-runs it).
 
 set -u
 
@@ -46,10 +49,10 @@ uv run --no-sync python -c "from report_archive import rebuild_manifest; rebuild
 # manifest.json, top_daily/, and the landing pages.
 PUBLISH_PATHS="docs/reports/ docs/sitemap.xml docs/*-*.html docs/transparency.html"
 
-# Preflight (2026-09-16 outage): GitHub hard-rejects files >100MB and
-# this script deliberately never fails the job — so at least be LOUD.
+# Preflight (2026-09-16 outage): GitHub hard-rejects files >100MB. Warn
+# early and LOUDLY; the push below then fails the job.
 find data docs/reports -type f -size +95M 2>/dev/null | while read -r f; do
-  echo "::error::$f is over 95MB — GitHub rejects >100MB pushes (GH001). Run ledger_rotate.py / shrink it. Publishes will silently drop until fixed."
+  echo "::error::$f is over 95MB — GitHub rejects >100MB pushes (GH001). Run ledger_rotate.py / shrink it. Publishes will fail until fixed."
 done
 
 # DATA -> R2 (the source of truth since the cutover). Uploads only files
@@ -111,11 +114,12 @@ for attempt in 1 2 3 4 5; do
   # markers. If any docs/reports file has leftover <<<<<<< / ======= /
   # >>>>>>> lines, abort this attempt and hard-reset rather than push
   # corrupt JSON to the live site.
+  # The reset drops this run's commit, so a retry would push nothing and
+  # look like success: fail instead.
   if grep -rlE '^(<{7}|={7}|>{7})' docs/reports/ >/dev/null 2>&1; then
-    echo "::error::Conflict markers detected in docs/reports/ — refusing to push."
+    echo "::error::Conflict markers detected in docs/reports/ — refusing to push. This run's reports did not publish."
     git reset --hard origin/master || true
-    sleep $((attempt * 2))
-    continue
+    exit 1
   fi
 
   if git push origin master; then
@@ -127,6 +131,6 @@ for attempt in 1 2 3 4 5; do
   sleep $((attempt * 2))
 done
 
-echo "::warning::Could not publish reports to site after 5 attempts. "\
-"The next run will re-publish."
-exit 0
+echo "::error::Could not publish reports to site after 5 attempts. "\
+"This run's reports did not publish."
+exit 1
