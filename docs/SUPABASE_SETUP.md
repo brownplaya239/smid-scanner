@@ -548,28 +548,57 @@ create policy "pr_own_read"   on public.profiles
 create policy "pr_own_write"  on public.profiles
   for all using (auth.uid() = id) with check (auth.uid() = id);
 
--- ── On signup: auto-create profile row + seed starter watchlist ──
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public
-as $$
-begin
-  insert into public.profiles (id, last_seen)
-    values (new.id, now())
-    on conflict (id) do nothing;
-  -- Starter watchlist for instant "this is mine" value on first visit
-  insert into public.watchlists (user_id, ticker) values
-    (new.id, 'NVDA'), (new.id, 'MU'), (new.id, 'AVGO'),
-    (new.id, 'MRVL'), (new.id, 'AAPL')
-    on conflict do nothing;
-  update public.profiles set starter_seeded = true where id = new.id;
-  return new;
-end;
-$$;
-
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
+-- ── On signup: profile row + starter watchlist ──
+-- REQUIRED, and kept in ONE place: run
+-- sql/2026-11-16_profiles_for_every_account.sql after this block
+-- (see "2h" below). Do not paste an older copy of handle_new_user here.
 ```
+
+### 2h. (Required) Every account needs a profile row
+
+Run [`sql/2026-11-16_profiles_for_every_account.sql`](../sql/2026-11-16_profiles_for_every_account.sql)
+in the SQL Editor. It installs the `on_auth_user_created` trigger
+(`public.handle_new_user()`), which gives each new account a
+`public.profiles` row and the starter watchlist (NVDA, MU, AVGO, MRVL,
+AAPL), and back-fills a row for every existing account that lacks one.
+Starters are only ever added by the script to accounts on its audited
+`starter_repair_allowlist`: accounts that had no profile when it first
+ran, and later signups whose starter step failed. Accounts that already
+had a profile are left alone, so a watchlist someone emptied stays empty.
+
+It also installs what the Stripe webhook needs: `stripe_customers` (every
+Stripe customer each account has had), `stripe_reconcile_lease` (one
+Stripe sync per account at a time), `stripe_webhook_events` (events
+already saved), and the functions `td_acquire_reconcile_lease()`,
+`td_release_reconcile_lease()` and `td_apply_stripe_state()`. Run it
+**before** deploying a worker that calls them, and once more after. Safe
+to re-run.
+
+Why it matters: the plan (Free / Pro / Premium), the Daily Brief setting
+and the promo fields all live on that row. Until 2026-11-16 this trigger
+had never been installed, so most accounts had no row, and a customer who
+paid stayed on Free. Since then the Stripe webhook creates the row too
+(it takes the account's lease, reads the plan from the current
+subscriptions of every Stripe customer the account has had — never from
+the event — and saves it with `td_apply_stripe_state()` before giving the
+lease back), and the site creates it on sign-in (`ensureProfile()` in
+`docs/index.html`), but the trigger is still the main path.
+
+**Check it is installed** (read-only, run any time):
+
+```sql
+select
+  exists (select 1 from pg_trigger
+          where tgrelid = 'auth.users'::regclass
+            and tgname = 'on_auth_user_created'
+            and tgenabled <> 'D')                        as signup_trigger_installed,
+  (select count(*) from auth.users u
+    where not exists (select 1 from public.profiles p
+                      where p.id = u.id))                as accounts_without_profile;
+```
+
+Expected: `true` and `0`. If the trigger is missing or the count is above
+zero, re-run the SQL file.
 
 ## 3. Enable auth providers
 

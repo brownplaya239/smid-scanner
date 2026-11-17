@@ -51,7 +51,23 @@ globalThis.fetch = (url, init = {}) => {
     if (OPT.posthog === "hang") return new Promise(() => {});
     return Promise.resolve(new Response("{}", { status: 200 }));
   }
-  if (url.includes("/rest/v1/profiles")) return Promise.resolve(new Response(null, { status: 204 }));
+  // The webhook (since #17) syncs the plan from Stripe's current state under
+  // a per-account lease: answer those calls like Supabase / Stripe would.
+  const json = (v, status = 200) => Promise.resolve(new Response(JSON.stringify(v), { status,
+    headers: { "Content-Type": "application/json" } }));
+  if (url.includes("/rest/v1/rpc/td_acquire_reconcile_lease")) return json(true);
+  if (url.includes("/rest/v1/rpc/td_release_reconcile_lease")) return json(true);
+  if (url.includes("/rest/v1/rpc/td_apply_stripe_state"))
+    return json({ applied: true, tier: OPT.event.type === "customer.subscription.deleted" ? "free" : "pro", reason: null });
+  if (url.includes("/rest/v1/stripe_webhook_events")) return json([]);
+  if (url.includes("/rest/v1/stripe_customers"))
+    return (init.method || "GET") === "GET" ? json([{ customer_id: "cus_1" }]) : json([], 201);
+  if (url.includes("/rest/v1/profiles"))
+    return (init.method || "GET") === "GET" ? json([{ stripe_customer_id: "cus_1" }]) : Promise.resolve(new Response(null, { status: 204 }));
+  if (url.includes("api.stripe.com/v1/subscriptions"))
+    return json(OPT.event.type === "customer.subscription.deleted"
+      ? { data: [], has_more: false }
+      : { data: [{ id: "sub_1", status: "active", items: { data: [{ price: { id: "price_pro" } }] } }], has_more: false });
   return Promise.resolve(new Response("unexpected " + url, { status: 599 }));
 };
 
@@ -151,8 +167,8 @@ def test_webhook_answer_is_unchanged_when_posthog_fails(event, mode):
     assert baseline["status"] == 200 and json.loads(baseline["body"]) == {"received": True}
     assert _answer(res) == _answer(baseline)
     assert len(_posthog(res)) == 1
-    # The plan was still applied to the profile.
-    assert [c["method"] for c in res["calls"] if "/profiles" in c["url"]] == ["PATCH"]
+    # The plan was still applied (through td_apply_stripe_state, under the lease).
+    assert sum("/rpc/td_apply_stripe_state" in c["url"] for c in res["calls"]) == 1
     assert res["waitRejected"] is False
 
 

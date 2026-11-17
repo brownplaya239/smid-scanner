@@ -2960,6 +2960,342 @@ async function handleStripeCheckout(request, env, cors) {
   }
 }
 
+// ── Profile writes from billing (portal backfill) ─────────────────
+// Every billing write to public.profiles creates the row when it is
+// missing. Before 2026-11-16 these were PATCHes, and the signup trigger
+// that creates profile rows had never been installed, so for most
+// accounts the PATCH matched no row, changed nothing and reported
+// success: a new customer was charged and stayed on Free.
+// (sql/2026-11-16_profiles_for_every_account.sql installs the trigger.)
+// The Stripe webhook's plan writes go through td_apply_stripe_state()
+// instead (see syncStripePlan below); this upsert is only used by the
+// portal to cache stripe_customer_id, never for a plan field.
+//
+// Runs with the service key, so PR #8's guard trigger
+// (td_guard_profile_plan_fields) lets it through.
+// Returns { ok, status, rows, error }. ok means Supabase confirmed a
+// row now holds the values (at least one row came back).
+async function upsertProfileFields(env, userId, fields) {
+  const url = env.SUPABASE_URL.replace(/\/+$/, "") +
+    "/rest/v1/profiles?on_conflict=id&select=id,subscription_tier";
+  let r;
+  try {
+    r = await fetch(url, {
+      method: "POST",
+      headers: {
+        "apikey": env.SUPABASE_SERVICE_KEY,
+        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify({ id: userId, ...fields }),
+    });
+  } catch (e) {
+    return { ok: false, status: 0, rows: 0,
+             error: "network: " + String((e && e.message) || e) };
+  }
+  const text = await r.text().catch(function () { return ""; });
+  if (!r.ok) {
+    return { ok: false, status: r.status, rows: 0,
+             error: "HTTP " + r.status + " " + text.slice(0, 200) };
+  }
+  let rows = null;
+  try { rows = JSON.parse(text); } catch (_) { /* handled below */ }
+  const n = Array.isArray(rows) ? rows.length : 0;
+  if (n === 0) {
+    return { ok: false, status: r.status, rows: 0,
+             error: "Supabase returned no row" };
+  }
+  return { ok: true, status: r.status, rows: n, error: null };
+}
+
+// Post a one-line ops alert to Slack. Needs SLACK_BOT_TOKEN (already a
+// worker secret) and SLACK_ALERT_CHANNEL (a channel id the bot has been
+// invited to). Without the channel it only logs, so a missing setting
+// never breaks the caller.
+async function alertOps(env, text) {
+  console.error("[ops-alert] " + text);
+  if (!env.SLACK_BOT_TOKEN || !env.SLACK_ALERT_CHANNEL) return;
+  await slackApi(env, "chat.postMessage",
+    { channel: env.SLACK_ALERT_CHANNEL, text: text });
+}
+
+// ── Stripe → plan sync (webhook) ──────────────────────────────────
+// Subscription statuses that count as paying. `past_due` keeps access
+// while Stripe retries a failed card (its dunning period); Stripe then
+// moves the subscription to canceled/unpaid, which reads as Free.
+// `incomplete` (checkout not paid yet) does NOT count: the follow-up
+// event when it turns `active` sets the plan.
+const STRIPE_PAID_STATUSES = ["active", "trialing", "past_due"];
+const STRIPE_TIER_RANK = { free: 0, pro: 1, premium: 2 };
+
+function stripePlanFromPriceId(env, id) {
+  if (id && id === env.STRIPE_PRO_PRICE_ID) return "pro";
+  if (id && id === env.STRIPE_PREMIUM_PRICE_ID) return "premium";
+  return null;
+}
+
+function supabaseServiceHeaders(env, extra) {
+  return {
+    "apikey": env.SUPABASE_SERVICE_KEY,
+    "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
+    ...(extra || {}),
+  };
+}
+
+// A Supabase REST call with the service key that never hides an error:
+// returns {ok:true, data} or {ok:false, error}. Every caller in the Stripe
+// sync treats an error as "try again later", never as "nothing there".
+async function supabaseServiceCall(env, path, init) {
+  let r;
+  try {
+    r = await fetch(env.SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/" + path, {
+      ...(init || {}),
+      headers: supabaseServiceHeaders(env, {
+        "Content-Type": "application/json",
+        ...((init && init.headers) || {}),
+      }),
+    });
+  } catch (e) {
+    return { ok: false,
+             error: "Supabase network: " + String((e && e.message) || e) };
+  }
+  const text = await r.text().catch(function () { return ""; });
+  if (!r.ok) {
+    return { ok: false,
+             error: "Supabase HTTP " + r.status + " " + text.slice(0, 200) };
+  }
+  if (!text) return { ok: true, data: null };
+  try { return { ok: true, data: JSON.parse(text) }; }
+  catch (_) { return { ok: false, error: "Supabase returned no result" }; }
+}
+
+// Has stripe_webhook_events already saved this event id? {ok, seen}.
+async function stripeEventAlreadyApplied(env, eventId) {
+  const r = await supabaseServiceCall(env,
+    "stripe_webhook_events?select=event_id&event_id=eq." +
+    encodeURIComponent(eventId));
+  if (!r.ok) return r;
+  if (!Array.isArray(r.data)) {
+    return { ok: false, error: "Supabase returned no result" };
+  }
+  return { ok: true, seen: r.data.length > 0 };
+}
+
+// Remember that this Stripe customer belongs to this account
+// (stripe_customers; an existing pair is left as is).
+async function recordStripeCustomer(env, userId, customerId) {
+  const r = await supabaseServiceCall(env, "stripe_customers", {
+    method: "POST",
+    headers: { "Prefer": "resolution=ignore-duplicates,return=minimal" },
+    body: JSON.stringify({ user_id: userId, customer_id: customerId }),
+  });
+  return r.ok ? { ok: true } : r;
+}
+
+// Every Stripe customer id known for the account: stripe_customers plus
+// the one cached on the profile. {ok, ids} or {ok:false, error}.
+async function knownStripeCustomers(env, userId) {
+  const uid = encodeURIComponent(userId);
+  const a = await supabaseServiceCall(env,
+    "stripe_customers?select=customer_id&user_id=eq." + uid);
+  if (!a.ok) return a;
+  const b = await supabaseServiceCall(env,
+    "profiles?select=stripe_customer_id&id=eq." + uid);
+  if (!b.ok) return b;
+  if (!Array.isArray(a.data) || !Array.isArray(b.data)) {
+    return { ok: false, error: "Supabase returned no result" };
+  }
+  const ids = [];
+  for (const row of a.data.concat(b.data)) {
+    const id = row && (row.customer_id || row.stripe_customer_id);
+    if (id && ids.indexOf(id) < 0) ids.push(String(id));
+  }
+  return { ok: true, ids: ids };
+}
+
+// The per-account lease (td_acquire_reconcile_lease): only one Stripe sync
+// per account reads Stripe and saves at a time. {ok, held}.
+async function acquireStripeLease(env, userId, token) {
+  const r = await supabaseServiceCall(env, "rpc/td_acquire_reconcile_lease", {
+    method: "POST",
+    body: JSON.stringify({ p_user: userId, p_token: token,
+                           p_ttl_seconds: STRIPE_LEASE_TTL_SECONDS }),
+  });
+  if (!r.ok) return r;
+  if (typeof r.data !== "boolean") {
+    return { ok: false, error: "Supabase returned no result" };
+  }
+  return { ok: true, held: r.data };
+}
+
+async function releaseStripeLease(env, userId, token) {
+  return supabaseServiceCall(env, "rpc/td_release_reconcile_lease", {
+    method: "POST",
+    body: JSON.stringify({ p_user: userId, p_token: token }),
+  });
+}
+
+// All of one Stripe customer's current (not canceled) subscriptions,
+// following Stripe's pages. {ok, subs} or {ok:false, error}.
+async function stripeSubscriptionsFor(env, customerId) {
+  const subs = [];
+  let after = null;
+  for (let page = 0; page < STRIPE_MAX_PAGES; page++) {
+    let r;
+    try {
+      r = await fetch("https://api.stripe.com/v1/subscriptions?limit=100" +
+        "&customer=" + encodeURIComponent(customerId) +
+        (after ? "&starting_after=" + encodeURIComponent(after) : ""), {
+        headers: { "Authorization": "Bearer " + env.STRIPE_SECRET_KEY },
+      });
+    } catch (e) {
+      return { ok: false,
+               error: "Stripe network: " + String((e && e.message) || e) };
+    }
+    if (!r.ok) {
+      const t = await r.text().catch(function () { return ""; });
+      return { ok: false,
+               error: "Stripe HTTP " + r.status + " " + t.slice(0, 200) };
+    }
+    const j = await r.json().catch(function () { return null; });
+    if (!j || !Array.isArray(j.data)) {
+      return { ok: false, error: "Stripe returned no subscription list" };
+    }
+    for (const s of j.data) subs.push(s);
+    if (!j.has_more) return { ok: true, subs: subs };
+    const last = j.data[j.data.length - 1];
+    if (!last || !last.id) {
+      return { ok: false, error: "Stripe said there is more but sent no page" };
+    }
+    after = last.id;
+  }
+  return { ok: false, error: "Stripe customer " + customerId +
+    " has more than " + (STRIPE_MAX_PAGES * 100) + " subscriptions" };
+}
+
+// Read every known customer's subscriptions and work out the plan the
+// account pays for right now. Returns {ok, tier, customerId} or
+// {ok:false, error}. Fails (so nothing is saved) when any paying
+// subscription has a price this worker doesn't recognise: it never saves
+// a plan while that one is unexplained.
+async function currentStripePlan(env, userId, customerIds) {
+  let best = { tier: "free", customerId: null };
+  const unknown = [];
+  for (const cus of customerIds) {
+    const list = await stripeSubscriptionsFor(env, cus);
+    if (!list.ok) return list;
+    for (const sub of list.subs) {
+      if (STRIPE_PAID_STATUSES.indexOf(sub.status) < 0) continue;
+      // A subscription bought for a different account is not this user's.
+      const owner = sub.metadata && sub.metadata.user_id;
+      if (owner && owner !== userId) continue;
+      const items = (sub.items && sub.items.data) || [];
+      let tier = null;
+      let unknownItem = items.length === 0;
+      for (const it of items) {
+        const t = stripePlanFromPriceId(env, it && it.price && it.price.id);
+        if (!t) { unknownItem = true; continue; }
+        if (!tier || STRIPE_TIER_RANK[t] > STRIPE_TIER_RANK[tier]) tier = t;
+      }
+      if (unknownItem) { unknown.push(sub.id || "?"); continue; }
+      if (STRIPE_TIER_RANK[tier] > STRIPE_TIER_RANK[best.tier]) {
+        best = { tier: tier, customerId: cus };
+      }
+    }
+  }
+  if (unknown.length) {
+    // Paying for a price this worker doesn't know: most likely
+    // STRIPE_PRO_PRICE_ID / STRIPE_PREMIUM_PRICE_ID is out of date. Saving
+    // anything now could downgrade a paying customer, so save nothing:
+    // Sum is alerted and Stripe retries.
+    return { ok: false, error: "paying subscription with an unknown price " +
+      "id (" + unknown.join(", ") + "; check STRIPE_PRO_PRICE_ID / " +
+      "STRIPE_PREMIUM_PRICE_ID)" };
+  }
+  return { ok: true, tier: best.tier, customerId: best.customerId };
+}
+
+const STRIPE_LEASE_TTL_SECONDS = 60;
+const STRIPE_LEASE_ATTEMPTS = 4;      // waits 0.25 s, 0.5 s, 0.75 s between
+const STRIPE_LEASE_WAIT_MS = 250;
+const STRIPE_MAX_PAGES = 20;
+
+// syncStripePlan — bring one account's plan in line with Stripe.
+//   1. remember the event's Stripe customer for this account;
+//   2. take the account's lease, so no other sync for it runs meanwhile
+//      (waiting briefly: checkout and "subscription created" usually
+//      arrive together). Still busy → {ok:false, busy:true}: the webhook
+//      answers 409 and Stripe retries later, after this sync has saved, so
+//      the retry reads newer truth;
+//   3. read every known customer's current subscriptions from Stripe;
+//   4. save through td_apply_stripe_state(), which refuses unless this
+//      lease is still held (sql/2026-11-16_profiles_for_every_account.sql);
+//   5. give the lease back (if that fails, it expires on its own).
+// Any error at any step returns {ok:false}; nothing is saved, and an error
+// is never read as "no subscription".
+async function syncStripePlan(env, opts) {
+  const userId = opts.userId;
+  if (opts.customerId) {
+    const rec = await recordStripeCustomer(env, userId, opts.customerId);
+    if (!rec.ok) return { ok: false, error: "saving the Stripe customer: " + rec.error };
+  }
+  const token = crypto.randomUUID();
+  let held = false;
+  for (let i = 0; i < STRIPE_LEASE_ATTEMPTS && !held; i++) {
+    if (i) await new Promise(function (r) { setTimeout(r, STRIPE_LEASE_WAIT_MS * i); });
+    const a = await acquireStripeLease(env, userId, token);
+    if (!a.ok) return { ok: false, error: "taking the sync lease: " + a.error };
+    held = a.held;
+  }
+  if (!held) {
+    return { ok: false, busy: true,
+             error: "another Stripe sync for this account is running" };
+  }
+  try {
+    const known = await knownStripeCustomers(env, userId);
+    if (!known.ok) return { ok: false, error: "reading Stripe customers: " + known.error };
+    const customers = known.ids.slice();
+    if (opts.customerId && customers.indexOf(opts.customerId) < 0) {
+      customers.unshift(opts.customerId);
+    }
+    if (!customers.length) {
+      return { ok: false, error: "no Stripe customer id known for this account" };
+    }
+    const plan = await currentStripePlan(env, userId, customers);
+    if (!plan.ok) return plan;
+    const r = await supabaseServiceCall(env, "rpc/td_apply_stripe_state", {
+      method: "POST",
+      body: JSON.stringify({
+        p_user: userId,
+        p_tier: plan.tier,
+        p_customer: plan.customerId || opts.customerId || null,
+        p_lease_token: token,
+        p_event_id: opts.eventId,
+        p_event_type: opts.eventType,
+      }),
+    });
+    if (!r.ok) return r;
+    const out = r.data;
+    if (!out || typeof out !== "object" || typeof out.applied !== "boolean") {
+      return { ok: false, error: "Supabase returned no result" };
+    }
+    if (!out.applied) {
+      // Our lease ran out before the save (a very slow Stripe read) and
+      // another sync may have taken over: retry later rather than save.
+      return { ok: false, busy: true, error: "sync lease expired before saving" };
+    }
+    return { ok: true, tier: out.tier || plan.tier, applied: true,
+             reason: out.reason || null };
+  } finally {
+    const rel = await releaseStripeLease(env, userId, token);
+    if (!rel.ok) {
+      console.error("Stripe sync lease release failed (it expires in " +
+        STRIPE_LEASE_TTL_SECONDS + "s) · user_id=" + userId + " · " + rel.error);
+    }
+  }
+}
+
 // ── Stripe Customer Portal ────────────────────────────────────────
 // Self-serve billing management for subscribers: cancel, change card,
 // update payment method, view invoices, switch plans. Creates a
@@ -3080,22 +3416,22 @@ async function handleStripePortal(request, env, cors) {
       );
     }
     // Back-fill profiles.stripe_customer_id so future calls hit the
-    // fast path. Best-effort — don't block portal open on failure.
+    // fast path. Upsert, so an account with no profile row gets one.
+    // Best-effort — don't block portal open on failure.
     if (customerId) {
-      try {
-        await fetch(
-          profilesBase + "?id=eq." + encodeURIComponent(userId),
-          { method: "PATCH",
-            headers: {
-              "apikey": env.SUPABASE_SERVICE_KEY,
-              "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-              "Content-Type": "application/json",
-              "Prefer": "return=minimal",
-            },
-            body: JSON.stringify({ stripe_customer_id: customerId }),
-          }
-        );
-      } catch (_) {}
+      const res = await upsertProfileFields(env, userId,
+        { stripe_customer_id: customerId });
+      if (!res.ok) {
+        console.log("portal customer-id backfill failed · user_id=" +
+          userId + " · " + res.error);
+      }
+      // ...and remember it for the Stripe plan sync, which checks every
+      // customer an account has had.
+      const rec = await recordStripeCustomer(env, userId, customerId);
+      if (!rec.ok) {
+        console.log("portal stripe_customers insert failed · user_id=" +
+          userId + " · " + rec.error);
+      }
     }
   }
 
@@ -3190,112 +3526,82 @@ async function handleStripeWebhook(request, env, cors, ctx) {
   try { evt = JSON.parse(bodyText); }
   catch { return new Response("Invalid JSON", { status: 400 }); }
 
-  // Map plan from price_id on the subscription
-  function planFromPriceId(id) {
-    if (id === env.STRIPE_PRO_PRICE_ID) return "pro";
-    if (id === env.STRIPE_PREMIUM_PRICE_ID) return "premium";
-    return null;
-  }
-  // updateProfile — single PATCH that merges subscription tier and/or
-  // the Stripe customer_id onto public.profiles. Caller passes only
-  // the fields it wants to change; missing fields are left alone so
-  // a subscription.updated event doesn't clobber the cached customer
-  // id that arrived in checkout.session.completed.
-  async function updateProfile(userId, patch) {
-    if (!userId || !patch) return;
-    const body = {};
-    if (patch.tier) {
-      body.subscription_tier = patch.tier;
-      // Stripe now owns the plan, so drop any promo end date. Otherwise a
-      // promo user who then paid would read as Free once the old promo
-      // date passed, while still being charged.
-      // Tier and end date go in ONE statement on purpose: Postgres locks
-      // the row for it, and td_redeem_promo locks the same row (FOR
-      // UPDATE), so a promo redemption and this write never interleave.
-      // If the promo commits first, this overwrites it with the paid plan;
-      // if this commits first, the promo sees a paid plan and refuses.
-      body.subscription_expires_at = null;
-    }
-    if (patch.stripe_customer_id) {
-      body.stripe_customer_id = patch.stripe_customer_id;
-    }
-    if (Object.keys(body).length === 0) return;
-    const url = env.SUPABASE_URL.replace(/\/+$/, "") +
-      "/rest/v1/profiles?id=eq." + encodeURIComponent(userId);
-    await fetch(url, {
-      method: "PATCH",
-      headers: {
-        "apikey": env.SUPABASE_SERVICE_KEY,
-        "Authorization": "Bearer " + env.SUPABASE_SERVICE_KEY,
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal",
-      },
-      body: JSON.stringify(body),
-    });
-  }
+  // The event only tells us WHO changed (the user id and Stripe customer
+  // id). It does not decide the plan: Stripe can deliver events late, out
+  // of order, and retries an event we answered 500 to for up to 3 days,
+  // so an old event's payload can describe a plan the customer no longer
+  // has. Instead, every event re-reads the customer's CURRENT
+  // subscriptions from the Stripe API and saves that (syncStripePlan).
 
   const type = evt.type;
-  const obj = evt.data && evt.data.object;
+  const obj = (evt.data && evt.data.object) || {};
   console.log("Event type: " + type + " · obj id: " + (obj && obj.id));
+  let userId = null;
+  let customerId = null;
   if (type === "checkout.session.completed") {
-    const userId = obj.client_reference_id ||
-                   (obj.metadata && obj.metadata.user_id);
-    const plan = obj.metadata && obj.metadata.plan;
-    // obj.customer is the canonical Stripe customer_id created during
-    // this checkout. Cache it on the profile so the Billing Portal
-    // endpoint can look the customer up without a Stripe customers/search.
-    const stripeCustomerId = obj.customer || null;
-    console.log("checkout.session.completed · user_id=" + userId +
-      " plan=" + plan + " stripe_customer_id=" + stripeCustomerId);
-    if (userId) {
-      await updateProfile(userId, {
-        tier: plan || undefined,
-        stripe_customer_id: stripeCustomerId || undefined,
-      });
-    }
+    userId = obj.client_reference_id || (obj.metadata && obj.metadata.user_id);
+    customerId = obj.customer || null;
   } else if (type === "customer.subscription.created" ||
-             type === "customer.subscription.updated") {
-    const userId = obj.metadata && obj.metadata.user_id;
-    const priceId = obj.items && obj.items.data && obj.items.data[0] &&
-                    obj.items.data[0].price && obj.items.data[0].price.id;
-    const plan = planFromPriceId(priceId);
-    const stripeCustomerId = obj.customer || null;
-    // Treat any non-terminal status as paid. Stripe's subscription
-    // lifecycle: incomplete → active → past_due/unpaid → canceled.
-    // For Checkout flows the first `customer.subscription.created`
-    // event arrives with status='incomplete' BEFORE the payment is
-    // fully confirmed (~1 sec later it flips to 'active'). The user
-    // already entered card details and clicked Subscribe — we want
-    // to grant Pro access immediately, not wait for the second event.
-    const liveStatuses = ["active", "trialing", "incomplete",
-                          "incomplete_expired", "past_due"];
-    const active = liveStatuses.indexOf(obj.status) >= 0;
-    console.log("subscription event · user_id=" + userId +
-      " priceId=" + priceId + " plan=" + plan +
-      " status=" + obj.status + " active=" + active +
-      " stripe_customer_id=" + stripeCustomerId);
-    if (userId) {
-      await updateProfile(userId, {
-        tier: active && plan ? plan : "free",
-        stripe_customer_id: stripeCustomerId || undefined,
-      });
-    }
-  } else if (type === "customer.subscription.deleted") {
-    const userId = obj.metadata && obj.metadata.user_id;
-    console.log("subscription.deleted · user_id=" + userId);
-    // Leave stripe_customer_id intact — the customer record still
-    // exists in Stripe (with no active sub) and the user may want to
-    // re-subscribe later. We just downgrade the entitlement.
-    if (userId) await updateProfile(userId, { tier: "free" });
+             type === "customer.subscription.updated" ||
+             type === "customer.subscription.deleted") {
+    userId = obj.metadata && obj.metadata.user_id;
+    customerId = obj.customer || null;
   } else {
     console.log("Ignored event type: " + type);
+    return stripeWebhookReply(cors, 200, { received: true });
   }
-  // Analytics (subscribed / cancelled). Fire-and-forget, never throws,
-  // does nothing without env.POSTHOG_KEY. Keep this ONE line just before
-  // the success response when rebasing webhook changes.
+  if (!userId) {
+    console.log(type + " has no user_id · nothing to update");
+    return stripeWebhookReply(cors, 200, { received: true });
+  }
+  // Exact duplicate of an event we already applied: nothing to do.
+  let res = null;
+  if (evt.id) {
+    const seen = await stripeEventAlreadyApplied(env, evt.id);
+    if (!seen.ok) {
+      res = { ok: false, error: "checking for a duplicate: " + seen.error };
+    } else if (seen.seen) {
+      console.log("duplicate event " + evt.id + " · already applied");
+      return stripeWebhookReply(cors, 200, { received: true, duplicate: true });
+    }
+  }
+  if (!res) {
+    res = await syncStripePlan(env, {
+      userId: userId, customerId: customerId,
+      eventId: evt.id || null, eventType: type,
+    });
+  }
+  if (!res.ok && res.busy) {
+    // Another sync for this account holds the lease. Nothing was saved;
+    // Stripe retries this event later, and that retry reads the newer
+    // Stripe state. Normal when several events arrive together: no alert.
+    console.log("Stripe " + type + " (" + (evt.id || "no event id") +
+      ") for user " + userId + " deferred: " + res.error);
+    return stripeWebhookReply(cors, 409,
+      { received: false, error: "busy, retry later" });
+  }
+  if (!res.ok) {
+    // The customer's plan did NOT change in our database. Tell Sum, and
+    // answer 500 so Stripe retries. A retry is safe: it re-reads the
+    // current Stripe state, so it can never bring back an old plan.
+    await alertOps(env, ":rotating_light: Stripe " + type + " (" +
+      (evt.id || "no event id") + ") could not update the profile of user " +
+      userId + ". " + res.error +
+      ". Stripe will retry; if this repeats, fix the row in Supabase.");
+    return stripeWebhookReply(cors, 500,
+      { received: false, error: "profile update failed" });
+  }
+  console.log("profile synced · user_id=" + userId + " tier=" + res.tier +
+    " applied=" + res.applied + (res.reason ? " (" + res.reason + ")" : ""));
+  // Analytics (subscribed / cancelled): only after the plan was saved.
+  // Fire-and-forget, never throws, does nothing without env.POSTHOG_KEY.
   posthogStripeEvent(env, ctx, evt);
-  return new Response(JSON.stringify({ received: true }), {
-    status: 200,
+  return stripeWebhookReply(cors, 200, { received: true });
+}
+
+function stripeWebhookReply(cors, status, body) {
+  return new Response(JSON.stringify(body), {
+    status: status,
     headers: { "Content-Type": "application/json", ...cors },
   });
 }
@@ -3376,18 +3682,27 @@ function posthogStripeEvent(env, ctx, evt) {
   }
 }
 
-// Stripe webhook signature verification (HMAC-SHA256).
+// Stripe webhook signature verification (HMAC-SHA256), as Stripe's own
+// libraries do it: any of the v1 signatures may match (Stripe sends two
+// while a signing secret is being rolled), and the signed timestamp must be
+// within 5 minutes of now, so a captured request can't be replayed later.
 // Uses WebCrypto since the Cloudflare Worker runtime supports it.
-async function verifyStripeSig(payload, sig, secret) {
+const STRIPE_SIG_TOLERANCE_SECONDS = 300;
+async function verifyStripeSig(payload, sig, secret, nowMs) {
   try {
-    const parts = sig.split(",");
-    let ts = null, v1 = null;
-    parts.forEach(p => {
-      const [k, v] = p.split("=", 2);
+    let ts = null;
+    const v1s = [];
+    sig.split(",").forEach(function (p) {
+      const i = p.indexOf("=");
+      if (i < 0) return;
+      const k = p.slice(0, i).trim();
+      const v = p.slice(i + 1).trim();
       if (k === "t") ts = v;
-      if (k === "v1") v1 = v;
+      if (k === "v1" && v) v1s.push(v);
     });
-    if (!ts || !v1) return false;
+    if (!ts || !/^\d+$/.test(ts) || !v1s.length) return false;
+    const now = Math.floor((nowMs === undefined ? Date.now() : nowMs) / 1000);
+    if (Math.abs(now - Number(ts)) > STRIPE_SIG_TOLERANCE_SECONDS) return false;
     const signed = ts + "." + payload;
     const enc = new TextEncoder();
     const key = await crypto.subtle.importKey(
@@ -3396,13 +3711,17 @@ async function verifyStripeSig(payload, sig, secret) {
     const buf = await crypto.subtle.sign("HMAC", key, enc.encode(signed));
     const expected = Array.from(new Uint8Array(buf))
       .map(b => b.toString(16).padStart(2, "0")).join("");
-    // Timing-safe compare
-    if (expected.length !== v1.length) return false;
-    let diff = 0;
-    for (let i = 0; i < expected.length; i++) {
-      diff |= expected.charCodeAt(i) ^ v1.charCodeAt(i);
+    let match = false;
+    for (const v1 of v1s) {
+      // Timing-safe compare
+      if (expected.length !== v1.length) continue;
+      let diff = 0;
+      for (let i = 0; i < expected.length; i++) {
+        diff |= expected.charCodeAt(i) ^ v1.charCodeAt(i);
+      }
+      if (diff === 0) match = true;
     }
-    return diff === 0;
+    return match;
   } catch (e) { return false; }
 }
 

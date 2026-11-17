@@ -81,13 +81,15 @@ SOCIAL_SCHEDULE = "1"
 # #social-review-tickerdesk (comma-separated). Empty = nobody can decide
 # from Slack (GitHub approval still works).
 SLACK_APPROVERS = "U0BU956FT8Q"
-# Slack channel ID (C0...) for ops alerts: the "news wire is silent" alert
-# and the "breakout scan missing" alert (posted 45 min after each 10:00 /
-# 11:30 / 3:00 PM ET slot with no report), sent by the SLACK_BOT_TOKEN bot,
-# which must be a member of the channel. Deliberately empty: alerts are only
-# written to the worker log until a dedicated TickerDesk ops channel exists.
-# Do NOT point it at #social-review-tickerdesk, which lives in a different
-# business's Slack workspace.
+# Slack channel ID (C0...) for ops alerts: the "news wire is silent" alert,
+# the "breakout scan missing" alert (posted 45 min after each 10:00 /
+# 11:30 / 3:00 PM ET slot with no report), and billing alerts such as a
+# Stripe payment whose plan could not be saved (alertOps in worker.js), sent
+# by the SLACK_BOT_TOKEN bot, which must be a member of the channel.
+# Deliberately empty: alerts are only written to the worker log until a
+# dedicated TickerDesk ops channel exists. Do NOT point it at
+# #social-review-tickerdesk, which lives in a different business's Slack
+# workspace.
 SLACK_ALERT_CHANNEL = ""
 
 # Observability — exact match to what the Cloudflare dashboard
