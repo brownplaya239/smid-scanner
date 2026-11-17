@@ -213,3 +213,24 @@ def test_daily_brief_uses_the_same_oi_rule():
         "at least half the print showed up as new open interest next morning" in (flow["explain"])
     )
     assert "rise in open interest" not in flow["explain"]
+
+
+def test_failed_details_lookup_keeps_the_old_cache_entry(monkeypatch):
+    # A rate-limited or empty Polygon answer must not overwrite good cached
+    # details with a placeholder that would count as fresh for 30 days.
+    monkeypatch.setattr(swing_report.polygon_data, "ticker_details", lambda t: None)
+    assert swing_report._fetch_one_meta("MSFT") is None
+
+    def boom(t):
+        raise RuntimeError("429")
+
+    monkeypatch.setattr(swing_report.polygon_data, "ticker_details", boom)
+    assert swing_report._fetch_one_meta("MSFT") is None
+
+    monkeypatch.setattr(
+        swing_report.polygon_data,
+        "ticker_details",
+        lambda t: {"name": "Microsoft Corp", "type": "CS", "market_cap": 3.8e12},
+    )
+    info = swing_report._fetch_one_meta("MSFT")
+    assert info["name"] == "Microsoft Corp" and info["type"] == "CS"

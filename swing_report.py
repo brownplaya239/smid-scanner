@@ -148,11 +148,18 @@ def _meta_is_fresh(entry, today):
 
 def _fetch_one_meta(ticker):
     """Polygon ticker_details -> { name, sector, industry, country, exchange,
-    mcap_bucket, fetched } for the dashboard hover card."""
+    mcap_bucket, fetched } for the dashboard hover card.
+
+    Returns None when the lookup failed or came back empty (rate limit,
+    outage): the caller then keeps whatever was cached before and leaves it
+    stale, so it is retried on the next run instead of being overwritten
+    with a placeholder that would count as fresh for META_REFRESH_DAYS."""
     try:
         d = polygon_data.ticker_details(ticker) or {}
     except Exception:
         d = {}
+    if not d:
+        return None
     loc = (d.get("locale") or "").lower()
     pex = d.get("primary_exchange") or ""
     return {
@@ -473,7 +480,8 @@ def run():
         )
         with ThreadPoolExecutor(max_workers=24) as ex:
             for t, info in ex.map(lambda t: (t, _fetch_one_meta(t)), stale):
-                meta_cache[t] = info
+                if info is not None:
+                    meta_cache[t] = info
         _save_meta_cache(meta_cache)
 
     # Relative Strength = percentile rank of the blended return
