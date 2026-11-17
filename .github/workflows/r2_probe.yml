@@ -39,6 +39,10 @@ on:
         description: "Copy FINNHUB_API_KEY from GitHub secrets to the worker (macro news wire)"
         type: boolean
         default: false
+      sync_posthog_secret:
+        description: "Copy POSTHOG_KEY from GitHub secrets to the worker (subscribed/cancelled analytics)"
+        type: boolean
+        default: false
 
 env:
   # uv: workflow steps use only the locked runtime packages, never the dev
@@ -156,6 +160,22 @@ jobs:
             exit 1
           fi
           printf '%s' "$FINNHUB_API_KEY" | npx wrangler secret put FINNHUB_API_KEY --name smid-scanner-discord-bot
+      - name: Sync the PostHog key to the worker
+        # Turns on the worker's server-side `subscribed` / `cancelled`
+        # analytics events (docs_dev/ANALYTICS.md). The phc_ key is public
+        # by design, but it goes in as a secret so it never sits in the
+        # repo or the log. Takes effect without a redeploy.
+        if: ${{ inputs.sync_posthog_secret }}
+        working-directory: cloudflare-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          POSTHOG_KEY: ${{ secrets.POSTHOG_KEY }}
+        run: |
+          if [ -z "$POSTHOG_KEY" ]; then
+            echo "::error::GitHub secret POSTHOG_KEY is not set"
+            exit 1
+          fi
+          printf '%s' "$POSTHOG_KEY" | npx wrangler secret put POSTHOG_KEY --name smid-scanner-discord-bot
       - name: Worker secret names
         # Names/types only — wrangler never prints secret values. (Plain-
         # text vars are deliberately NOT listed: this repo's logs are

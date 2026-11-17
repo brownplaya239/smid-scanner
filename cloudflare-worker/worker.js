@@ -3145,7 +3145,7 @@ async function handleStripePortal(request, env, cors) {
   }
 }
 
-async function handleStripeWebhook(request, env, cors) {
+async function handleStripeWebhook(request, env, cors, ctx) {
   // Diagnostic logging so failures show up in `wrangler tail` and the
   // Cloudflare dashboard Logs tab. Never logs the secret itself.
   const has = {
@@ -3290,10 +3290,70 @@ async function handleStripeWebhook(request, env, cors) {
   } else {
     console.log("Ignored event type: " + type);
   }
+  // Analytics (subscribed / cancelled). Fire-and-forget, never throws,
+  // does nothing without env.POSTHOG_KEY. Keep this ONE line just before
+  // the success response when rebasing webhook changes.
+  posthogStripeEvent(env, ctx, evt);
   return new Response(JSON.stringify({ received: true }), {
     status: 200,
     headers: { "Content-Type": "application/json", ...cors },
   });
+}
+
+// ── Product analytics: Stripe outcomes to PostHog ─────────────────────
+// Sends `subscribed` (checkout.session.completed for a subscription) and
+// `cancelled` (customer.subscription.deleted, when access ends) to
+// PostHog's capture API, keyed by the Supabase user id that Stripe carries
+// (client_reference_id / metadata.user_id). The browser identifies the
+// same user with that id, so these join the visitor's funnel.
+// OFF unless env.POSTHOG_KEY is set (the public phc_ project key). Never
+// awaited by the webhook, never throws, gives up after 5 s: analytics
+// must not break or slow down a payment. No email or name is sent.
+const POSTHOG_STRIPE_EVENTS = {
+  "checkout.session.completed": "subscribed",
+  "customer.subscription.deleted": "cancelled",
+};
+function posthogStripeEvent(env, ctx, evt) {
+  try {
+    if (!env || !env.POSTHOG_KEY || !evt) return;
+    const name = POSTHOG_STRIPE_EVENTS[evt.type];
+    if (!name) return;
+    const obj = (evt.data && evt.data.object) || {};
+    if (evt.type === "checkout.session.completed" && obj.mode &&
+        obj.mode !== "subscription") return;
+    const meta = obj.metadata || {};
+    const userId = obj.client_reference_id || meta.user_id;
+    if (!userId) return;
+    const item = obj.items && obj.items.data && obj.items.data[0];
+    const priceId = item && item.price && item.price.id;
+    const plan = meta.plan ||
+      (priceId && priceId === env.STRIPE_PRO_PRICE_ID ? "pro"
+        : priceId && priceId === env.STRIPE_PREMIUM_PRICE_ID ? "premium" : null);
+    const host = String(env.POSTHOG_HOST || "https://us.i.posthog.com").replace(/\/+$/, "");
+    const body = JSON.stringify({
+      api_key: String(env.POSTHOG_KEY),
+      event: name,
+      distinct_id: String(userId),
+      timestamp: evt.created ? new Date(evt.created * 1000).toISOString() : undefined,
+      properties: { plan: plan, source: "stripe_webhook", stripe_event: evt.type },
+    });
+    const ctl = new AbortController();
+    const timer = setTimeout(function () { ctl.abort(); }, 5000);
+    const sent = Promise.resolve()
+      .then(function () {
+        return fetch(host + "/i/v0/e/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: body,
+          signal: ctl.signal,
+        });
+      })
+      .catch(function (e) { console.warn("PostHog capture failed (ignored):", String(e)); })
+      .finally(function () { clearTimeout(timer); });
+    if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(sent);
+  } catch (e) {
+    try { console.warn("PostHog capture skipped (ignored):", String(e)); } catch (_) {}
+  }
 }
 
 // Stripe webhook signature verification (HMAC-SHA256).
@@ -5243,7 +5303,7 @@ export default {
       return handleStripeCheckout(request, env, cors);
     }
     if (urlPath === "/stripe/webhook" && request.method === "POST") {
-      return handleStripeWebhook(request, env, cors);
+      return handleStripeWebhook(request, env, cors, ctx);
     }
     if (urlPath === "/stripe/portal" && request.method === "POST") {
       return handleStripePortal(request, env, cors);
