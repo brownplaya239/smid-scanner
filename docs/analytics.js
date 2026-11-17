@@ -8,7 +8,7 @@
  * With the key empty, nothing loads, nothing is sent, and tdTrack() does
  * nothing.
  */
-var TD_POSTHOG_KEY = "";
+var TD_POSTHOG_KEY = "phc_obCNpXdaN7SEMcDx2L9WiVWkcDbDaJnvnc362dB2YzoH";
 /* US cloud. If the PostHog project is on EU cloud, change both hosts here
  * AND in the Content-Security-Policy in docs/index.html. */
 var TD_POSTHOG_HOST = "https://us.i.posthog.com";
