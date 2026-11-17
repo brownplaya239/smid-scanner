@@ -124,8 +124,6 @@ def t_watch(sec, site, out):
             meta.append("Evidence %s" % x["evidence"])
         if x.get("edge"):
             meta.append(x["edge"])
-        if x.get("reason_codes"):
-            meta.append("Rules: %s" % ", ".join(x["reason_codes"]))
         if meta:
             out.append(_wrap(" · ".join(meta), "  "))
         out.append("  %s" % x["url"])

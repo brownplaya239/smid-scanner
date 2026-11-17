@@ -156,7 +156,7 @@ def build_discovery(market_top, watch_tickers, limit=3, exclude=()):
         if r.get("sector"):
             why.append(r["sector"])
         if r.get("earnings_days") is not None:
-            why.append("earnings in %sd" % r["earnings_days"])
+            why.append(BC.earnings_phrase(r["earnings_days"]))
         out.append(
             {
                 "ticker": tk,
@@ -206,10 +206,7 @@ def build_changes(tickers, swing, uoa_by_ticker, facts, earnings, edge_stats=Non
     import brief_time as BT
 
     now = datetime.now(BT.ET)
-    session_as_of = BT.fmt_stamp(now)
-    # a pre-market quote is good until the opening auction resolves it; a
-    # prior close is good until the next one prints
-    stale_premarket = BT.fmt_stamp(now.replace(hour=9, minute=30, second=0, microsecond=0))
+    # a prior close is good until the next one prints
     stale_close = BT.fmt_stamp(
         (now + timedelta(days=1)).replace(hour=16, minute=0, second=0, microsecond=0)
     )
@@ -258,10 +255,14 @@ def build_changes(tickers, swing, uoa_by_ticker, facts, earnings, edge_stats=Non
         # when it stops being usable. A bare number is the one thing a
         # brief must not print, because it looks current whatever its age.
         if sw.get("price") is not None:
+            # The swing scan runs after the close (momentum.yml), so its
+            # price is that session's close. It used to be labelled
+            # "pre-market <send time>", which passed Friday's close off
+            # as a Monday-morning quote.
             price = sw["price"]
-            basis, src = BC.BASIS_PREMARKET, "swing scan"
-            as_of = sw.get("as_of") or sw.get("session_date") or session_as_of
-            stale = stale_premarket
+            basis, src = BC.BASIS_CLOSE, "swing scan (end of day)"
+            as_of = sw.get("session_date") or sw.get("as_of") or facts_as_of
+            stale = stale_close
         else:
             price = f.get("close")
             basis, src = BC.BASIS_CLOSE, "technical_facts nightly"

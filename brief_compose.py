@@ -122,6 +122,25 @@ def flow_quality_is_hq(quality):
     return str(quality or "").strip() in FLOW_HQ_TIERS
 
 
+def earnings_phrase(days):
+    """The earnings horizon as words. "Earnings in 0d" is a field name, not
+    a sentence: a reader should see "earnings today"."""
+    days = int(days)
+    if days == 0:
+        return "earnings today"
+    if days == 1:
+        return "earnings tomorrow"
+    return "earnings in %d days" % days
+
+
+_EARNINGS_PROSE = re.compile(r"\bearnings in (\d+)\s*d\b", re.IGNORECASE)
+
+
+def plain_catalyst(text):
+    """The scanner's catalyst prose ("Earnings in 0d") in reader English."""
+    return _EARNINGS_PROSE.sub(lambda m: earnings_phrase(m.group(1)), str(text))
+
+
 def materiality(ch):
     """Which frozen rules this name satisfies, in priority order."""
     codes = []
@@ -184,7 +203,7 @@ def synthesize(ch):
         flow = -1
 
     days = ch.get("earnings_in_days")
-    event = ("earnings in %dd" % days) if days is not None and days <= 5 else None
+    event = earnings_phrase(days) if days is not None and days <= 5 else None
     # short-dated positioning into a scheduled event is the case worth
     # calling out; flow that expires after the print is a different animal
     short_dated = bool(ch.get("flow_short_dated"))
@@ -250,6 +269,7 @@ def ma_state_summary(dists, tol=AT_TOLERANCE_PCT):
 BASIS_PREMARKET = "pre-market"
 BASIS_CLOSE = "prior close"
 BASIS_DETECT = "spot at flow detection"
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 
 def price_record(value, basis, as_of="", reason="", source="", stale_after=""):
@@ -276,6 +296,11 @@ def price_record(value, basis, as_of="", reason="", source="", stale_after=""):
     # the record keeps the full stamp; the LABEL drops the date, which the
     # brief's own as-of already states two lines above
     short = re.sub(r"^\d{4}-\d{2}-\d{2}\s+", "", as_of)
+    # a bare session date is the one stamp that IS the information: a
+    # close from Friday must say Friday, as "Nov 13", not "2026-11-13"
+    m = re.fullmatch(r"\d{4}-(\d{2})-(\d{2})", short)
+    if m:
+        short = "%s %d" % (_MONTHS[int(m.group(1)) - 1], int(m.group(2)))
     if basis == BASIS_PREMARKET:
         label = ("pre-market %s" % short) if short else "pre-market quote"
     elif basis == BASIS_CLOSE:
@@ -395,10 +420,10 @@ def rank_ticker(ch):
     if ch.get("has_flow"):
         reasons.append("new options flow")
     if ch.get("catalyst"):
-        reasons.append(ch["catalyst"])
+        reasons.append(plain_catalyst(ch["catalyst"]))
     e = ch.get("earnings_in_days")
     if e is not None and e <= 2:
-        reasons.append("earnings in %dd" % e)
+        reasons.append(earnings_phrase(e))
     pc = ch.get("price_change_pct")
     if pc is not None and abs(pc) >= 4:
         reasons.append("%+.1f%% move" % pc)
@@ -1114,18 +1139,41 @@ def build_subject(market, wl, flow_headline=None, sections=()):
         elif secs.get("laggards"):
             parts.append("%s lags" % secs["laggards"][0]["name"])
 
+    # Name what changed, in the alert line's own words, rather than count
+    # it: "TSN grade C- → D" can be acted on from the inbox; "2 watchlist
+    # changes" has to be opened first. The count is the fallback when no
+    # name fits.
+    named = []
+    for clause in subject_clauses(wl, sections):
+        if len(" · ".join(parts + [", ".join(named + [clause])])) <= SUBJECT_MAX:
+            named.append(clause)
     tail = []
-    if flow_headline and "flow" in sections:
-        tail.append(flow_headline)
+    if named:
+        tail.append(", ".join(named))
     n = wl.get("n_changed") or 0
-    if n and "watchlist" in sections:
+    if n and not named and "watchlist" in sections:
         tail.append("%d watchlist change%s" % (n, "" if n == 1 else "s"))
+    if flow_headline and "flow" in sections:
+        if not any(c.split(" ")[0] == flow_headline.split(" ")[0] for c in named):
+            tail.append(flow_headline)
     if tail:
         parts.append(" + ".join(tail))
     return _fit(parts, SUBJECT_MAX)
 
 
-def build_preheader(market, wl, lines, sections=()):
+def subject_clauses(wl, sections=()):
+    """ "TSN grade C- → D" for the top two shown changes -- word for word
+    what the alert line says, so the subject can never claim more than
+    the body shows."""
+    if "watchlist" not in set(sections or ()):
+        return []
+    return [
+        ("%s %s" % (x["ticker"], (x.get("reasons") or ["changed"])[0])).strip()
+        for x in (wl.get("shown") or [])[:2]
+    ]
+
+
+def build_preheader(market, wl, lines, sections=(), subject=""):
     """Up to 140 chars of the numbers first, then what they did to the
     user's names. Gmail shows this beside the subject, so it must not
     repeat it, must use the body's units, and must end on a whole word --
@@ -1138,12 +1186,9 @@ def build_preheader(market, wl, lines, sections=()):
     ev_s = ""
     if ev.get("title") and "calendar" in sections:
         ev_s = "%s %s" % (ev.get("title"), ev.get("time_et") or "")
-    tail = ""
-    shown = (wl.get("shown") or []) if "watchlist" in sections else []
-    if shown:
-        tail = ", ".join(
-            "%s %s" % (x["ticker"], (x.get("reasons") or ["changed"])[0]) for x in shown[:2]
-        )
+    # the inbox shows the preheader beside the subject: the names the
+    # subject already gave are not worth the space twice
+    tail = ", ".join(c for c in subject_clauses(wl, sections) if c not in (subject or ""))
     s = _fit([head.strip(), ev_s.strip(), tail.strip()], PREHEADER_MAX)
     return _end_whole(s, PREHEADER_MAX)
 
@@ -1702,7 +1747,8 @@ def self_test():
     SECTIONS = ("watchlist", "flow", "calendar")
     subj = build_subject(mk, wl, flow_headline="MU flow", sections=SECTIONS)
     chk("subject leads with regime", subj.startswith("Risk-off tape"), subj)
-    chk("subject names the watchlist change count", "1 watchlist change" in subj, subj)
+    chk("subject names what changed", "MU entry trigger reached" in subj, subj)
+    chk("a named change is not followed by its own flow tag", "MU flow" not in subj, subj)
     chk("subject within 65 chars", len(subj) <= SUBJECT_MAX, len(subj))
     # the "Semis lags" clause must not appear: this fixture displays no
     # sector block, and an unsupported subject claim is the bug
@@ -1718,8 +1764,18 @@ def self_test():
     )
     chk(
         "subject survives its own gate",
-        check_subject_supported(subj, "1 of your 4 watch list names changed", SECTIONS) == [],
-        subj,
+        check_subject_supported(subj, wl["alert_line"], SECTIONS) == [],
+        check_subject_supported(subj, wl["alert_line"], SECTIONS),
+    )
+    chk(
+        "a named change the body does not show is blocked",
+        check_subject_supported(subj, "1 of your 4 watch list names changed", SECTIONS) != [],
+    )
+    long_wl = {"shown": [{"ticker": "MU", "reasons": ["x" * 70]}], "n_changed": 1}
+    chk(
+        "the count stands in when no name fits",
+        "1 watchlist change" in build_subject(mk, long_wl, sections=SECTIONS),
+        build_subject(mk, long_wl, sections=SECTIONS),
     )
 
     lines = {"indices": "SPY +1.2% QQQ +1.6%", "vix": "VIX -1.0%", "ten_year": "10Y 4.63% (+3 bp)"}
@@ -1729,6 +1785,11 @@ def self_test():
     chk("preheader mentions the user's names", "MU" in pre, pre)
     chk("preheader carries the body's yield units", "bp" in pre, pre)
     chk("preheader does not repeat the subject verbatim", pre != subj)
+    chk(
+        "preheader does not repeat the names the subject gave",
+        "MU" not in build_preheader(mk, wl, lines, sections=SECTIONS, subject=subj),
+        build_preheader(mk, wl, lines, sections=SECTIONS, subject=subj),
+    )
     chk("preheader passes its own gate", check_preheader(pre) == [], pre)
     chk(
         "calendar clause withheld when no calendar renders",
@@ -1887,6 +1948,11 @@ def check_subject_supported(subject, text, sections=()):
         v.append("subject claims %r but %r does not appear in the body" % (m.group(0), m.group(1)))
     if re.search(r"\bflow\b", subject or "") and "flow" not in sections:
         v.append("subject references flow but no flow section is displayed")
+    # a named change ("TSN grade C- → D") must appear word for word
+    for piece in re.split(r" · | \+ |, ", subject or ""):
+        if re.match(r"[A-Z][A-Z.]{0,5} \S", piece) and not piece.endswith(" flow"):
+            if piece.lower() not in body:
+                v.append("subject names %r but the body does not say it" % piece)
     m = re.search(r"(\d+) watchlist change", subject or "")
     if m and ("%s of your" % m.group(1)) not in body:
         v.append(
