@@ -1937,9 +1937,9 @@ def _render_carryover(cf, edge=None) -> str:
         f"Conviction 0–100 (held 35% · OI-confirmed 35% · premium 15% · OI-vs-prior 10% · "
         f"strike 5%). OI confirmed = Δ open interest ÷ contracts traded. Not advice.</div>"
     )
-    nconf = cf.get(
-        "confirmed_count", len([c for c in contracts if c.get("conviction") is not None])
-    )
+    # Prints whose next-day OI confirmed the opening trade (held), not
+    # merely the ones whose OI has settled.
+    nconf = len([c for c in contracts if c.get("held") is True])
     sub = f"{nconf}/{cf.get('total', len(contracts))} OI-confirmed · session {sess}"
     return _card("Overnight flow — conviction board", "".join(parts), sub)
 

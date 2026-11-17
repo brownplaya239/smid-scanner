@@ -69,10 +69,13 @@ def flow_line(rows):
 def _contract(r):
     """One displayable contract, carrying the evidence its confirmation
     state is derived from rather than a bare boolean."""
+    import carryover_flow as CF
+
     oid = r.get("oi_delta")
-    confirmed = None
-    if oid is not None:
-        confirmed = oid > 0
+    vol = r.get("volume")
+    # the site's rule: at least half the print showed up as new open
+    # interest next morning (None when that can't be told yet)
+    confirmed = CF.oi_confirmed(oid, vol)
     prem = r.get("premium")
     c = {
         "ticker": r.get("ticker"),
@@ -88,6 +91,7 @@ def _contract(r):
         "premium_raw": prem if isinstance(prem, (int, float)) else None,
         "spot": r.get("spot"),
         "oi_delta": oid,
+        "volume": vol if isinstance(vol, (int, float)) else None,
         "oi_confirmed": confirmed,
         "oi_as_of": r.get("oi_as_of"),
         "printed_at": r.get("last_print_ts"),
@@ -358,6 +362,7 @@ def self_test():
                 "premium": 2.4e6,
                 "spot": 118.2,
                 "oi_delta": 900,
+                "volume": 1000,
                 "tier": "A+",
                 "catalyst": "Earnings in 2d",
                 "last_print_ts": "2026-07-21T15:44:00Z",
@@ -389,6 +394,7 @@ def self_test():
                 "expiry": "2026-08-15",
                 "premium": 9e6,
                 "oi_delta": 100,
+                "volume": 150,
             },
             {
                 "ticker": "MU",
@@ -397,6 +403,7 @@ def self_test():
                 "expiry": "2026-08-15",
                 "premium": 5e6,
                 "oi_delta": 10,
+                "volume": 400,
             },
         ],
         uoa,
@@ -406,14 +413,16 @@ def self_test():
     chk("watchlist flow keyed per ticker", "MU" in per)
     chk("per-ticker contracts capped at 2", len(per["MU"]) <= 2)
     c = per["MU"][0]
-    chk("OI rise marks the contract confirmed", c["status"] == "confirmed", c)
+    chk("OI up by half the print marks the contract confirmed", c["status"] == "confirmed", c)
+    thin = _contract({"ticker": "X", "type": "call", "oi_delta": 10, "volume": 400})
+    chk("OI up by under half the print is failed", thin["status"] == "failed", thin)
     chk("contract carries a session date", bool(c["session_date"]), c)
     neg = _contract({"ticker": "X", "type": "put", "oi_delta": -50})
     chk("OI fall marks the contract failed", neg["status"] == "failed", neg)
     unk = _contract({"ticker": "X", "type": "put"})
     chk("absent OI is 'unknown', never 'confirmed'", unk["status"] == "unknown", unk)
 
-    total = 15
+    total = 16
     print("\n%d/%d checks passed" % (total - len(fails), total))
     return 1 if fails else 0
 

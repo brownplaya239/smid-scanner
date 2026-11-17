@@ -90,6 +90,19 @@
     <dd>The total dollar value of an options trade (price per contract ×
       contracts × 100). Bull vs bear premium tilt summarizes where the money
       is leaning.</dd>
+    <dt id="oi-confirmed">OI-confirmed <span class="aka">(score chip, overnight flow board, Action List, Daily Brief)</span></dt>
+    <dd>A flagged print counts as OI-confirmed when at least half of the
+      print&rsquo;s size showed up as new open interest the next morning
+      (open-interest change &divide; contracts traded is 50% or more; the
+      board&rsquo;s OI Conf % column). That is consistent with positions
+      staying open; it is not proof that this specific trade was kept. See
+      <a href="#oi-confirmation">open interest confirmation</a> above.</dd>
+    <dt id="oi-beyond-print">OI Beyond Print</dt>
+    <dd>How much open interest grew beyond the flagged print&rsquo;s own size
+      (next-morning open-interest change minus contracts traded).
+      &ldquo;+N&rdquo; means other traders opened N more contracts on top of
+      the print. &ldquo;none&rdquo; means open interest didn&rsquo;t grow past
+      the print size; see OI Conf % for how much of the print held.</dd>
   </dl>
 
   <h2>Options structure</h2>
@@ -176,9 +189,6 @@
     <dd>Names cut three or more grade notches in one session. In our record
       this group has bounced slightly more often than not; the Desk shows the
       measured hit rate and sample size next to it.</dd>
-    <dt id="oi-confirmed">OI confirmed</dt>
-    <dd>Open interest on a flagged contract rose by the next morning: the next-day open-interest increase is consistent with new positions staying open; it can&rsquo;t prove this specific trade was held. See
-      <a href="#oi-confirmation">open interest confirmation</a> above.</dd>
     <dt id="chart-reads">Pullback watch, Breakout watch, Weak trend</dt>
     <dd>One-line labels on the Desk cards, set by simple rules in this
       order: <b>Weak trend</b> if the name is in a downtrend;

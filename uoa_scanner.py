@@ -21,6 +21,7 @@ the quotes entitlement is live (classify_trades upgrades itself).
 
 import json
 import os
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -269,6 +270,57 @@ EXCLUDE_ETFS = {
     "WMTL",
     "WMTD",  # WMT leveraged
 }
+
+# Fund products the curated list above hasn't caught yet. Polygon's
+# reference "type" (CS = common stock, ADRC = ADR) is authoritative when we
+# have it; the issuer / wording pattern catches new leveraged and inverse
+# launches by name ("2x Long MU Daily", "UltraShort Silver", "... ETF").
+FUND_TYPES = {"ETF", "ETN", "ETV", "ETS", "FUND", "SP"}
+STOCK_TYPES = {"CS", "ADRC"}
+_FUND_NAME = re.compile(
+    r"\b(ETFs?|ETNs?|ProShares|Direxion|GraniteShares|T-Rex|Tradr|Leverage Shares|"
+    r"MicroSectors|iShares|SPDR|MiniShares|Daily Target|UltraShort|UltraPro|Inverse|"
+    r"Leveraged|Funds?|Exchange-Traded|Physical (Gold|Silver|Platinum)|"
+    r"Xtrackers|Vanguard|Global X|KraneShares|VanEck|Invesco (QQQ|DB|CurrencyShares)|"
+    r"PowerShares|WisdomTree|[1-5](\.\d+)?[xX])\b"
+)
+# Words that only ever name a fund product, never an operating company.
+_FUND_WORD = re.compile(r"\b(ETFs?|ETNs?|Exchange-Traded)\b")
+# A name ending like an operating company ("BlackRock, Inc.", "Invesco
+# Ltd.", "WisdomTree, Inc.") is a stock unless it also says ETF / ETN.
+_COMPANY_NAME = re.compile(
+    r"\b(Inc|Incorporated|Corp|Corporation|Ltd|Limited|plc|N\.?V|S\.?A|AG|SE|"
+    r"Holdings?|Company|Co|LLC|L\.?L\.?C|LP|L\.?P)\.?\s*$",
+    re.IGNORECASE,
+)
+# ...except a commodity pool, which is a fund organised as a partnership
+# ("United States Oil Fund, LP").
+_POOL_NAME = re.compile(r"\bFunds?,?\s+(LLC|L\.?L\.?C|LP|L\.?P)\.?\s*$", re.IGNORECASE)
+
+
+def is_fund(ticker, name=None, sec_type=None):
+    """True for ETFs, ETNs and leveraged / inverse products.
+
+    Stock-only lists (grade leaderboards, fade candidates, long setups) use
+    this so funds like TECL (3x tech) or ZSL (2x short silver) never rank
+    next to single stocks. Order: the curated EXCLUDE_ETFS list, then
+    Polygon's security type (a fund type means fund; CS / ADRC means
+    stock), then the fund-name pattern, which skips company-style names."""
+    if ticker in EXCLUDE_ETFS:
+        return True
+    t = str(sec_type).upper() if sec_type else ""
+    if t in FUND_TYPES:
+        return True
+    if t in STOCK_TYPES:
+        return False
+    if not name:
+        return False
+    name = str(name)
+    if _FUND_WORD.search(name) or _POOL_NAME.search(name):
+        return True
+    if _COMPANY_NAME.search(name):
+        return False
+    return bool(_FUND_NAME.search(name))
 
 
 # ─── Universe ─────────────────────────────────────────────────────────────────

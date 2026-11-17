@@ -34,7 +34,7 @@ load_dotenv(override=True)
 
 import polygon_data
 import themes
-from uoa_scanner import EXCLUDE_ETFS, _sic_sector
+from uoa_scanner import EXCLUDE_ETFS, _sic_sector, is_fund
 
 ET = pytz.timezone("America/New_York")
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -140,17 +140,26 @@ def _meta_is_fresh(entry, today):
         return False
     # Schema-upgrade safety: re-fetch legacy entries that pre-date the raw
     # market_cap field so popups can show the actual figure ($X.XB / $X.XT)
-    # instead of a coarse bucket label.
-    return "market_cap" in entry
+    # instead of a coarse bucket label. Same for the security "type" that
+    # is_fund reads: without it a cached fund would pass as a stock for up
+    # to META_REFRESH_DAYS.
+    return "market_cap" in entry and "type" in entry
 
 
 def _fetch_one_meta(ticker):
     """Polygon ticker_details -> { name, sector, industry, country, exchange,
-    mcap_bucket, fetched } for the dashboard hover card."""
+    mcap_bucket, fetched } for the dashboard hover card.
+
+    Returns None when the lookup failed or came back empty (rate limit,
+    outage): the caller then keeps whatever was cached before and leaves it
+    stale, so it is retried on the next run instead of being overwritten
+    with a placeholder that would count as fresh for META_REFRESH_DAYS."""
     try:
         d = polygon_data.ticker_details(ticker) or {}
     except Exception:
         d = {}
+    if not d:
+        return None
     loc = (d.get("locale") or "").lower()
     pex = d.get("primary_exchange") or ""
     return {
@@ -161,6 +170,7 @@ def _fetch_one_meta(ticker):
         "exchange": EXCHANGE_NAME.get(pex, pex),
         "mcap_bucket": _swing_cap_bucket(d.get("market_cap")),
         "market_cap": d.get("market_cap"),  # raw figure for popups
+        "type": d.get("type") or "",  # Polygon security type: CS, ADRC, ETF, ETN...
         "fetched": datetime.now(ET).strftime("%Y-%m-%d"),
     }
 
@@ -470,7 +480,8 @@ def run():
         )
         with ThreadPoolExecutor(max_workers=24) as ex:
             for t, info in ex.map(lambda t: (t, _fetch_one_meta(t)), stale):
-                meta_cache[t] = info
+                if info is not None:
+                    meta_cache[t] = info
         _save_meta_cache(meta_cache)
 
     # Relative Strength = percentile rank of the blended return
@@ -496,24 +507,7 @@ def run():
     grades = {g: [] for g in GRADES}
     for m in universe:
         meta = meta_cache.get(m["ticker"], {})
-        grades[m["grade"]].append(
-            {
-                "t": m["ticker"],
-                "ext": m["ext"],
-                "n": meta.get("name", m["ticker"]),
-                "sec": meta.get("sector", ""),
-                "ind": meta.get("industry", ""),
-                "ctry": meta.get("country", ""),
-                "xch": meta.get("exchange", ""),
-                "mcb": meta.get("mcap_bucket", ""),
-                "mcap": meta.get("market_cap"),  # raw value (for popup formatting)
-                "p": round(m["price"], 2),
-                "chg": round(m["chg_day"], 2) if m["chg_day"] is not None else None,
-                "rvol": round(m["rvol"], 2) if m.get("rvol") is not None else None,
-                "spark": m["spark"],
-                "th": themes.themes_for(m["ticker"]),
-            }
-        )
+        grades[m["grade"]].append(_grade_cell(m, meta))
 
     bull = sum(len(grades[g]) for g in GRADES[:10])  # A+ .. D+
     total = len(universe)
@@ -558,6 +552,31 @@ def run():
         f"A+ {len(grades['A+'])}  ...  G {len(grades['G'])}"
     )
     print("\nDone.")
+
+
+def _grade_cell(m, meta):
+    """One graded ticker as the dashboard reads it. Funds (ETFs, ETNs,
+    leveraged / inverse products) carry "etf": 1 so the Desk can keep them
+    out of stock-only lists; see uoa_scanner.is_fund for the rule."""
+    cell = {
+        "t": m["ticker"],
+        "ext": m["ext"],
+        "n": meta.get("name", m["ticker"]),
+        "sec": meta.get("sector", ""),
+        "ind": meta.get("industry", ""),
+        "ctry": meta.get("country", ""),
+        "xch": meta.get("exchange", ""),
+        "mcb": meta.get("mcap_bucket", ""),
+        "mcap": meta.get("market_cap"),  # raw value (for popup formatting)
+        "p": round(m["price"], 2),
+        "chg": round(m["chg_day"], 2) if m["chg_day"] is not None else None,
+        "rvol": round(m["rvol"], 2) if m.get("rvol") is not None else None,
+        "spark": m["spark"],
+        "th": themes.themes_for(m["ticker"]),
+    }
+    if is_fund(m["ticker"], meta.get("name"), meta.get("type")):
+        cell["etf"] = 1
+    return cell
 
 
 def _emit(run_obj):
