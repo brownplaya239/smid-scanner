@@ -75,6 +75,7 @@ The worker's holiday table must match `exchange_calendar.py` (tested).
 | `docs_dev/AI_TRADE_DESK.md` | Trade Desk methodology + honest findings (read before touching the desk) |
 | `uoa_scorecard.py` | Matched-control flow scorecard (2026-09 redesign): controls matched on sector/cap/momentum/vol replace the SPY benchmark; cluster-bootstrap effective n; net-of-cost EV; entry-lag ladder; capacity/book-sim/crowding. One row per stock, ET day and direction (v2, 2026-11); stock-cost model tiered by dollar volume. Nightly via `uoa_scorecard.yml`. Assignments freeze in `data/uoa_matched_v2.json.gz` (keyed by ticker-day, controls stored as symbols) — never reassign; the v1 file `data/uoa_matched.json.gz` is an unread archive. |
 | `docs/index.html` | GitHub Pages site — 7 tabs, manifest-driven, inline PDF viewer |
+| `docs/analytics.js` | PostHog visitor analytics, off until `TD_POSTHOG_KEY` is set; every page loads it. Events, privacy rules, setup: `docs_dev/ANALYTICS.md` |
 | `cloudflare-worker/worker.js` | Cloudflare Worker — web form → triggers `ticker-lookup.yml` |
 
 ---

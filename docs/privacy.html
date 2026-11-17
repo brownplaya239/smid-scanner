@@ -31,6 +31,7 @@
   hr { border:0; border-top:1px solid #2b2b2b; margin:32px 0; }
   .foot { font-size:11px; color:#7a7a7a; }
 </style>
+<script src="/analytics.js" defer></script>
 </head>
 <body>
 <main>
@@ -74,6 +75,15 @@
     <li><b>Basic technical metadata</b> — browser user-agent string and
       device label (e.g. "Chrome on Windows") attached to each push
       subscription, so you can manage multiple devices.</li>
+    <li><b>Visitor analytics</b> — to learn which pages and links bring
+      people to TickerDesk and where they stop, we count a small set of
+      steps: a page view (the page, the site that sent you, and any
+      <code>utm_</code> campaign tag in the link), signing up for the Daily
+      Brief, creating an account, requesting a report, clicking an upgrade
+      button, starting checkout, and starting or cancelling a paid plan.
+      If you are signed in, these are linked to your TickerDesk user ID,
+      never your email or name. We do not record your screen, what you
+      type, or what you click beyond those steps.</li>
   </ul>
 
   <h2>What we do NOT collect</h2>
@@ -84,8 +94,15 @@
     <li>Payments are handled by Stripe; we never see your full card
       number. We do not collect bank accounts, brokerage credentials or
       social security numbers, and we do not connect to your broker.</li>
-    <li>We do not track you across the web. There are no third-party
-      advertising or analytics scripts on TickerDesk.</li>
+    <li>We do not track you across the web. There are no advertising
+      scripts or advertising cookies on TickerDesk. Our one analytics
+      tool (PostHog, below) sets no cookies and forgets a signed-out
+      visitor when the browser tab closes.</li>
+    <li>If your browser sends a "Do Not Track" or "Global Privacy
+      Control" signal, our analytics does not load in your browser at
+      all. If you subscribe or cancel, our server still records that the
+      subscription started or ended (with your account id and plan, no
+      email or name), because that is part of running billing.</li>
   </ul>
 
   <h2>How we use your data</h2>
@@ -96,14 +113,18 @@
       push notifications if you've enabled them.</li>
     <li>To debug failures (we log delivery attempts for emails and pushes
       so we can tell if a push endpoint expired or an email bounced).</li>
+    <li>To understand, in aggregate, which channels bring visitors and
+      how many go on to sign up or subscribe, so we know what to
+      improve. Analytics is never used for advertising.</li>
   </ul>
 
   <h2>Third parties we use</h2>
   <p>These services process data on our behalf, only to run the features
   described here. Most of the app's requests go through our Cloudflare
   worker, but your browser also connects directly to Supabase (sign-in
-  and your saved data), TradingView (the Charts tab) and unpkg (a charting
-  library file), so those services see your IP address too.</p>
+  and your saved data), TradingView (the Charts tab), unpkg (a charting
+  library file) and PostHog (analytics), so those services see your IP
+  address too.</p>
   <ul>
     <li><b>Supabase</b> — hosts our database, file storage for your
       private reports, and user authentication. Your account, watchlist,
@@ -145,6 +166,16 @@
       your identity.</li>
     <li><b>Google</b> — only if you choose to sign in with Google.
       Google sees that you signed into TickerDesk.</li>
+    <li><b>PostHog</b> — product analytics, hosted in the United States.
+      Your browser loads PostHog's script and sends it the steps listed
+      under "Visitor analytics" above; our worker also tells PostHog when
+      a paid plan starts or ends, using only your TickerDesk user ID and
+      the plan name. It sets no cookies: a signed-out visitor gets a
+      random ID kept in the tab's session storage, which the browser
+      deletes when the tab closes. Session recording, automatic click
+      capture and form capture are switched off, and sign-in tokens are
+      removed from page addresses before anything is sent. PostHog sees
+      your IP address, as any service your browser connects to does.</li>
   </ul>
 
   <p>We do not sell your data to anyone. We do not share your data with
