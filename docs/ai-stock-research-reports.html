@@ -69,6 +69,7 @@
   .bs-status.ok { color:#3ddc84; }
   .bs-status.err { color:#ff6b6b; }
 </style>
+<script src="/analytics.js" defer></script>
 </head>
 <body>
 <main>
@@ -126,6 +127,8 @@ document.querySelectorAll("form.bs-form").forEach(function (f) {
         st.textContent = "✓ " + (d.message ||
           "Check your inbox to confirm your subscription.");
         em.value = "";
+        if (window.tdTrack) window.tdTrack("brief_signup",
+          { source: f.getAttribute("data-source") });
       });
     }).catch(function (err) {
       st.className = "bs-status err";

@@ -12,14 +12,17 @@
      with inline styles; it still blocks the two things that matter most —
      loading script from an attacker host, and exfiltrating to one.
      script-src hosts: unpkg (lightweight-charts), s3.tradingview (tv.js).
-     connect-src hosts: our worker + Supabase. frame-src: TradingView. -->
+     connect-src hosts: our worker + Supabase. frame-src: TradingView.
+     PostHog (us-assets = its script, us.i = where events go) is listed
+     for visitor analytics, which stays off until docs/analytics.js has a
+     key (docs_dev/ANALYTICS.md). EU cloud would need eu.* hosts here. -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src 'self' 'unsafe-inline' https://unpkg.com https://s3.tradingview.com https://www.tradingview.com;
+  script-src 'self' 'unsafe-inline' https://unpkg.com https://s3.tradingview.com https://www.tradingview.com https://us-assets.i.posthog.com;
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: blob: https:;
   font-src 'self' data:;
-  connect-src 'self' https://api.tickerdesk.io https://uaeojibmhxbwkhpvmjwy.supabase.co;
+  connect-src 'self' https://api.tickerdesk.io https://uaeojibmhxbwkhpvmjwy.supabase.co https://us.i.posthog.com https://us-assets.i.posthog.com;
   frame-src https://www.tradingview.com https://s.tradingview.com;
   worker-src 'self' blob:;
   object-src 'none';
@@ -7902,6 +7905,10 @@
 <!-- Vendored from unpkg @supabase/supabase-js@2.45.0 (dist/umd) so auth
      doesn't depend on a third-party CDN's uptime/latency on the critical
      path. Same fast edge as the rest of the site; still deferred. -->
+<!-- Visitor analytics: does nothing until a PostHog key is pasted into
+     analytics.js. Deferred scripts run in order, so tdTrack exists before
+     Supabase fires its first sign-in callback. -->
+<script src="/analytics.js" defer></script>
 <script src="./vendor/supabase-2.45.0.min.js" defer></script>
 
 <script>
@@ -8982,6 +8989,8 @@
       CURRENT_USER = session ? session.user : null;
       if ((CURRENT_USER ? CURRENT_USER.id : null) !== prev) {
         _emitUser();
+        // Analytics knows a signed-in user by Supabase id only, never email.
+        if (window.tdIdentify) window.tdIdentify(CURRENT_USER ? CURRENT_USER.id : null);
         // On first sign-in: merge any localStorage watchlist into the
         // account, then clear local so we don't double-add on next signout
         // Refresh plan + report counts whenever auth state changes
@@ -9020,15 +9029,25 @@
           // ago AND (b) not already shown on this browser. The
           // localStorage key keeps it from re-firing if they sign out
           // and back in (which is a clean re-sign, not a first sign).
+          // The same "profile created <30 min ago" check also sends the
+          // account_created analytics event, once per account per browser.
           try {
             const seenKey = "td_welcome_seen_v1";
-            if (!localStorage.getItem(seenKey)) {
+            const acctKey = "td_acct_checked_" + CURRENT_USER.id;
+            const wantToast = !localStorage.getItem(seenKey);
+            const wantAcct = !!(window.tdAnalyticsOn && window.tdAnalyticsOn()) &&
+              !localStorage.getItem(acctKey);
+            if (wantToast || wantAcct) {
               const { data: prof } = await SUPA.from("profiles")
                 .select("created_at,starter_seeded")
                 .eq("id", CURRENT_USER.id).single();
               const isFresh = prof && prof.created_at &&
                 (Date.now() - new Date(prof.created_at).getTime() < 1800 * 1000);
-              if (isFresh && prof.starter_seeded) {
+              if (wantAcct && prof) {
+                if (isFresh && window.tdTrack) window.tdTrack("account_created", {});
+                localStorage.setItem(acctKey, "1");
+              }
+              if (wantToast && isFresh && prof.starter_seeded) {
                 showWelcomeToast();
                 localStorage.setItem(seenKey, "1");
               }
@@ -12233,6 +12252,7 @@
         status.textContent = "✓ " + (data.message ||
           "Check your inbox to confirm your subscription.");
         input.value = "";
+        if (window.tdTrack) window.tdTrack("brief_signup", { source: source });
       } catch (e) {
         status.className = "ec-status err";
         status.textContent = (e && e.name === "AbortError")
@@ -12987,6 +13007,8 @@
     document.querySelectorAll("[data-plan]").forEach(function (btn) {
       btn.addEventListener("click", async function () {
         const plan = btn.dataset.plan;
+        if (window.tdTrack) window.tdTrack("upgrade_clicked",
+          { plan: plan, location: "modal", signed_in: !!CURRENT_USER });
         if (!CURRENT_USER) {
           closePricing();
           openModal("save", null);
@@ -13021,6 +13043,9 @@
             // Stripe's checkout session records the intent. (A browser
             // write to email_signups used to log it too; that table is
             // service-key only now, so the write was removed.)
+            // sendBeacon so the event survives the page leaving for Stripe.
+            if (window.tdTrack) window.tdTrack("checkout_started",
+              { plan: plan, location: "modal" }, { transport: "sendBeacon", send_instantly: true });
             window.location.href = data.url;
           } else {
             // Checkout couldn't start. Say so plainly: nothing is
@@ -13178,6 +13203,8 @@
 
       if (action === "subscribe") {
         const planFor = btn.dataset.ptPlan;
+        if (window.tdTrack) window.tdTrack("upgrade_clicked",
+          { plan: planFor, location: "pricing_tab", signed_in: !!CURRENT_USER });
         if (!CURRENT_USER) {
           if (window.tdRequireAuth) window.tdRequireAuth("generic");
           return;
@@ -13206,6 +13233,8 @@
           });
           const data = await resp.json();
           if (data.ok && data.url) {
+            if (window.tdTrack) window.tdTrack("checkout_started",
+              { plan: planFor, location: "pricing_tab" }, { transport: "sendBeacon", send_instantly: true });
             window.location.href = data.url;
           } else {
             // Surface the actual server-side error so a misconfigured
@@ -18596,6 +18625,7 @@
         });
         const data = await resp.json();
         if (data.ok) {
+          if (window.tdTrack) window.tdTrack("report_requested", { report: cfg.reportType });
           poll(ticker, baseline, Date.now());
           if (typeof refreshPlanState === "function") {
             refreshPlanState().catch(function () {});
