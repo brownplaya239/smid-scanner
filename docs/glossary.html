@@ -18,7 +18,7 @@
 {"@type":"DefinedTerm","name":"Unusual Options Activity (UOA)","description":"Options trading that stands out from a contract's normal behavior — outsized volume, volume exceeding open interest, or aggressive sweeps — often read as informed positioning."},
 {"@type":"DefinedTerm","name":"Golden sweep","description":"An aggressive options order large and urgent enough to sweep multiple exchanges and pay the ask, the strongest single conviction footprint in the flow."},
 {"@type":"DefinedTerm","name":"Volume / Open Interest (vol/OI)","description":"The ratio of a day's contract volume to its existing open interest. A ratio above 1 means more contracts traded than were previously open — a sign of new positioning rather than existing books changing hands."},
-{"@type":"DefinedTerm","name":"Open interest confirmation","description":"Re-reading a flagged contract's open interest the next trading day to see whether the position was actually opened and held (OI rose), was weak, or was closed (OI fell)."},
+{"@type":"DefinedTerm","name":"Open interest confirmation","description":"Re-reading a flagged contract's open interest the next trading day to see whether open interest rose (consistent with new positions staying open, though it can't prove a specific trade was held), barely moved, or fell (OI fell)."},
 {"@type":"DefinedTerm","name":"Expected move","description":"The market-implied one–standard-deviation price range into an event or expiry, derived from the at-the-money straddle or implied volatility."},
 {"@type":"DefinedTerm","name":"VCP (Volatility Contraction Pattern)","description":"A base that tightens through progressively smaller pullbacks on declining volume before a breakout, popularized by Mark Minervini."},
 {"@type":"DefinedTerm","name":"ADR% (Average Daily Range percent)","description":"A stock's average high-to-low range over recent sessions, expressed as a percent of price — a measure of how much it typically moves in a day."},
@@ -51,6 +51,7 @@
     font-size:12px; color:#7a7a7a; }
   footer a { color:#7a7a7a; }
 </style>
+<script src="/analytics.js" defer></script>
 </head>
 <body>
 <main>
@@ -77,10 +78,11 @@
     <dd>The ratio of a day's contract volume to its existing open interest. A
       ratio above 1 means more contracts traded than were previously open —
       new positioning rather than existing books changing hands.</dd>
-    <dt>Open interest (OI) confirmation</dt>
+    <dt id="oi-confirmation">Open interest (OI) confirmation</dt>
     <dd>Re-reading a flagged contract's open interest the next trading day to
-      see whether the position was actually opened and held (OI rose), was
-      weak, or was closed (OI fell).
+      see whether open interest rose, barely moved, or fell. A rise is
+      consistent with new positions staying open; it can&rsquo;t prove a
+      specific trade was held.
       <a href="/options-open-interest-confirmation">How OI confirmation works &rarr;</a></dd>
     <dt>Opening buyer</dt>
     <dd>Flow that appears to establish a new position (buying to open) rather
@@ -89,6 +91,19 @@
     <dd>The total dollar value of an options trade (price per contract ×
       contracts × 100). Bull vs bear premium tilt summarizes where the money
       is leaning.</dd>
+    <dt id="oi-confirmed">OI-confirmed <span class="aka">(score chip, overnight flow board, Action List, Daily Brief)</span></dt>
+    <dd>A flagged print counts as OI-confirmed when at least half of the
+      print&rsquo;s size showed up as new open interest the next morning
+      (open-interest change &divide; contracts traded is 50% or more; the
+      board&rsquo;s OI Conf % column). That is consistent with positions
+      staying open; it is not proof that this specific trade was kept. See
+      <a href="#oi-confirmation">open interest confirmation</a> above.</dd>
+    <dt id="oi-beyond-print">OI Beyond Print</dt>
+    <dd>How much open interest grew beyond the flagged print&rsquo;s own size
+      (next-morning open-interest change minus contracts traded).
+      &ldquo;+N&rdquo; means other traders opened N more contracts on top of
+      the print. &ldquo;none&rdquo; means open interest didn&rsquo;t grow past
+      the print size; see OI Conf % for how much of the print held.</dd>
   </dl>
 
   <h2>Options structure</h2>
@@ -149,6 +164,47 @@
     <dd>The gap between a model's trained win-rate expectation and its live
       performance. Persistent negative drift means the tape is paying the
       signal less than history implied.</dd>
+  </dl>
+
+  <h2 id="tickerdesk-labels">TickerDesk labels</h2>
+  <dl>
+    <dt id="grades">Trend grade <span class="aka">(A+ &hellip; G)</span></dt>
+    <dd>A 20-step grade from the post-close scan: A+ is the strongest
+      uptrend, G the weakest. It describes the chart today, not where the
+      price goes next.</dd>
+    <dt id="opp-conv">Conviction and opportunity <span class="aka">(CONV / OPP)</span></dt>
+    <dd>Conviction counts how many TickerDesk signals agree on a name (trend
+      grade, options flow, momentum lists, themes). Opportunity is that score
+      minus penalties for being stretched or near earnings. Both are ranking
+      aids, not probabilities.</dd>
+    <dt id="conf-cal">Confidence and calibrated % <span class="aka">(conf / cal %)</span></dt>
+    <dd>conf is our own self-assessed score. cal % is how often past picks in
+      the same conviction band actually went the right way the next day; it
+      appears once 30 or more picks have been graded.</dd>
+    <dt id="hedge">Hedge</dt>
+    <dd>A sorting bucket on the Desk: a name with a strong trend grade (A or
+      B in an uptrend, F or G in a downtrend) where the options flow is
+      mixed or there is no flow data on the name at all. It doesn&rsquo;t
+      mean anyone is hedging.</dd>
+    <dt id="bounce-cohort">Bounce cohort</dt>
+    <dd>Names cut three or more grade notches in one session. In our record
+      this group has bounced slightly more often than not; the Desk shows the
+      measured hit rate and sample size next to it.</dd>
+    <dt id="chart-reads">Pullback watch, Breakout watch, Weak trend</dt>
+    <dd>One-line labels on the Desk cards, set by simple rules in this
+      order: <b>Weak trend</b> if the name is in a downtrend;
+      <b>Earnings soon</b> if it reports within 5 days; <b>Extended</b>
+      if it is stretched far above its 50-day average or up 8%+ on the
+      day; otherwise by conviction score (how many of our signals agree):
+      <b>Pullback watch</b> for the top tier, <b>Breakout watch</b> for
+      the middle tier, <b>On watch</b> for the rest. The labels don&rsquo;t
+      check how close price is to a pullback level or a breakout point.
+      They are research labels, not instructions to buy or sell.</dd>
+    <dt id="regime">Risk-on, Risk-off, Mixed tape</dt>
+    <dd>How many stocks are rising versus falling across our universe
+      (breadth). Risk-off means breadth is 42% or lower; the Desk then shows
+      how long setups have fared in our overall outcome record (all market
+      conditions, not only risk-off days).</dd>
   </dl>
 
   <p style="margin-top:28px"><a href="/transparency">See these metrics on our

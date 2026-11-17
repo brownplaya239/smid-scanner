@@ -109,6 +109,274 @@ def _view_fails(view, snap, est, cid):
     return False
 
 
+def grounded_take(view, snap):
+    """A minimal analyst take that passes every ANALYST_* check on this
+    view: each part prints one real fact through a placeholder and cites
+    it, and the judge record clears every part. The mutations below each
+    break exactly one rule."""
+    import report_v4_analyst as AT
+
+    facts = AT.fact_list(view, snap)
+    pick = next(
+        (f for f in facts if f["fact_id"] == "revenue_q"),
+        next((f for f in facts if f["unit"] not in ("text", "date")), None),
+    )
+    if pick is None:
+        return None
+    fid = pick["fact_id"]
+
+    def pt(t):
+        return {"template": t, "fact_ids": [fid]}
+
+    take = {
+        "summary": pt("The report lists {{%s}} for this measure. It comes from the data." % fid),
+        "bull_points": [pt("The figure on file is {{%s}}." % fid)],
+        "bear_points": [pt("This is a single figure, {{%s}}." % fid)],
+        "watch_next": [pt("The next filing will show where {{%s}} stands." % fid)],
+    }
+    rec = AT.render_take(take, facts)
+    return {
+        "available": True,
+        **rec,
+        "meta": {
+            "status": "ok",
+            "model_served": AT.MODEL,
+            "judge": {
+                "status": "ok",
+                "model": AT.JUDGE_MODEL,
+                "raw_verdicts": [
+                    {"point_id": w, "verdict": "supported", "note": "ok"} for w, _ in AT.parts(rec)
+                ],
+                "verdicts": [
+                    {"point_id": w, "verdict": "supported", "note": "ok"} for w, _ in AT.parts(rec)
+                ],
+            },
+        },
+    }
+
+
+def _analyst_mutations(snap, view, proven, unproven):
+    """Each mutation renders a REAL core PDF and runs the whole analyst
+    gate on it (the stored record plus the printed pages)."""
+    import report_v4_analyst as AT
+
+    names = list(VV.ANALYST_CHECKS) + ["ANALYST_TAKE_RENDERED"]
+    base = grounded_take(view, snap)
+    if base is None:
+        unproven.extend(names)
+        return
+    facts = AT.fact_list(view, snap)
+    by_id = {f["fact_id"]: f for f in facts}
+    fid = base["bull_points"][0]["fact_ids"][0]
+    shown = AT.fmt_value(by_id[fid])
+
+    def fails(printed, checked, cid, view_=None):
+        """Render `printed` into a real core PDF, then gate it as if the
+        record were `checked`. True if `cid` fails."""
+        v = copy.deepcopy(view_ or view)
+        v["analyst_take"] = printed
+        pages = VV._pdf_page_texts(R4.build_core(snap, v))
+        v["analyst_take"] = checked
+        return any(
+            c["check_id"] == cid and c["status"] == FAIL
+            for c in VV.check_analyst_take(v, snap, pages)
+        )
+
+    # The unmutated take must pass every check, or a "proof" below would
+    # only show that a broken baseline stays broken.
+    if any(fails(base, base, cid) for cid in names):
+        unproven.extend(names)
+        return
+
+    results = {}
+
+    def prove(cid, mutate, retext=True, printed=None, checked=None):
+        t = copy.deepcopy(base)
+        mutate(t)
+        if retext:  # keep the printed text consistent with the template
+            for _, p in AT.parts(t):
+                try:
+                    p["text"] = AT.render(p["template"], by_id)
+                except Exception:
+                    pass
+        ok = fails(printed or t, checked or t, cid)
+        results[cid] = results.get(cid, True) and ok
+
+    def tpl(where, text):
+        def m(t):
+            t[where][0]["template"] = text
+
+        return m
+
+    # A free digit, a number word, a superlative, a free direction word.
+    prove("ANALYST_NO_FREE_NUMBERS", tpl("bull_points", "The figure is {{%s}} over 3 lines." % fid))
+    prove("ANALYST_NO_FREE_NUMBERS", tpl("bull_points", "The figure {{%s}} doubled." % fid))
+    prove(
+        "ANALYST_NO_FREE_DIRECTION",
+        tpl("bull_points", "The figure, {{%s}}, is the highest on record." % fid),
+    )
+    prove("ANALYST_NO_FREE_DIRECTION", tpl("bear_points", "The figure fell to {{%s}}." % fid))
+    # Movement verbs by stem, a size word and a judgement word.
+    prove(
+        "ANALYST_NO_FREE_DIRECTION", tpl("bear_points", "The figure skyrocketed to {{%s}}." % fid)
+    )
+    prove("ANALYST_NO_FREE_NUMBERS", tpl("bull_points", "The figure {{%s}} is several-fold." % fid))
+    prove(
+        "ANALYST_NO_FREE_DIRECTION", tpl("bull_points", "At {{%s}}, the outlook is bright." % fid)
+    )
+    # Advice.
+    prove(
+        "ANALYST_NO_ADVICE",
+        tpl("watch_next", "Investors should buy before {{%s}} is updated." % fid),
+    )
+    prove("ANALYST_NO_ADVICE", tpl("watch_next", "Invest your savings while it is {{%s}}." % fid))
+    # A token using a fact the point does not cite; a fact that does not exist.
+    other = next((f["fact_id"] for f in facts if f["fact_id"] != fid), None)
+    if other:
+        prove(
+            "ANALYST_FACT_IDS",
+            tpl("bull_points", "The figure is {{%s}} next to {{%s}}." % (fid, other)),
+        )
+
+    def m_unknown(t):
+        t["bear_points"][0]["fact_ids"].append("made_up_fact")
+
+    prove("ANALYST_FACT_IDS", m_unknown)
+    # A ticker that is nowhere in the data.
+    prove("ANALYST_NO_FOREIGN_TICKERS", tpl("bull_points", "ZQZX lists {{%s}} too." % fid))
+
+    def m_length(t):
+        t["bull_points"] = t["bull_points"] * 6
+        more = [
+            {"point_id": "bull_points[%d]" % i, "verdict": "supported", "note": "ok"}
+            for i in range(2, 7)
+        ]
+        t["meta"]["judge"]["verdicts"] += more
+        t["meta"]["judge"]["raw_verdicts"] += copy.deepcopy(more)
+
+    prove("ANALYST_LENGTH_CAPS", m_length)
+
+    # The printed text no longer equals what the data renders: a sign
+    # reversal, a unit substitution, and (when a change fact exists) a
+    # direction reversal.
+    def m_sign(t):
+        t["bull_points"][0]["text"] = t["bull_points"][0]["text"].replace(shown, "-" + shown)
+
+    prove("ANALYST_RENDER_MATCHES_DATA", m_sign, retext=False)
+
+    def m_unit(t):
+        swapped = shown.replace("$", "") + "%" if "$" in shown else "$" + shown.rstrip("%x")
+        t["bull_points"][0]["text"] = t["bull_points"][0]["text"].replace(shown, swapped)
+
+    prove("ANALYST_RENDER_MATCHES_DATA", m_unit, retext=False)
+    chg = next(
+        (f for f in facts if "change" in AT.forms_for(f, by_id) and f["value"] != 0),
+        None,
+    )
+    if chg is not None:
+        cid_ = chg["fact_id"]
+
+        def m_direction(t):
+            p = t["bear_points"][0]
+            p["template"] = "The measure {{%s:change}}." % cid_
+            p["fact_ids"] = [cid_]
+            good = AT.render(p["template"], by_id)
+            p["text"] = (
+                good.replace("rose", "fell") if "rose" in good else good.replace("fell", "rose")
+            )
+
+        prove("ANALYST_RENDER_MATCHES_DATA", m_direction, retext=False)
+
+    # A value the source states only as a bound ("crossed $1 billion")
+    # printed as an exact figure ("$1.00B" instead of "at least $1.00B").
+    bnd = next((f for f in facts if f.get("bound", "exact") != "exact"), None)
+    if bnd is not None:
+        bid = bnd["fact_id"]
+
+        def m_bound(t):
+            p = t["bull_points"][0]
+            p["template"] = "The company reports {{%s}} for this metric." % bid
+            p["fact_ids"] = [bid]
+            p["text"] = AT.render(p["template"], by_id).replace(
+                AT.fmt_value(bnd), AT.fmt_value(bnd, bnd["value"])
+            )
+
+        prove("ANALYST_RENDER_MATCHES_DATA", m_bound, retext=False)
+
+    # A KPI the release states as "approximately $10.9 billion" (parsed
+    # bound "approx") printed as the exact "$10.90B". The proof also needs
+    # the correct "about $10.90B" to pass, so it shows the bound is what
+    # the gate checks.
+    approx_view = copy.deepcopy(view)
+    rows = ((approx_view.get("financials") or {}).get("saas_kpis") or {}).get("rows") or []
+    row = next((r for r in rows if AT.bound_of(r) == "exact" and r.get("value")), None)
+    if row is not None:
+        row.update(bound="approx", bound_phrase="approximately")
+        a_by_id = {f["fact_id"]: f for f in AT.fact_list(approx_view, snap)}
+        a_fact = a_by_id["kpi_%s" % AT._slug(row.get("key"))]
+        right = copy.deepcopy(base)
+        p = right["bull_points"][0]
+        p["template"] = "The company reports {{%s}} for this metric." % a_fact["fact_id"]
+        p["fact_ids"] = [a_fact["fact_id"]]
+        p["text"] = AT.render(p["template"], a_by_id)
+        wrong = copy.deepcopy(right)
+        wrong["bull_points"][0]["text"] = p["text"].replace(
+            AT.fmt_value(a_fact), AT.fmt_value(a_fact, a_fact["value"])
+        )
+        cid = "ANALYST_RENDER_MATCHES_DATA"
+        ok = (
+            a_fact["bound"] == "approx"
+            and not fails(right, right, cid, approx_view)
+            and fails(wrong, wrong, cid, approx_view)
+        )
+        results[cid] = results.get(cid, True) and ok
+    else:
+        results["ANALYST_RENDER_MATCHES_DATA"] = False
+
+    # The judge did not clear a point.
+    def m_judge(t):
+        t["meta"]["judge"]["verdicts"][1]["verdict"] = "unsupported"
+        t["meta"]["judge"]["raw_verdicts"][1]["verdict"] = "unsupported"
+
+    prove("ANALYST_JUDGE_PASSED", m_judge)
+
+    # The judge answered twice for one point ("supported", then
+    # "unsupported"); the cleaned list kept only the first. The gate reads
+    # the raw answer.
+    def m_judge_contradiction(t):
+        t["meta"]["judge"]["raw_verdicts"].append(
+            {"point_id": "summary", "verdict": "unsupported", "note": "not shown"}
+        )
+
+    prove("ANALYST_JUDGE_PASSED", m_judge_contradiction)
+
+    # A verdict for a point that does not exist; a missing raw list.
+    def m_judge_unexpected(t):
+        t["meta"]["judge"]["raw_verdicts"].append(
+            {"point_id": "bull_points[9]", "verdict": "supported", "note": "ok"}
+        )
+
+    prove("ANALYST_JUDGE_PASSED", m_judge_unexpected)
+
+    def m_judge_no_raw(t):
+        del t["meta"]["judge"]["raw_verdicts"]
+
+    prove("ANALYST_JUDGE_PASSED", m_judge_no_raw)
+
+    # Printed pages that differ from the record: unchecked text appended to
+    # the page; stale analyst content printed when the take was withheld;
+    # the unavailable note missing.
+    appended = copy.deepcopy(base)
+    appended["bull_points"][0]["text"] += " Unchecked extra text."
+    withheld = {"available": False, "note": AT.UNAVAILABLE_NOTE, "meta": {"status": "invalid"}}
+    for printed, checked in ((appended, base), (base, withheld), (None, withheld)):
+        ok = fails(printed, checked, "ANALYST_TAKE_RENDERED")
+        results["ANALYST_TAKE_RENDERED"] = results.get("ANALYST_TAKE_RENDERED", True) and ok
+
+    for cid in names:
+        (proven if results.get(cid) else unproven).append(cid)
+
+
 def summary():
     snap, view, est = _base()
     if view is None:
@@ -305,6 +573,9 @@ def summary():
         "tiny stub",  # < 800 chars
         {"report_time": "2026-07-23T12:00:00+00:00"},
     )
+
+    # ── AI analyst take: a grounded take passes, each defect fails ──────
+    _analyst_mutations(snap, view, proven, unproven)
 
     return {
         "all_checks_proven": not unproven,

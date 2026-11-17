@@ -31,6 +31,7 @@ from reportlab.platypus import PageBreak, Spacer, Table, TableStyle
 
 import report_v3 as R
 import report_v3_model as M3
+import report_v4_analyst as AT
 import report_v4_model as M4
 import research_snapshot as rs
 from report_v3 import (
@@ -297,6 +298,12 @@ def _page1(snap, view):
     else:
         st.append(para("No filed-fact risk rose to the top three.", "small"))
 
+    # The AI section, when it was attempted but withheld, leaves exactly
+    # one line here; ANALYST_TAKE_RENDERED checks it.
+    _at = view.get("analyst_take")
+    if _at is not None and not _at.get("available"):
+        st.append(para(AT.UNAVAILABLE_NOTE, "small"))
+
     st.append(
         para(
             "Consensus and estimates carry Finnhub's as-of date; "
@@ -316,6 +323,59 @@ def _page1(snap, view):
 
     st, _ = _fit_page(st, [], "v4-p1")
     return st
+
+
+# ── analyst take (AI-written, validated) ────────────────────────────────
+
+
+def _analyst_page(snap, view):
+    """The Analyst take: Claude's summary of this report's own data, drawn
+    only after report_v4_analyst found nothing wrong with it. Every number,
+    unit and direction word in it was inserted by code from the facts.
+    The page draws exactly report_v4_analyst.page_blocks(), and the gate
+    expects exactly that text on the page."""
+    at = view.get("analyst_take") or {}
+    st = []
+    for style, text, ids in AT.page_blocks(at):
+        if style == "h2":
+            st.append(para(text, "h2"))
+        elif style == "small":
+            if text == AT.FOOTNOTE:
+                st.append(Spacer(1, 6))
+            st.append(para(text, "small"))
+        else:
+            # the text, then the facts it uses in small muted type; both
+            # escaped exactly as para() would
+            st.append(
+                R.Paragraph(
+                    "%s%s <font size='7' color='%s'>%s</font>"
+                    % (
+                        "&bull; " if style == "point" else "",
+                        _clean(safe(text)),
+                        MUTED.hexval(),
+                        _clean(safe(AT.cite(ids))),
+                    ),
+                    ST["body"],
+                )
+            )
+            if style == "summary":
+                st.append(Spacer(1, 2))
+    st, _ = _fit_page(st, [], "v4-analyst")
+    return st
+
+
+def analyst_page_fits(snap, at):
+    """True when the analyst page lays out on exactly one page. Measured by
+    really laying it out (with the report's own page template and font),
+    because the story-height estimate under-reads paragraphs with inline
+    font changes. The generator calls this before the judge, so a section
+    that would spill onto a second page is shortened or omitted instead of
+    being caught later by the gate."""
+    from report_v3 import _Doc
+
+    doc = _Doc(io.BytesIO(), snap or {}, kind="Equity Research v4")
+    doc.build(_analyst_page(snap, {"analyst_take": at}))
+    return doc.page == 1
 
 
 # ── page 2: business ────────────────────────────────────────────────────
@@ -567,10 +627,12 @@ def _page3(snap, view):
         for r in kp["rows"]:
             if r.get("kind") in ("money", "money_floor"):
                 val = _money(r.get("value"))
-                if r.get("kind") == "money_floor":
-                    val = "&ge; " + val
             else:
                 val = "{:,}".format(int(r["value"])) if r.get("value") is not None else "n/a"
+            # a figure the release states only as a bound or approximation
+            # ("crossed", "approximately", "more than") keeps its qualifier
+            if r.get("value") is not None:
+                val = _KPI_BOUND_MARK[AT.bound_of(r)] + val
             gy = "+%.1f%%" % r["growth_yoy_pct"] if r.get("growth_yoy_pct") is not None else "—"
             krows.append([_clean(r["label"]), val, gy])
         st.append(
@@ -594,6 +656,15 @@ def _page3(snap, view):
 
     st, _ = _fit_page(st, [], "v4-p3")
     return st
+
+
+_KPI_BOUND_MARK = {
+    "exact": "",
+    "at_least": "&ge; ",
+    "over": "&gt; ",
+    "under": "&lt; ",
+    "approx": "~",
+}
 
 
 # ── page 4: valuation ───────────────────────────────────────────────────
@@ -1316,14 +1387,10 @@ def build_core(snap, view, out_path=None, chart_png=None, chart_meta=None):
     if view.get("flash"):
         story = _flash_page(snap, view)
     else:
-        story = (
-            _page1(snap, view)
-            + [PageBreak()]
-            + _page2(snap, view)
-            + [PageBreak()]
-            + _page3(snap, view)
-            + [PageBreak()]
-        )
+        story = _page1(snap, view) + [PageBreak()]
+        if (view.get("analyst_take") or {}).get("available"):
+            story += _analyst_page(snap, view) + [PageBreak()]
+        story += _page2(snap, view) + [PageBreak()] + _page3(snap, view) + [PageBreak()]
         # Page 4 (valuation) is included only when at least one honest
         # multiple exists — the spec's 'omit rather than pad' rule. Its
         # absence makes the core five pages, not a near-empty sixth.

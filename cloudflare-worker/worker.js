@@ -3481,7 +3481,7 @@ async function handleStripePortal(request, env, cors) {
   }
 }
 
-async function handleStripeWebhook(request, env, cors) {
+async function handleStripeWebhook(request, env, cors, ctx) {
   // Diagnostic logging so failures show up in `wrangler tail` and the
   // Cloudflare dashboard Logs tab. Never logs the secret itself.
   const has = {
@@ -3593,6 +3593,9 @@ async function handleStripeWebhook(request, env, cors) {
   }
   console.log("profile synced · user_id=" + userId + " tier=" + res.tier +
     " applied=" + res.applied + (res.reason ? " (" + res.reason + ")" : ""));
+  // Analytics (subscribed / cancelled): only after the plan was saved.
+  // Fire-and-forget, never throws, does nothing without env.POSTHOG_KEY.
+  posthogStripeEvent(env, ctx, evt);
   return stripeWebhookReply(cors, 200, { received: true });
 }
 
@@ -3601,6 +3604,82 @@ function stripeWebhookReply(cors, status, body) {
     status: status,
     headers: { "Content-Type": "application/json", ...cors },
   });
+}
+
+// ── Product analytics: Stripe outcomes to PostHog ─────────────────────
+// Sends `subscribed` (checkout.session.completed for a subscription) and
+// `cancelled` (customer.subscription.deleted, when access ends) to
+// PostHog's capture API, keyed by the Supabase user id that Stripe carries
+// (client_reference_id / metadata.user_id). The browser identifies the
+// same user with that id, so these join the visitor's funnel.
+// OFF unless env.POSTHOG_KEY is set (the public phc_ project key). Never
+// awaited by the webhook, never throws, gives up after 5 s: analytics
+// must not break or slow down a payment. No email or name is sent.
+const POSTHOG_STRIPE_EVENTS = {
+  "checkout.session.completed": "subscribed",
+  "customer.subscription.deleted": "cancelled",
+};
+// Deterministic RFC-4122-shaped id from a Stripe event id (FNV-1a based,
+// no crypto needed): the same evt.id always gives the same uuid.
+function stripeEventUuid(id) {
+  const s = String(id || "");
+  let hex = "";
+  for (let round = 0; round < 4; round++) {
+    let h = 0x811c9dc5 ^ round;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    hex += ("00000000" + h.toString(16)).slice(-8);
+  }
+  return hex.slice(0, 8) + "-" + hex.slice(8, 12) + "-4" + hex.slice(13, 16) + "-" +
+    ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16) + hex.slice(17, 20) + "-" + hex.slice(20, 32);
+}
+
+function posthogStripeEvent(env, ctx, evt) {
+  try {
+    if (!env || !env.POSTHOG_KEY || !evt) return;
+    const name = POSTHOG_STRIPE_EVENTS[evt.type];
+    if (!name) return;
+    const obj = (evt.data && evt.data.object) || {};
+    if (evt.type === "checkout.session.completed" && obj.mode &&
+        obj.mode !== "subscription") return;
+    const meta = obj.metadata || {};
+    const userId = obj.client_reference_id || meta.user_id;
+    if (!userId) return;
+    const item = obj.items && obj.items.data && obj.items.data[0];
+    const priceId = item && item.price && item.price.id;
+    const plan = meta.plan ||
+      (priceId && priceId === env.STRIPE_PRO_PRICE_ID ? "pro"
+        : priceId && priceId === env.STRIPE_PREMIUM_PRICE_ID ? "premium" : null);
+    const host = String(env.POSTHOG_HOST || "https://us.i.posthog.com").replace(/\/+$/, "");
+    const body = JSON.stringify({
+      api_key: String(env.POSTHOG_KEY),
+      event: name,
+      distinct_id: String(userId),
+      // Stripe re-sends events; a uuid derived from the event id lets
+      // PostHog drop the duplicate instead of counting it twice.
+      uuid: stripeEventUuid(evt.id),
+      timestamp: evt.created ? new Date(evt.created * 1000).toISOString() : undefined,
+      properties: { plan: plan, source: "stripe_webhook", stripe_event: evt.type },
+    });
+    const ctl = new AbortController();
+    const timer = setTimeout(function () { ctl.abort(); }, 5000);
+    const sent = Promise.resolve()
+      .then(function () {
+        return fetch(host + "/i/v0/e/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: body,
+          signal: ctl.signal,
+        });
+      })
+      .catch(function (e) { console.warn("PostHog capture failed (ignored):", String(e)); })
+      .finally(function () { clearTimeout(timer); });
+    if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(sent);
+  } catch (e) {
+    try { console.warn("PostHog capture skipped (ignored):", String(e)); } catch (_) {}
+  }
 }
 
 // Stripe webhook signature verification (HMAC-SHA256), as Stripe's own
@@ -3678,19 +3757,70 @@ const PMB_EXCLUDE = new Set([
 // Skips insider Forms 3/4/5 (rarely THE catalyst) and returns the
 // already-human filing headline + the doc URL. Reuses fetchSecFilings
 // (CIK map cached 24h, submissions cached 5 min).
-async function latest8KCatalyst(ticker) {
-  const res = await fetchSecFilings(ticker, 12);
-  const filings = (res && res.filings) || [];
-  if (!filings.length) return null;
-  const now = Date.now();
-  for (const f of filings) {           // EDGAR order = most-recent-first
+// Can this filing explain a big one-day move? Only event filings can:
+// 8-K / 6-K current reports (except exhibits-only and holder-vote items),
+// 13D stakes and their amendments (an activist adding or cutting), priced
+// offerings (424B1/4/5; 424B3/7 for small caps; S-1 / F-1), late-filing
+// notices (NT 10-K / NT 10-Q), tender offers and merger filings. Item 5.03
+// counts: charter amendments include reverse splits.
+// Routine paperwork never counts: passive 13G / 13G-A holders, Form 144
+// sale notices, insider Forms 3/4/5, S-8 plan shares, S-3 / F-3 shelf
+// registrations, 10-Q / 10-K, proxies. Showing "13G/A" as the reason HUBS
+// rose 6% was wrong.
+const ROUTINE_8K_ITEMS = ["9.01", "5.07"];
+// 424B prospectuses are not all share sales. 424B1 / 424B4 / 424B5 are
+// priced offerings: always a catalyst. 424B3 / 424B7 are resale and
+// shelf-update prospectuses, which matter for a small company but are
+// routine for a big one, so they only count under PMB_SMALL_CAP. 424B2
+// (bank structured notes; a big bank files dozens a day) and 424B8 (a late
+// copy of another prospectus) never count.
+const PMB_SMALL_CAP = 2_000_000_000;
+// 0 = not a catalyst, 1 = weak (counts only if no strong filing is in the
+// window), 2 = strong. marketCap is in $; null/undefined = unknown.
+function catalystRank(form, items, marketCap) {
+  const f = String(form || "").toUpperCase().trim();
+  if (f === "8-K" || f === "8-K/A" || f === "6-K") {
+    const it = String(items || "").split(",").map(function (x) {
+      return x.trim(); }).filter(Boolean);
+    if (!it.length) return 2;      // items not listed: can't rule it out
+    return it.some(function (x) { return ROUTINE_8K_ITEMS.indexOf(x) < 0; })
+      ? 2 : 0;
+  }
+  if (is13D(f)) return 2;
+  if (/^424B[145]$/.test(f)) return 2;                  // priced offering
+  if (/^424B[37]$/.test(f)) {                           // resale / shelf update
+    const big = typeof marketCap === "number" && marketCap >= PMB_SMALL_CAP;
+    return big ? 0 : 1;
+  }
+  if (/^424B/.test(f)) return 0;                        // 424B2 notes, 424B8
+  if (/^NT 10-[KQ]\b/.test(f)) return 2;             // late filer
+  if (/^[SF]-1(\/A)?$/.test(f)) return 2;              // registration
+  return /^(SC TO-T|SC TO-I|SC 14D9|DEFM14A|PREM14A|425)\b/.test(f) ? 2 : 0;
+}
+function isCatalystFiling(form, items, marketCap) {
+  return catalystRank(form, items, marketCap) > 0;
+}
+// Pick the reason from the last 4 days of filings: the newest strong filing
+// (8-K, 13D, priced offering...) wins over any weak one (424B3 / 424B7).
+// Reads up to 100 filings, so a bank's daily 424B2 notes can't push its
+// real 8-K out of the window.
+function pickCatalystFiling(filings, marketCap, now) {
+  let weak = null;
+  for (const f of filings || []) {     // EDGAR order = most-recent-first
     const d = Date.parse(f.acceptedDate || f.filingDate || "");
     if (isNaN(d)) continue;
     if ((now - d) / 3600000 > 96) break;        // older than 4 days → stop
-    if (/^(Form )?[345]$/.test(f.form)) continue; // skip insider forms
-    return { label: f.headline || (f.form + " filing"), url: f.url };
+    const rank = catalystRank(f.form, f.items, marketCap);
+    if (rank === 2) return f;
+    if (rank === 1 && !weak) weak = f;
   }
-  return null;
+  return weak;
+}
+async function latest8KCatalyst(ticker, marketCap) {
+  const res = await fetchSecFilings(ticker, 100);
+  const f = pickCatalystFiling((res && res.filings) || [], marketCap,
+    Date.now());
+  return f ? { label: f.headline || (f.form + " filing"), url: f.url } : null;
 }
 // Live extended-hours quote for one ticker via Yahoo (includePrePost).
 // Returns the latest pre/post/regular print + the true (split-adjusted)
@@ -4017,7 +4147,7 @@ async function fetchPremarketBuzz(env) {
     .filter(function (r) { return !r.catalyst; }).slice(0, 14);
   await Promise.all(needEdgar.map(async function (row) {
     try {
-      const f = await latest8KCatalyst(row.ticker);
+      const f = await latest8KCatalyst(row.ticker, row.market_cap);
       if (f) {
         row.catalyst = f.label;
         row.catalyst_url = f.url;
@@ -5512,7 +5642,7 @@ export default {
       return handleStripeCheckout(request, env, cors);
     }
     if (urlPath === "/stripe/webhook" && request.method === "POST") {
-      return handleStripeWebhook(request, env, cors);
+      return handleStripeWebhook(request, env, cors, ctx);
     }
     if (urlPath === "/stripe/portal" && request.method === "POST") {
       return handleStripePortal(request, env, cors);

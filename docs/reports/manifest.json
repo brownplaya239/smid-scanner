@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-16T20:48:49+00:00",
+  "generated": "2026-11-17T00:26:05+00:00",
   "reports": {
     "smid-scanner": [
       {
@@ -87,6 +87,10 @@
     ],
     "smid-setup": [
       {
+        "file": "smid_setup_2026-11-16_1646.pdf",
+        "label": "Nov 16, 2026  -  4:46 PM ET"
+      },
+      {
         "file": "smid_setup_2026-11-13_2032.pdf",
         "label": "Nov 13, 2026  -  8:32 PM ET"
       },
@@ -101,13 +105,13 @@
       {
         "file": "smid_setup_2026-11-13_1632.pdf",
         "label": "Nov 13, 2026  -  4:32 PM ET"
-      },
-      {
-        "file": "smid_setup_2026-11-13_1625.pdf",
-        "label": "Nov 13, 2026  -  4:25 PM ET"
       }
     ],
     "iwm-setup": [
+      {
+        "file": "iwm_setup_2026-11-16_1652.pdf",
+        "label": "Nov 16, 2026  -  4:52 PM ET"
+      },
       {
         "file": "iwm_setup_2026-11-13_2039.pdf",
         "label": "Nov 13, 2026  -  8:39 PM ET"
@@ -123,13 +127,13 @@
       {
         "file": "iwm_setup_2026-11-13_1638.pdf",
         "label": "Nov 13, 2026  -  4:38 PM ET"
-      },
-      {
-        "file": "iwm_setup_2026-11-13_1632.pdf",
-        "label": "Nov 13, 2026  -  4:32 PM ET"
       }
     ],
     "qm-monthly": [
+      {
+        "file": "qm_monthly_2026-11-16_1646.pdf",
+        "label": "Nov 16, 2026  -  4:46 PM ET"
+      },
       {
         "file": "qm_monthly_2026-11-13_2036.pdf",
         "label": "Nov 13, 2026  -  8:36 PM ET"
@@ -165,13 +169,13 @@
       {
         "file": "qm_monthly_2026-11-09_2243.pdf",
         "label": "Nov 09, 2026  -  10:43 PM ET"
-      },
-      {
-        "file": "qm_monthly_2026-11-09_1540.pdf",
-        "label": "Nov 09, 2026  -  3:40 PM ET"
       }
     ],
     "stockbee-weekly": [
+      {
+        "file": "stockbee_weekly_2026-11-16_1646.pdf",
+        "label": "Nov 16, 2026  -  4:46 PM ET"
+      },
       {
         "file": "stockbee_weekly_2026-11-13_2036.pdf",
         "label": "Nov 13, 2026  -  8:36 PM ET"
@@ -207,13 +211,14 @@
       {
         "file": "stockbee_weekly_2026-11-09_2243.pdf",
         "label": "Nov 09, 2026  -  10:43 PM ET"
-      },
-      {
-        "file": "stockbee_weekly_2026-11-09_1540.pdf",
-        "label": "Nov 09, 2026  -  3:40 PM ET"
       }
     ],
     "adhoc": [
+      {
+        "file": "research_MSFT_2026-11-16_2354.pdf",
+        "label": "Nov 16, 2026  -  11:54 PM ET",
+        "ticker": "MSFT"
+      },
       {
         "file": "research_NVDA_2026-08-04_0317.pdf",
         "label": "Aug 04, 2026  -  3:17 AM ET",
@@ -257,11 +262,6 @@
       {
         "file": "ticker_DELL_2026-07-07_1844.pdf",
         "label": "Jul 07, 2026  -  6:44 PM ET",
-        "ticker": "DELL"
-      },
-      {
-        "file": "ticker_DELL_2026-07-07_1829.pdf",
-        "label": "Jul 07, 2026  -  6:29 PM ET",
         "ticker": "DELL"
       }
     ],

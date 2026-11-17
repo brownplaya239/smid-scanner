@@ -280,6 +280,8 @@ document.querySelectorAll("form.bs-form").forEach(function (f) {
         st.textContent = "✓ " + (d.message ||
           "Check your inbox to confirm your subscription.");
         em.value = "";
+        if (window.tdTrack) window.tdTrack("brief_signup",
+          { source: f.getAttribute("data-source") });
       });
     }).catch(function (err) {
       st.className = "bs-status err";
@@ -400,6 +402,7 @@ def render(page, all_pages):
 <title>{title}</title>
 {ld}
 <style>{css}</style>
+<script src="/analytics.js" defer></script>
 </head>
 <body>
 <main>
@@ -623,18 +626,18 @@ PAGES = [
     {
         "slug": "options-open-interest-confirmation",
         "title": "Options Open-Interest Confirmation — Did the Flow Actually Stick? | TickerDesk",
-        "meta": "Next-day open-interest confirmation on every flagged options signal: was the position actually opened and held, or gone by the next session? A check most flow scanners skip.",
+        "meta": "Next-day open-interest confirmation on every flagged options signal: did open interest rise, barely move, or fall by the next session? A check most flow scanners skip.",
         "h1": "Open-interest confirmation on every flow signal",
-        "sub": "A big print only matters if the position is still there the next morning. We check.",
+        "sub": "A big print means more if open interest is still up the next morning. We check.",
         "intro": "<p>Unusual options activity is noisy: a lot of eye-catching prints are closed, rolled, or hedged by the next session. TickerDesk re-reads each flagged contract's <b>open interest the next trading day</b> and tells you whether the position was confirmed (OI grew), weak, or already closed.</p>",
         "callout": _oi_callout(),
         "body": (
             "<h2>Three outcomes, tracked</h2><ul>"
-            "<li><b>Confirmed</b> — open interest rose next day; the position was opened and held.</li>"
+            "<li><b>Confirmed</b> — open interest rose next day. That is consistent with new positions staying open; it can't prove a specific trade was held.</li>"
             "<li><b>Weak</b> — little or no OI follow-through.</li>"
             "<li><b>Closed</b> — OI fell; the flow was likely a same-day trade, not positioning.</li>"
             "</ul>"
-            "<p>This is the differentiator most flow products don't offer. A sweep that shows up on a dozen scanners looks identical everywhere — until you check whether the money actually stayed in the trade.</p>"
+            "<p>This is the differentiator most flow products don't offer. A sweep that shows up on a dozen scanners looks identical everywhere — until you check whether open interest actually rose the next day.</p>"
         ),
         "faq": [
             (
@@ -697,13 +700,13 @@ PAGES = [
             "<li>Opening-range high/low, VWAP, VPOC / VAH / VAL.</li>"
             "<li>Dealer gamma flip, largest-gamma strike, call/put walls, expected-move band.</li>"
             "</ul>"
-            "<h2>Plus rule-based trade ideas</h2>"
-            "<p>A deterministic engine reads the day's structure and gamma regime into if/then playbook paths (fade-to-VWAP in positive gamma, break-and-go in negative), each graded on a same-session frame. All data is 15-minute delayed and labeled as such.</p>"
+            "<h2>Plus if/then level scenarios</h2>"
+            "<p>A deterministic engine reads the day's structure and gamma regime into hypothetical if/then scenarios: for example, if price holds above VWAP, the next reference above is the nearest mapped resistance. Each scenario type is graded on a same-session frame. These describe structure, not trades to take. All data is 15-minute delayed and labeled as such.</p>"
         ),
         "faq": [
             (
                 "Is this for 0DTE trading?",
-                "It's an index-structure map built for 0DTE and weekly options decisions. It is not a live feed — data is 15-minute delayed — and it is educational, not advice.",
+                "It's a reference map of index structure for people who follow 0DTE and weekly options. It is not a live feed — data is 15-minute delayed — and it is educational, not advice.",
             ),
             (
                 "Where do the hold/break rates come from?",
@@ -717,28 +720,28 @@ PAGES = [
     },
     {
         "slug": "earnings-options-flow",
-        "title": "Earnings Options Flow — Implied vs Realized Moves + Trade Ideas | TickerDesk",
-        "meta": "Earnings options flow: implied move vs the stock's historically realized move, post-report drift, flow into the print, and self-graded earnings trade ideas for large caps.",
-        "h1": "Earnings options flow and trade ideas",
+        "title": "Earnings Options Flow — Implied vs Realized Moves + Graded Setups | TickerDesk",
+        "meta": "Earnings options flow: implied move vs the stock's historically realized move, post-report drift, flow into the print, and self-graded earnings setups for large caps.",
+        "h1": "Earnings options flow and graded setups",
         "sub": "What the options are pricing into the print — versus what the stock has actually done.",
-        "intro": "<p>The interesting earnings edge isn't the calendar, it's the mispricing. TickerDesk compares each name's <b>implied move to its historically realized move</b>, measures post-report drift, reads the options flow going into the print, and turns it into rule-based, self-graded trade ideas for names with real size.</p>",
+        "intro": "<p>The calendar tells you when a company reports; it doesn't tell you how options are priced. TickerDesk compares each name's <b>implied move to its historically realized move</b>, measures post-report drift, reads the options flow going into the print, and sorts names into rule-based setup types for names with real size. Each type is graded in public, including when it fails.</p>",
         "body": (
-            "<h2>Idea types</h2><ul>"
+            "<h2>Setup types</h2><ul>"
             "<li><b>Momentum into print</b> — leaders with bullish flow and positive historical post-report drift.</li>"
-            "<li><b>Post-report drift</b> — the after-the-print trade, no binary overnight risk.</li>"
+            "<li><b>Post-report drift</b> — how the stock has tended to move in the days after past reports.</li>"
             "<li><b>Vol rich / vol cheap</b> — implied move well above or below the realized history.</li>"
             "<li><b>Binary caution</b> — big typical mover already extended into the event.</li>"
             "</ul>"
-            "<p>Ideas are capped to $1B+ market caps and every type carries its own graded track record. Nothing publishes a hit rate before it has 30 real graded outcomes.</p>"
+            "<p>Setups are capped to $1B+ market caps and every type carries its own graded track record. Nothing publishes a hit rate before it has 30 real graded outcomes.</p>"
         ),
         "faq": [
             (
                 "Does it tell me to buy earnings?",
-                "No. It surfaces where options pricing diverges from history and frames defined-risk ideas. It's educational, not advice, and flags crowded binaries to avoid.",
+                "No. It shows where options pricing differs from history and labels crowded, extended names. It's educational, not advice.",
             ),
             (
                 "Which names are covered?",
-                "Large, liquid names reporting within about a week; the trade-idea layer is floored at $1B market cap.",
+                "Large, liquid names reporting within about a week; the setup layer is floored at $1B market cap.",
             ),
         ],
         "cta_href": "/earnings",
@@ -783,7 +786,7 @@ PAGES = [
             "<h2>What the screen looks for</h2><ul>"
             "<li>A series of contractions — each pullback shallower than the last.</li>"
             "<li>Volume drying up into the apex of the base.</li>"
-            "<li>A definable pivot / buy point with a tight stop.</li>"
+            "<li>A clearly defined pivot level at the top of the base.</li>"
             "</ul>"
             "<p>Each setup gets a quality score so the cleanest bases rise to the top. Refreshed post-close daily.</p>"
         ),
@@ -1246,8 +1249,8 @@ def transparency_html():
         "additions, no deletions.</li>"
         "\n    <li>Returns are graded against real closing prices at +1/+3/+5/+10/+20 "
         "days, benchmarked against SPY.</li>"
-        "\n    <li>Next-day open-interest checks tell us whether flagged positions were "
-        "actually opened and held.</li>"
+        "\n    <li>Next-day open-interest checks tell us whether open interest rose, which is "
+        "consistent with new positions staying open (it can't prove a specific trade was held).</li>"
         "\n    <li>Cohort statistics wait for a minimum sample and ship with 95% ranges. "
         'Below the minimum they say "accruing", never a made-up number.</li>'
         + _t_calibration()
@@ -1273,6 +1276,7 @@ def transparency_html():
 <title>Does Options Flow Work? Our Self-Graded Numbers — TickerDesk</title>
 <!-- Generated by landing_pages.py from the live report JSON. Do not hand-edit. -->
 <style>{css}</style>
+<script src="/analytics.js" defer></script>
 </head>
 <body>
 <main>

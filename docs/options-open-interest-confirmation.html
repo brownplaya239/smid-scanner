@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="Next-day open-interest confirmation on every flagged options signal: was the position actually opened and held, or gone by the next session? A check most flow scanners skip." />
+<meta name="description" content="Next-day open-interest confirmation on every flagged options signal: did open interest rise, barely move, or fall by the next session? A check most flow scanners skip." />
 <link rel="icon" href="favicon.png" />
 <link rel="canonical" href="https://tickerdesk.io/options-open-interest-confirmation" />
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="TickerDesk" />
 <meta property="og:title" content="Options Open-Interest Confirmation — Did the Flow Actually Stick? | TickerDesk" />
-<meta property="og:description" content="Next-day open-interest confirmation on every flagged options signal: was the position actually opened and held, or gone by the next session? A check most flow scanners skip." />
+<meta property="og:description" content="Next-day open-interest confirmation on every flagged options signal: did open interest rise, barely move, or fall by the next session? A check most flow scanners skip." />
 <meta property="og:url" content="https://tickerdesk.io/options-open-interest-confirmation" />
 <meta property="og:image" content="https://tickerdesk.io/og-image.jpg" />
 <meta name="twitter:card" content="summary_large_image" />
 <title>Options Open-Interest Confirmation — Did the Flow Actually Stick? | TickerDesk</title>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Options Open-Interest Confirmation \u2014 Did the Flow Actually Stick? | TickerDesk","url":"https://tickerdesk.io/options-open-interest-confirmation","description":"Next-day open-interest confirmation on every flagged options signal: was the position actually opened and held, or gone by the next session? A check most flow scanners skip.","isPartOf":{"@type":"WebApplication","name":"TickerDesk","url":"https://tickerdesk.io/"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Options Open-Interest Confirmation \u2014 Did the Flow Actually Stick? | TickerDesk","url":"https://tickerdesk.io/options-open-interest-confirmation","description":"Next-day open-interest confirmation on every flagged options signal: did open interest rise, barely move, or fall by the next session? A check most flow scanners skip.","isPartOf":{"@type":"WebApplication","name":"TickerDesk","url":"https://tickerdesk.io/"}}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How is confirmation measured?","acceptedAnswer":{"@type":"Answer","text":"By comparing each flagged contract's open interest the session after the flag to its level at flag time. OCC-settled OI updates once per day, so this is a next-morning read."}},{"@type":"Question","name":"Why does it matter?","acceptedAnswer":{"@type":"Answer","text":"Positioning that persists is a stronger signal than a print that's gone by the close. Confirmation separates the two."}}]}</script>
 <style>
   body { margin:0; padding:48px 20px 80px; background:#000; color:#e8e8e8;
@@ -69,6 +69,7 @@
   .bs-status.ok { color:#3ddc84; }
   .bs-status.err { color:#ff6b6b; }
 </style>
+<script src="/analytics.js" defer></script>
 </head>
 <body>
 <main>
@@ -77,11 +78,11 @@
     <a href="/#uoa">Open the app &rarr;</a>
   </div>
   <h1>Open-interest confirmation on every flow signal</h1>
-  <p class="sub">A big print only matters if the position is still there the next morning. We check.</p>
+  <p class="sub">A big print means more if open interest is still up the next morning. We check.</p>
   <p>Unusual options activity is noisy: a lot of eye-catching prints are closed, rolled, or hedged by the next session. TickerDesk re-reads each flagged contract's <b>open interest the next trading day</b> and tells you whether the position was confirmed (OI grew), weak, or already closed.</p>
   
   <div class="callout"><div class="stat-row"><div><b>41%</b>of alerts confirmed by next-day open interest</div><div><b>1,106</b>alerts OI-checked</div></div></div>
-  <h2>Three outcomes, tracked</h2><ul><li><b>Confirmed</b> — open interest rose next day; the position was opened and held.</li><li><b>Weak</b> — little or no OI follow-through.</li><li><b>Closed</b> — OI fell; the flow was likely a same-day trade, not positioning.</li></ul><p>This is the differentiator most flow products don't offer. A sweep that shows up on a dozen scanners looks identical everywhere — until you check whether the money actually stayed in the trade.</p>
+  <h2>Three outcomes, tracked</h2><ul><li><b>Confirmed</b> — open interest rose next day. That is consistent with new positions staying open; it can't prove a specific trade was held.</li><li><b>Weak</b> — little or no OI follow-through.</li><li><b>Closed</b> — OI fell; the flow was likely a same-day trade, not positioning.</li></ul><p>This is the differentiator most flow products don't offer. A sweep that shows up on a dozen scanners looks identical everywhere — until you check whether open interest actually rose the next day.</p>
   <h2>Frequently asked</h2>
   <div class="faq"><details><summary>How is confirmation measured?</summary><p>By comparing each flagged contract's open interest the session after the flag to its level at flag time. OCC-settled OI updates once per day, so this is a next-morning read.</p></details><details><summary>Why does it matter?</summary><p>Positioning that persists is a stronger signal than a print that's gone by the close. Confirmation separates the two.</p></details></div>
   <p style="margin-top:24px"><a class="cta" href="/#uoa">See confirmed flow</a></p>
@@ -126,6 +127,8 @@ document.querySelectorAll("form.bs-form").forEach(function (f) {
         st.textContent = "✓ " + (d.message ||
           "Check your inbox to confirm your subscription.");
         em.value = "";
+        if (window.tdTrack) window.tdTrack("brief_signup",
+          { source: f.getAttribute("data-source") });
       });
     }).catch(function (err) {
       st.className = "bs-status err";

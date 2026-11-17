@@ -419,18 +419,20 @@ def check_pdfs(core, appendix, view=None):
     except Exception as e:
         return [chk("CORE_RENDERS", False, ERROR, "core is a valid PDF", "open failed: %s" % e)]
 
-    ok_n = (n == 1) if is_flash else (5 <= n <= 6)
+    # The analyst take, when it ships, is one dedicated page.
+    extra = 1 if (not is_flash and ((view or {}).get("analyst_take") or {}).get("available")) else 0
+    ok_n = (n == 1) if is_flash else (5 + extra <= n <= 6 + extra)
     out.append(
         chk(
             "CORE_PAGE_COUNT",
             ok_n,
             ERROR,
-            "1 flash page" if is_flash else "5 or 6 core pages",
+            "1 flash page" if is_flash else "%d or %d core pages" % (5 + extra, 6 + extra),
             "%d" % n,
             detail=None
             if is_flash
             else "Six with valuation, five when valuation is omitted rather "
-            "than padded; never more.",
+            "than padded, plus one page when the analyst take ships; never more.",
         )
     )
 
@@ -582,6 +584,217 @@ def check_rendered(core_text, apx_text, view, snap):
     return out
 
 
+# ── the AI-written analyst take ─────────────────────────────────────────
+
+ANALYST_CHECKS = (
+    "ANALYST_FACT_IDS",
+    "ANALYST_NO_FREE_NUMBERS",
+    "ANALYST_NO_FREE_DIRECTION",
+    "ANALYST_NO_ADVICE",
+    "ANALYST_NO_FOREIGN_TICKERS",
+    "ANALYST_LENGTH_CAPS",
+    "ANALYST_RENDER_MATCHES_DATA",
+    "ANALYST_JUDGE_PASSED",
+)
+_EXPECT = {
+    "ANALYST_FACT_IDS": "every point cites facts that exist, and its placeholders use only "
+    "those facts, in forms they allow",
+    "ANALYST_NO_FREE_NUMBERS": "no digit, number word, fraction, size or bound word, unit, "
+    "date or month outside placeholders",
+    "ANALYST_NO_FREE_DIRECTION": "no direction, movement, comparison, superlative or judgement "
+    "word outside placeholders",
+    "ANALYST_NO_ADVICE": "no advice, rating, target or position wording",
+    "ANALYST_NO_FOREIGN_TICKERS": "no ticker outside this report's data",
+    "ANALYST_LENGTH_CAPS": "2-3 sentence summary, 1-3 points per list, every part within its cap",
+    "ANALYST_RENDER_MATCHES_DATA": "every printed value, unit and direction word equals what "
+    "the facts rebuilt from this view render to",
+    "ANALYST_JUDGE_PASSED": "the judge's raw answer holds exactly one verdict per point, "
+    "no other ids, and every verdict is supported",
+}
+
+
+def _squash(s):
+    return re.sub(r"\s+", " ", s or "").strip()
+
+
+def _nows(s):
+    """Whitespace-free form for comparing page text: PDF extraction wraps
+    lines wherever the layout does, so only the characters are compared."""
+    return re.sub(r"\s+", "", s or "")
+
+
+def _pdf_page_texts(data):
+    import fitz
+
+    d = fitz.open(stream=data, filetype="pdf")
+    out = [d[i].get_text() for i in range(d.page_count)]
+    d.close()
+    return out
+
+
+_FURNITURE_FOOTER = "Educational research, not investment advice."
+_DEMO_LINES = ("DEMO DATA", "SYNTHETIC — NOT RESEARCH")
+
+
+def _page_body(page_text, page_no, ticker):
+    """The page's text with the running header and footer removed, or None
+    when the furniture is not exactly what report_v3._Doc draws."""
+    lines = (page_text or "").split("\n")
+    while lines and lines[0].strip() in _DEMO_LINES:
+        lines.pop(0)
+    if len(lines) < 4:
+        return None
+    head, prep, foot, num = (ln.strip() for ln in lines[:4])
+    if not (
+        head == "%s — Equity Research v4" % (ticker or "")
+        and prep.startswith("Prepared ")
+        and foot == _FURNITURE_FOOTER
+        and num == "Page %d" % page_no
+    ):
+        return None
+    return "\n".join(lines[4:])
+
+
+def _expected_body(at):
+    import report_v4_analyst as AT
+
+    out = []
+    for style, text, ids in AT.page_blocks(at):
+        out.append(("• " if style == "point" else "") + text)
+        if ids is not None:
+            out.append(AT.cite(ids))
+    return " ".join(out)
+
+
+def rendered_take_problems(at, core_pages, ticker):
+    """Why the printed core does not show exactly the analyst take ([] =
+    it does). Available: exactly one page carries the label, and that
+    page's whole text (furniture aside) equals the expected rendering,
+    character for character; no unavailable note anywhere. Withheld: the
+    unavailable note appears exactly once and nothing of the analyst page
+    appears anywhere."""
+    import report_v4_analyst as AT
+
+    probs = []
+    pages = [_squash(p) for p in core_pages]
+    whole = " ".join(pages)
+    n_note = whole.count(_squash(AT.UNAVAILABLE_NOTE))
+    marks = [_squash(AT.LABEL_MARK), _squash(AT.FOOTNOTE[:60])] + [t for _, t in AT.SECTION_TITLES]
+    if at.get("available"):
+        if n_note:
+            probs.append("the unavailable note is printed although the take shipped")
+        label_pages = [i for i, p in enumerate(pages) if marks[0] in p]
+        if len(label_pages) != 1:
+            probs.append("the analyst label is on %d pages, not exactly 1" % len(label_pages))
+            return probs
+        i = label_pages[0]
+        body = _page_body(core_pages[i], i + 1, ticker)
+        if body is None:
+            probs.append("page %d: running header/footer not as drawn" % (i + 1))
+        else:
+            got, exp = _nows(body), _nows(_expected_body(at))
+            if got != exp:
+                k = next(
+                    (j for j in range(min(len(got), len(exp))) if got[j] != exp[j]),
+                    min(len(got), len(exp)),
+                )
+                probs.append(
+                    "page %d text differs from the validated take at character %d "
+                    "(printed %r, expected %r; %d vs %d characters)"
+                    % (i + 1, k, got[k : k + 40], exp[k : k + 40], len(got), len(exp))
+                )
+        others = [j + 1 for j, p in enumerate(pages) if j != i and any(m in p for m in marks)]
+        if others:
+            probs.append("analyst-page text also appears on page(s) %s" % others)
+    else:
+        if n_note != 1:
+            probs.append("the unavailable note appears %d times, not exactly once" % n_note)
+        found = [m for m in marks if m in whole]
+        if found:
+            probs.append(
+                "analyst-page text is printed although the take was withheld: %s" % "; ".join(found)
+            )
+    return probs
+
+
+def check_analyst_take(view, snap=None, core_pages=None):
+    """The gate's own pass over the AI section. The facts are REBUILT here
+    from the view, independently of the generator; the stored templates
+    are re-checked, every token is re-rendered and compared with the
+    shipped text, and the judge's record must clear every point. With
+    core_pages (one string per PDF page), the printed page is held to the
+    exact expected text, or to the one-line note when the take was
+    withheld."""
+    import report_v4_analyst as AT
+
+    out = []
+    at = view.get("analyst_take")
+    if at is None or view.get("flash"):
+        return out
+    if not at.get("available"):
+        for cid in ANALYST_CHECKS:
+            out.append(
+                V3.skipped(
+                    cid, ERROR, "analyst take withheld: %s" % (at.get("meta") or {}).get("status")
+                )
+            )
+    else:
+        base = {k: v for k, v in view.items() if k != "analyst_take"}
+        facts = AT.fact_list(base, snap)
+        by_id = {f["fact_id"]: f for f in facts}
+        probs = AT.take_problems(at, facts, view.get("ticker"))
+        # Re-render every part from the rebuilt facts; the shipped text must
+        # be exactly that (a flipped sign, a reversed direction word or a
+        # swapped unit in the stored text all fail here).
+        for where, p in AT.parts(at):
+            try:
+                want = AT.render(str(p.get("template") or ""), by_id)
+            except Exception as e:
+                probs.append(("ANALYST_RENDER_MATCHES_DATA", "%s does not render: %s" % (where, e)))
+                continue
+            if p.get("text") != want:
+                probs.append(
+                    (
+                        "ANALYST_RENDER_MATCHES_DATA",
+                        "%s prints %r; the data renders %r" % (where, p.get("text"), want),
+                    )
+                )
+        probs += [("ANALYST_JUDGE_PASSED", m) for m in AT.judge_record_problems(at)]
+        refs = sorted({i for _, p in AT.parts(at) for i in p.get("fact_ids") or []})
+        for cid in ANALYST_CHECKS:
+            mine = [m for c, m in probs if c == cid]
+            out.append(
+                chk(cid, not mine, ERROR, _EXPECT[cid], "; ".join(mine[:5]) or "clean", refs=refs)
+            )
+
+    if core_pages is not None:
+        probs = rendered_take_problems(at, core_pages, view.get("ticker"))
+        out.append(
+            chk(
+                "ANALYST_TAKE_RENDERED",
+                not probs,
+                ERROR,
+                "the analyst page shows exactly the validated take (label, text, fact names "
+                "and footnote, nothing else), or the core shows only the 'unavailable' note",
+                "; ".join(probs[:3]) or "exact match",
+            )
+        )
+    return out
+
+
+def analyst_facts_record(view, snap=None):
+    """The facts the shipped take cites, with their sources, for the
+    validation record (the page footnote points here)."""
+    import report_v4_analyst as AT
+
+    at = view.get("analyst_take") or {}
+    if not at.get("available"):
+        return None
+    base = {k: v for k, v in view.items() if k != "analyst_take"}
+    cited = {i for _, p in AT.parts(at) for i in p.get("fact_ids") or []}
+    return [f for f in AT.fact_list(base, snap) if f["fact_id"] in cited]
+
+
 # ── the whole report ────────────────────────────────────────────────────
 
 
@@ -594,6 +807,7 @@ def report(view, snap, core_pdf, appendix_pdf=None, estimates=None, run_mutation
             _, ctext = _pdf_pages_text(core_pdf)
             _, atext = _pdf_pages_text(appendix_pdf) if appendix_pdf else (0, "")
             checks += check_rendered(ctext, atext, view, snap)
+            checks += check_analyst_take(view, snap, _pdf_page_texts(core_pdf))
         except Exception as e:  # pragma: no cover
             checks.append(
                 chk(
@@ -627,6 +841,11 @@ def report(view, snap, core_pdf, appendix_pdf=None, estimates=None, run_mutation
         "checks": checks,
         "blocking_failures": [c["check_id"] for c in fatal],
         "mutation_tests": mutation,
+        # Status, calls, tokens, estimated cost and the judge's verdicts of
+        # the AI section (None when the run did not attempt one).
+        "analyst_take": (view.get("analyst_take") or {}).get("meta"),
+        # The facts the shipped take cites, each with its source path.
+        "analyst_facts": analyst_facts_record(view, snap),
         "ok": bool(not fatal and (mutation.get("all_checks_proven") is not False)),
     }
 

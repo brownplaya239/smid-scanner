@@ -46,6 +46,22 @@ TAIL_LINES = 12_000  # ledger lines to scan (covers several sessions)
 _OCC = re.compile(r"^O:([A-Z.]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$")
 
 
+def oi_confirmed(delta, volume) -> bool | None:
+    """The one "OI-confirmed" rule (site board, Desk and Daily Brief): at
+    least half the print showed up as new open interest the next morning,
+    i.e. next-day OI change / contracts traded >= HELD_THRESHOLD.
+
+    None when it can't be told: no OI reading yet, or a rise on a print of
+    unknown size. An OI that didn't rise at all fails whatever the size."""
+    if delta is None:
+        return None
+    if delta <= 0:
+        return False
+    if not volume or volume <= 0:
+        return None
+    return round(delta / volume, 3) >= HELD_THRESHOLD
+
+
 def _parse_occ(contract: str):
     """OCC ticker → (expiry_date 'YYYY-MM-DD', 'call'|'put', strike float)."""
     m = _OCC.match(contract or "")
@@ -148,7 +164,7 @@ def _confirm(row: dict) -> dict | None:
     else:
         delta = int(today_oi) - int(flag_oi)
         retention = round(delta / volume, 3) if volume else None
-        held = retention is not None and retention >= HELD_THRESHOLD
+        held = bool(oi_confirmed(delta, volume))
 
     return {
         "ticker": ticker,
@@ -379,13 +395,19 @@ def build(target_date: str | None = None) -> dict:
     contracts.sort(key=lambda c: (c.get("conviction") is None, -(c.get("conviction") or 0)))
 
     held_n = sum(1 for c in contracts if c.get("held") is True)
+    # settled = this morning's OI is in, so the print could be checked.
+    # confirmed = the check passed: at least HELD_THRESHOLD of the print
+    # showed up as new open interest. confirmed_count used to count the
+    # settled prints, so the board read "8/8 OI-confirmed" while 5 of the 8
+    # had failed the check.
     conf = [c for c in contracts if c.get("conviction") is not None]
     return {
         "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "session_date": session_date,
         "held_count": held_n,
         "total": len(contracts),
-        "confirmed_count": len(conf),
+        "settled_count": len(conf),
+        "confirmed_count": held_n,
         "top_conviction": conf[0]["conviction"] if conf else None,
         "held_threshold": HELD_THRESHOLD,
         "interpretation": _interpret(contracts),

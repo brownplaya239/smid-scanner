@@ -193,6 +193,8 @@ def saas_kpis(snap):
                 "value": rec.get("value"),
                 "growth_yoy_pct": rec.get("growth_yoy_pct"),
                 "basis": rec.get("basis"),
+                "bound": rec.get("bound"),
+                "bound_phrase": rec.get("bound_phrase"),
                 "raw": rec.get("raw"),
             }
         )
