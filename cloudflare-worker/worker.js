@@ -3313,6 +3313,23 @@ const POSTHOG_STRIPE_EVENTS = {
   "checkout.session.completed": "subscribed",
   "customer.subscription.deleted": "cancelled",
 };
+// Deterministic RFC-4122-shaped id from a Stripe event id (FNV-1a based,
+// no crypto needed): the same evt.id always gives the same uuid.
+function stripeEventUuid(id) {
+  const s = String(id || "");
+  let hex = "";
+  for (let round = 0; round < 4; round++) {
+    let h = 0x811c9dc5 ^ round;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    hex += ("00000000" + h.toString(16)).slice(-8);
+  }
+  return hex.slice(0, 8) + "-" + hex.slice(8, 12) + "-4" + hex.slice(13, 16) + "-" +
+    ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16) + hex.slice(17, 20) + "-" + hex.slice(20, 32);
+}
+
 function posthogStripeEvent(env, ctx, evt) {
   try {
     if (!env || !env.POSTHOG_KEY || !evt) return;
@@ -3334,6 +3351,9 @@ function posthogStripeEvent(env, ctx, evt) {
       api_key: String(env.POSTHOG_KEY),
       event: name,
       distinct_id: String(userId),
+      // Stripe re-sends events; a uuid derived from the event id lets
+      // PostHog drop the duplicate instead of counting it twice.
+      uuid: stripeEventUuid(evt.id),
       timestamp: evt.created ? new Date(evt.created * 1000).toISOString() : undefined,
       properties: { plan: plan, source: "stripe_webhook", stripe_event: evt.type },
     });

@@ -105,6 +105,15 @@ var TD_POSTHOG_ASSETS = "https://us-assets.i.posthog.com";
       enable_heatmaps: false,
       mask_all_text: true,
       mask_all_element_attributes: true,
+      // Settings in the PostHog dashboard must never be able to switch on
+      // more collection than this code allows: no remote config / flag
+      // calls, no error capture (page URLs + stack traces), no web-vitals
+      // timing, no extra scripts pulled in at runtime.
+      advanced_disable_flags: true,
+      advanced_disable_decide: true,
+      capture_exceptions: false,
+      capture_performance: false,
+      disable_external_dependency_loading: true,
       before_send: function (ev) {
         if (ev) {
           scrub(ev.properties);

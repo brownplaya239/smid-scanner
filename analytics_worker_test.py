@@ -10,6 +10,7 @@ Skipped without Node."""
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -176,6 +177,14 @@ def test_subscribed_is_keyed_by_user_id_without_email():
     }
     assert "example.com" not in json.dumps(c["body"])
     assert res["waitedCount"] == 1  # handed to ctx.waitUntil, not awaited
+    # Stripe re-sends events: the uuid comes from the event id, so a re-send
+    # carries the same uuid and PostHog drops the duplicate.
+    uuid = c["body"]["uuid"]
+    assert re.fullmatch(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", uuid
+    )
+    (again,) = _posthog(_run(CHECKOUT))
+    assert again["body"]["uuid"] == uuid
 
 
 def test_cancelled_reads_the_plan_from_the_price():

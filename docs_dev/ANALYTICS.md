@@ -65,6 +65,17 @@ Signed-in visitors are identified with their Supabase user id, the same id
 the worker uses for `subscribed` / `cancelled`, so the browser and payment
 events join up in one person.
 
+**Limits to know when reading the funnel.** The anonymous id lives only in
+the browser tab. A Supabase sign-in link usually opens in a NEW tab, which
+starts a fresh anonymous id, so for most email sign-ins the visit and
+Daily Brief sign-up before the link are not joined to the account created
+after it. The early funnel steps therefore undercount; the steps from
+sign-in onward (report, upgrade, checkout, subscribed) join up reliably,
+including the return from Stripe. `account_created` is approximate: it can
+fire again if a brand-new account signs in on a second browser within 30
+minutes. Stripe's re-sent events are de-duplicated (each carries a uuid
+made from the Stripe event id).
+
 ## What it does not collect
 
 - No emails, names or anything typed into a form. Event properties that look

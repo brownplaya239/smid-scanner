@@ -167,6 +167,12 @@ def test_loader_uses_privacy_settings():
     assert cfg["disable_session_recording"] is True
     assert cfg["respect_dnt"] is True
     assert cfg["person_profiles"] == "identified_only"
+    # Dashboard settings can't switch on more collection than the code allows.
+    assert cfg["advanced_disable_flags"] is True
+    assert cfg["advanced_disable_decide"] is True
+    assert cfg["capture_exceptions"] is False
+    assert cfg["capture_performance"] is False
+    assert cfg["disable_external_dependency_loading"] is True
     # Calls before PostHog's script arrives are queued, then replayed.
     assert ["capture", "page_view"] == r["queued"][0][:2]
 
