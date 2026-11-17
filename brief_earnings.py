@@ -141,7 +141,13 @@ def build(
             names,
             key=lambda r: ((r.get("ticker") or "").upper() not in watch, -(r.get("score") or 0)),
         )
-        for r in ranked[:max_per_session]:
+        shown = 0
+        # look a little past the cap, so a name with nothing measured gives
+        # its slot to the next one that has numbers (each look is a live
+        # option-chain read, hence the bound)
+        for r in ranked[: max_per_session * 3]:
+            if shown >= max_per_session:
+                break
             tk = (r.get("ticker") or "").upper()
             if not tk:
                 continue
@@ -166,6 +172,12 @@ def build(
                 }
             )
             verdict, why = _verdict(cmp)
+            # A row with neither a priced nor a typical move reads "n/a" all
+            # the way across and tells the reader nothing. A watch-list name
+            # still shows: that it reports today is the news.
+            if implied is None and e.get("fair_move") is None and tk not in watch:
+                continue
+            shown += 1
             if raw is None:
                 unpriced.append(tk)
             elif implied is None and gap:
@@ -335,8 +347,13 @@ def self_test():
     chk("median kept as context", recs["COF"]["realized_med_pct"] == 3.2)
     chk(
         "session counts reported",
-        m["counts"]["bmo"] == 3 and m["counts"]["bmo_shown"] == 3,
+        m["counts"]["bmo"] == 3 and m["counts"]["bmo_shown"] == 2,
         m["counts"],
+    )
+    chk(
+        "a name with nothing measured, not on the watch list, is left out",
+        "TINY" not in recs and "TINY" not in m["note"],
+        sorted(recs),
     )
     chk("no verdict is invented without both numbers", recs["HAL"]["verdict"] == "")
 

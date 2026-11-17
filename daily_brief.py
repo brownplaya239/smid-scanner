@@ -239,6 +239,9 @@ def load_swing() -> dict[str, Any]:
             "rvol": row.get("rvol"),
             "themes": row.get("th") or [],
             "change": change,
+            # the scan runs after the close, so "p" is that session's
+            # closing price, not a quote taken when the brief is sent
+            "session_date": today_run.get("date") or "",
         }
     return merged
 
@@ -2266,7 +2269,13 @@ def render_html_v3(
     # headlines about the names that moved most outrank headlines about
     # names that merely appear on the list
     priority = [x["ticker"] for x in (wl.get("shown") or [])]
-    news = BN.load(tickers, as_of=market.get("as_of_utc"), live=NEWS_LIVE, priority=priority)
+    news = BN.load(
+        tickers,
+        as_of=market.get("as_of_utc"),
+        live=NEWS_LIVE,
+        priority=priority,
+        names={t: (swing.get(t) or {}).get("name") or "" for t in tickers},
+    )
     discovery = BA.build_discovery(
         brief.get("_market_top") or [], tickers, exclude=[c.get("ticker") for c in mkt_flow]
     )

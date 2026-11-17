@@ -252,8 +252,6 @@ def render_watchlist(sec, site):
             meta.append("Evidence %s" % esc(x["evidence"]))
         if x.get("edge"):
             meta.append(esc(x["edge"]))
-        if x.get("reason_codes"):
-            meta.append("Rules: %s" % esc(", ".join(x["reason_codes"])))
         trig = []
         if x.get("next_confirmation"):
             trig.append("Next confirmation: %s" % esc(x["next_confirmation"]))

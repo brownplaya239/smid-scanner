@@ -399,7 +399,14 @@ def build(
             "title": "Top news",
             "kind": "news",
             "records": nrecs,
-            "sub": "Market first, then your names. PRIMARY marks the issuer's own statement.",
+            # with no market story the "Market" block simply would not
+            # appear, which reads as a section that failed to load
+            "sub": (
+                "Market first, then your names."
+                if any(r["scope"] == "market" for r in nrecs) or not nrecs
+                else "No market-wide headline since the previous brief; your names below."
+            )
+            + " PRIMARY marks the issuer's own statement.",
             "empty_line": sel.get("empty_line")
             or "No high-relevance headlines since the previous brief.",
         }
@@ -484,9 +491,12 @@ def build(
                 "title": "Earnings today",
                 "kind": "earnings",
                 "records": erecs,
-                "sub": "%d before the open · %d after the close · priced = the "
-                "report-day move in the front expiry · typical = average "
-                "past reaction" % (c.get("bmo") or 0, c.get("amc") or 0),
+                # the counts are the whole day's calendar; say how many of
+                # them made the table, or "25 before the open" over eight
+                # rows reads as a table that lost most of its contents
+                "sub": "%d before the open · %d after the close · %d shown · "
+                "priced = the report-day move in the front expiry · typical = "
+                "average past reaction" % (c.get("bmo") or 0, c.get("amc") or 0, len(erecs)),
                 "note": (earnings or {}).get("note") or "",
             }
         )
@@ -551,7 +561,7 @@ def build(
         dict(market, regime=regime), wl, flow_headline=flow_head, sections=ids
     )
     preheader = BC.build_preheader(
-        dict(market, regime=regime), wl, summary_lines or {}, sections=ids
+        dict(market, regime=regime), wl, summary_lines or {}, sections=ids, subject=subject
     )
 
     model = {

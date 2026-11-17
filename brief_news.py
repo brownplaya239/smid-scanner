@@ -18,6 +18,7 @@ rather than vanishing.
 
 import json
 import os
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -108,6 +109,53 @@ def is_filler_source(article):
     return any(x in h or x in pub for x in _LOW_VALUE)
 
 
+def is_opinion_question(article):
+    """A question headline from a commentary outlet ("Could January Mark a
+    Turning Point?") is an opinion about a stock, not a report that
+    anything happened."""
+    return is_filler_source(article) and (article.get("title") or "").rstrip().endswith("?")
+
+
+_NAME_NOISE = re.compile(r"\.com\b|[^a-z0-9&.' -]", re.IGNORECASE)
+
+
+def short_name(company):
+    """The word a headline uses for a company: "Amazon.Com Inc" -> "amazon",
+    "KE Holdings Inc. American Depositary Shares" -> "ke holdings"."""
+    words = [w.strip(".'-") for w in _NAME_NOISE.sub(" ", company or "").lower().split()]
+    words = [w for w in words if w]
+    if not words:
+        return ""
+    return words[0] if len(words[0]) >= 3 or len(words) == 1 else " ".join(words[:2])
+
+
+# brand names a headline uses that the legal name does not contain
+_ALIASES = {"GOOGL": ("google",), "GOOG": ("google",), "META": ("facebook", "instagram")}
+
+
+def names_the_company(article, ticker, company, wire=False):
+    """Is this item ABOUT the company, or does it only mention it?
+
+    The feed tags every ticker an item touches. On 2026-11-16 that filed an
+    Infoblox press release "on AWS" as Amazon's own statement, "Why Navitas
+    Semiconductor Stock Sank" under Nvidia, and a buy-and-hold listicle
+    under Amazon. A story about a company names it, or its ticker, in the
+    headline; a press release may instead carry the ticker in its dateline
+    ("(NASDAQ: AMZN)"). With no known name there is nothing to test
+    against, and the feed's tag stands."""
+    if not company:
+        return True
+    title = article.get("title") or ""
+    sym = r"(?<![A-Za-z])%s(?![A-Za-z])" % re.escape(ticker)
+    if re.search(sym, title):
+        return True
+    if wire and re.search(sym, article.get("description") or ""):
+        return True
+    low = title.lower()
+    words = [short_name(company), *_ALIASES.get(ticker, ())]
+    return any(w and re.search(r"(?<![a-z])%s" % re.escape(w), low) for w in words)
+
+
 def fetch(query, limit=25, timeout=20):
     """Raw articles from the public worker. [] on any failure — a news
     section that fails to load must not take the brief down with it."""
@@ -188,6 +236,27 @@ def clip(s, limit=WHY_MAX):
     return cut.rstrip(" ,;:-—") + " …"
 
 
+_ABBREV = {
+    *["jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec"],
+    *["inc", "corp", "co", "ltd", "plc", "mr", "mrs", "ms", "dr", "st", "jr", "sr", "vs", "no"],
+    *["u.s", "u.k", "e.g", "i.e"],
+}
+
+
+def first_sentence(text):
+    """Up to the first full stop that ends a sentence. Splitting on every
+    ". " cut "pushed out as Nvidia CEO on Nov. 13" to "...on Nov." and "a
+    person U.S. officials named" to "...a person U.S."."""
+    for m in re.finditer(r"\.\s+", text or ""):
+        w = re.search(r"([A-Za-z.]+)$", text[: m.start()])
+        word = (w.group(1) if w else "").lower().rstrip(".")
+        # an abbreviation or an initial ("J. Smith") does not end a sentence
+        if word in _ABBREV or len(word) == 1:
+            continue
+        return text[: m.start()]
+    return text or ""
+
+
 def _why(article, tickers=()):
     """One sentence on why the headline matters, drawn from the article's
     own sentiment insights where the feed supplies them. Never invented:
@@ -197,8 +266,7 @@ def _why(article, tickers=()):
     mine = [i for i in ins if not tickers or (i.get("ticker") or "").upper() in tickers]
     pick = (mine or ins or [None])[0]
     if pick and pick.get("sentiment_reasoning"):
-        s = pick["sentiment_reasoning"].strip()
-        s = s.split(". ")[0].rstrip(".")
+        s = first_sentence(pick["sentiment_reasoning"].strip()).rstrip(".")
         senti = (pick.get("sentiment") or "").lower()
         tag = "%s on %s" % (senti, pick.get("ticker")) if senti and pick.get("ticker") else ""
         out = clip("%s%s" % (s, (" — %s" % tag) if tag else ""))
@@ -206,7 +274,7 @@ def _why(article, tickers=()):
         d = (article.get("description") or "").strip()
         if not d:
             return "Headline recorded; the wire carried no summary."
-        out = clip(d.split(". ")[0].rstrip("."))
+        out = clip(first_sentence(d).rstrip("."))
     # every summary ends on a terminator, so a full sentence and an
     # abridged one are visibly different
     return out if out.endswith("…") else out.rstrip(".") + "."
@@ -312,6 +380,15 @@ MAX_AGE_HOURS = 26  # one session plus the overnight tape
 
 
 _MACRO_RX = None
+_INDEX_NAME = (
+    r"(?:the\s+)?(?:S&P\s*500|Nasdaq(?:[-\s]?100|\s+Composite)?|Dow(?:\s+Jones)?"
+    r"|Russell\s+2000|(?:broader\s+|overall\s+)?market)"
+)
+_BENCHMARK_RX = re.compile(
+    r"\b(?:(?:under|out)perform(?:s|ed|ing)?|beat(?:s|ing)?|lag(?:s|ged|ging)?"
+    r"|trail(?:s|ed|ing)?|vs\.?|versus)\s+%s(?:\s+(?:and|&)\s+%s)*" % (_INDEX_NAME, _INDEX_NAME),
+    re.IGNORECASE,
+)
 
 
 def is_market_moving(record):
@@ -326,7 +403,10 @@ def is_market_moving(record):
         _MACRO_RX = re.compile(
             r"\b(?:%s)\b" % "|".join(re.escape(t.strip()) for t in MACRO_TERMS), re.IGNORECASE
         )
-    if _MACRO_RX.search(record.get("headline") or ""):
+    # "underperforming the S&P 500" is a story about one stock that names
+    # the index only as a yardstick
+    headline = _BENCHMARK_RX.sub(" ", record.get("headline") or "")
+    if _MACRO_RX.search(headline):
         return True
     return bool(set(record.get("tickers") or []) & set(INDEX_TICKERS))
 
@@ -340,8 +420,12 @@ def select(
     as_of=None,
     max_age_hours=MAX_AGE_HOURS,
     priority=(),
+    names=None,
 ):
     """Two populations, ranked, capped, and never pooled.
+
+    names: {ticker: company name} for the watch list, used to tell a
+    company's own press release from one that only mentions it.
 
     A watch-list name appearing in the market feed must not be presented
     as market news, and vice versa: the reader treats the two sections
@@ -359,7 +443,7 @@ def select(
         out = []
         for a in arts or []:
             r = to_record(a, watch)
-            if not r["headline"] or is_low_value(a):
+            if not r["headline"] or is_low_value(a) or is_opinion_question(a):
                 continue
             d = BT.parse_iso(r["published_sort"]) if r["published_sort"] else None
             # nothing published after the brief's as-of time may appear:
@@ -372,6 +456,11 @@ def select(
             if oldest and d and BT.to_et(d) < oldest:
                 continue
             hits = watch & set(r["tickers"])
+            if want_watch:
+                # "Your names" holds stories ABOUT the reader's companies,
+                # not every story that mentions one
+                wire = r["tier"] == PRIMARY
+                hits = {t for t in hits if names_the_company(a, t, (names or {}).get(t), wire)}
             if want_watch and not hits:
                 continue
             if not want_watch:
@@ -489,11 +578,13 @@ def _ts(iso):
         return 0.0
 
 
-def load(watch_tickers, as_of=None, max_market=3, max_watch=3, live=True, priority=()):
+def load(watch_tickers, as_of=None, max_market=3, max_watch=3, live=True, priority=(), names=None):
     """The adapter the brief calls. `live=False` returns the empty state
     without touching the network, for tests and offline runs."""
     if not live:
-        return select([], [], watch_tickers, max_market, max_watch, as_of, priority=priority)
+        return select(
+            [], [], watch_tickers, max_market, max_watch, as_of, priority=priority, names=names
+        )
     general = fetch("general", limit=60)
     # the Finnhub macro wire (commodities / Fed / geopolitics) — the
     # Polygon feed carries none of it, so without this the market
@@ -509,7 +600,9 @@ def load(watch_tickers, as_of=None, max_market=3, max_watch=3, live=True, priori
     per = []
     for tk in sorted({t.upper() for t in (watch_tickers or [])})[:12]:
         per.extend(fetch(tk, limit=6))
-    return select(general, per, watch_tickers, max_market, max_watch, as_of, priority=priority)
+    return select(
+        general, per, watch_tickers, max_market, max_watch, as_of, priority=priority, names=names
+    )
 
 
 def self_test():
