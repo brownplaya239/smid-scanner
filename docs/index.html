@@ -12,8 +12,10 @@
      with inline styles; it still blocks the two things that matter most —
      loading script from an attacker host, and exfiltrating to one.
      script-src hosts: unpkg (lightweight-charts), s3.tradingview (tv.js).
-     connect-src hosts: our worker + Supabase. frame-src: TradingView.
-     PostHog (us-assets = its script, us.i = where events go) is listed
+     connect-src hosts: our worker + Supabase. frame-src: TradingView,
+     plus 'self' and Supabase for the in-page report viewer (public PDFs
+     come from ./reports/, private ones are Supabase Storage signed URLs;
+     without these the viewer showed a blocked box). PostHog (us-assets = its script, us.i = where events go) is listed
      for visitor analytics, which stays off until docs/analytics.js has a
      key (docs_dev/ANALYTICS.md). EU cloud would need eu.* hosts here. -->
 <meta http-equiv="Content-Security-Policy" content="
@@ -23,7 +25,7 @@
   img-src 'self' data: blob: https:;
   font-src 'self' data:;
   connect-src 'self' https://api.tickerdesk.io https://uaeojibmhxbwkhpvmjwy.supabase.co https://us.i.posthog.com https://us-assets.i.posthog.com;
-  frame-src https://www.tradingview.com https://s.tradingview.com;
+  frame-src 'self' https://uaeojibmhxbwkhpvmjwy.supabase.co https://www.tradingview.com https://s.tradingview.com;
   worker-src 'self' blob:;
   object-src 'none';
   base-uri 'self';
