@@ -561,6 +561,22 @@ function breakoutDue(dow, date, hhmm) {
   return out;
 }
 
+// What the intraday flow schedule wants at this ET quarter hour: a
+// uoa.yml scan, and at UOA_MONITOR_SLOTS the freshness monitor too.
+// Nothing on weekends or market holidays, and nothing at or after a half
+// day's 13:00 close. Until 2026-11-26 both ran on holidays: Thanksgiving
+// got 13 empty scans, an "upstream empty" email and a red monitor run.
+// Pure, so test_scan_slot.py can run it in Node.
+function uoaDue(dow, date, hhmm) {
+  const out = { scan: false, monitor: false };
+  if (dow < 1 || dow > 5 || MARKET_HOLIDAYS.indexOf(date) >= 0) return out;
+  const closeMin = MARKET_HALF_DAYS.indexOf(date) >= 0 ? 13 * 60 : 16 * 60;
+  if (UOA_SLOTS.indexOf(hhmm) < 0 || _hhmmToMin(hhmm) >= closeMin) return out;
+  out.scan = true;
+  out.monitor = UOA_MONITOR_SLOTS.indexOf(hhmm) >= 0;
+  return out;
+}
+
 // "2026-11-17T10:00ET": the id scan_slot.py keys completion records by.
 function slotId(date, hhmm) {
   return date + "T" + hhmm + "ET";
@@ -6517,17 +6533,16 @@ export default {
         return dispatch(x.workflow);
       });
       const weekday = WEEKDAYS.indexOf(c.dow) >= 0;
-      if (weekday && UOA_SLOTS.indexOf(c.hhmm) >= 0) {
+      const today = etDateISO();
+      const uoa = uoaDue(c.dow, today, c.hhmm);
+      if (uoa.scan) {
         jobs.push(dispatch("uoa.yml"), healPublish());
         // Monitor backstop (2026-09-21): GitHub's scheduler dropped EVERY
         // cron for a full session, so midday + pre-close fires also
         // dispatch the freshness monitor (exits green in seconds when
         // data is fresh).
-        if (UOA_MONITOR_SLOTS.indexOf(c.hhmm) >= 0) {
-          jobs.push(dispatch("uoa_monitor.yml"));
-        }
+        if (uoa.monitor) jobs.push(dispatch("uoa_monitor.yml"));
       }
-      const today = etDateISO();
       const brk = breakoutDue(c.dow, today, c.hhmm);
       if (brk.dispatch) {
         jobs.push(dispatch("scanner.yml",
