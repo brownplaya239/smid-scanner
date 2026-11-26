@@ -29,14 +29,48 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import urllib.request
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 BASE = "https://tickerdesk.io"
 API = "https://api.tickerdesk.io"
-ET = timezone(timedelta(hours=-4))  # EDT (all current dates)
+# Real New York time. Until 2026-11-26 this was a fixed UTC-4, so every
+# winter run read the clock an hour fast.
+ET = ZoneInfo("America/New_York")
 NOW = datetime.now(UTC)
+
+
+def is_session(d):
+    """A trading day per exchange_calendar (holidays included). A year the
+    calendar does not cover falls back to weekdays."""
+    try:
+        import exchange_calendar as xc
+
+        return xc.is_session(d.date() if isinstance(d, datetime) else d)
+    except Exception:
+        return d.weekday() < 5
+
+
+def close_of(d):
+    """The equity close on a session day: 16:00, or 13:00 on a half day."""
+    try:
+        import exchange_calendar as xc
+
+        return xc.close_time(d.date() if isinstance(d, datetime) else d)
+    except Exception:
+        return time(16, 0)
+
+
+def last_session_on_or_before(d):
+    while not is_session(d):
+        d -= timedelta(days=1)
+    return d
+
 
 RESULTS = []
 
@@ -91,22 +125,25 @@ def ts_of(d):
     return None
 
 
+def _batch_close(d):
+    """~5 min before the session's close (15:55, or 12:55 on a half day)."""
+    c = close_of(d)
+    return d.replace(hour=c.hour, minute=c.minute, second=0, microsecond=0) - timedelta(minutes=5)
+
+
 def last_rth_batch():
-    """Most recent expected intraday batch time (~3:55 PM ET of the
-    last weekday, or now-ish if inside RTH)."""
+    """Most recent expected intraday batch time (~5 min before the close
+    of the last session, or now-ish if inside RTH). Holidays and half days
+    come from exchange_calendar."""
     n = NOW.astimezone(ET)
-    d = n
-    while d.weekday() >= 5:
-        d -= timedelta(days=1)
+    d = last_session_on_or_before(n)
     open_ = d.replace(hour=9, minute=35, second=0, microsecond=0)
-    close_ = d.replace(hour=15, minute=55, second=0, microsecond=0)
+    close_ = _batch_close(d)
     if d.date() == n.date() and open_ <= n <= close_:
         return n - timedelta(minutes=75)  # within cadence + cron lag
     if d.date() == n.date() and n < open_:
-        d -= timedelta(days=1)
-        while d.weekday() >= 5:
-            d -= timedelta(days=1)
-        return d.replace(hour=15, minute=55, second=0, microsecond=0)
+        d = last_session_on_or_before(d - timedelta(days=1))
+        return _batch_close(d)
     return close_
 
 
@@ -157,15 +194,15 @@ ARTIFACTS = {
 
 
 def _completed_sessions(eod_hour):
-    """ET weekdays whose EOD (eod_hour ET) has already passed, newest
+    """ET sessions whose EOD (eod_hour ET) has already passed, newest
     first. Weekends/holidays produce no runs, so staleness is measured
     in trading sessions, not wall-clock hours (a Friday file is current
-    all weekend)."""
+    all weekend, a Wednesday file all Thanksgiving)."""
     n = NOW.astimezone(ET)
     d = n
     out = []
     while len(out) < 3:
-        if d.weekday() < 5 and d.replace(hour=eod_hour, minute=0, second=0, microsecond=0) <= n:
+        if is_session(d) and d.replace(hour=eod_hour, minute=0, second=0, microsecond=0) <= n:
             out.append(d.replace(hour=9, minute=0, second=0, microsecond=0))
         d -= timedelta(days=1)
     return out
@@ -333,9 +370,7 @@ def audit_xref(docs):
         d = n_et
         if n_et.hour < 10:
             d -= timedelta(days=1)
-        while d.weekday() >= 5:
-            d -= timedelta(days=1)
-        key = d.date().isoformat()
+        key = last_session_on_or_before(d).date().isoformat()
         rec(
             "PASS" if days.get(key, 0) > 0 else "FAIL",
             "XREF",
@@ -347,9 +382,7 @@ def audit_xref(docs):
         last = ((rh.get("days") or [{}])[-1]).get("date")
         n_et = NOW.astimezone(ET)
         d = n_et - timedelta(days=1) if n_et.hour < 19 else n_et
-        while d.weekday() >= 5:
-            d -= timedelta(days=1)
-        exp = d.date().isoformat()
+        exp = last_session_on_or_before(d).date().isoformat()
         rec(
             "PASS" if last and last >= exp else "WARN",
             "XREF",

@@ -396,6 +396,42 @@ console.log(JSON.stringify(cases));
 
 
 @needs_node
+def test_worker_uoa_clock():
+    """Flow scans and the freshness monitor skip holidays and a half
+    day's afternoon (Thanksgiving 2026 got 13 empty scans and a red
+    monitor run before this)."""
+    js = _between(_worker(), "const UOA_SLOTS", "function etDateISO")
+    r = _node(
+        js
+        + """
+console.log(JSON.stringify({
+  wed_0945: uoaDue(3, "2026-11-25", "09:45"),
+  wed_1215: uoaDue(3, "2026-11-25", "12:15"),
+  wed_1545: uoaDue(3, "2026-11-25", "15:45"),
+  wed_1000: uoaDue(3, "2026-11-25", "10:00"),
+  wed_1615: uoaDue(3, "2026-11-25", "16:15"),
+  thanksgiving_1215: uoaDue(4, "2026-11-26", "12:15"),
+  thanksgiving_1545: uoaDue(4, "2026-11-26", "15:45"),
+  half_1215: uoaDue(5, "2026-11-27", "12:15"),
+  half_1245: uoaDue(5, "2026-11-27", "12:45"),
+  half_1315: uoaDue(5, "2026-11-27", "13:15"),
+  half_1545: uoaDue(5, "2026-11-27", "15:45"),
+  sat_1215: uoaDue(6, "2026-11-28", "12:15"),
+}));
+"""
+    )
+    off = {"scan": False, "monitor": False}
+    scan = {"scan": True, "monitor": False}
+    both = {"scan": True, "monitor": True}
+    assert r["wed_0945"] == scan and r["wed_1215"] == both and r["wed_1545"] == both
+    assert r["wed_1000"] == off and r["wed_1615"] == off
+    assert r["thanksgiving_1215"] == off and r["thanksgiving_1545"] == off
+    assert r["half_1215"] == both and r["half_1245"] == scan
+    assert r["half_1315"] == off and r["half_1545"] == off
+    assert r["sat_1215"] == off
+
+
+@needs_node
 def test_worker_learns_nasdaq_date_offset():
     src = _worker()
     js = _between(src, "const MARKET_HOLIDAYS", "function _hhmmToMin") + _between(

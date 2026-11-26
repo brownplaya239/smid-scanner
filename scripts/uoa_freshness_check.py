@@ -33,6 +33,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 REPORT_URL = os.environ.get("REPORT_URL", "https://tickerdesk.io/reports/uoa_latest.json")
 MAX_AGE_MIN = int(os.environ.get("MAX_AGE_MIN", "180"))
 # If the DATA (`generated`) is stale but the scanner ATTEMPTED a run within this
@@ -98,15 +100,36 @@ def send_alert(subject, body):
         print("[monitor] email send failed: " + str(e))
 
 
+def session_window(now):
+    """(start, end) of the check window in ET minutes after midnight, or
+    None on a day with no session. Before 2026-11-26 this only knew
+    weekends, so Thanksgiving paged "upstream empty" all day. A year the
+    exchange calendar does not cover falls back to weekdays, 16:00 close."""
+    try:
+        import exchange_calendar as xc
+
+        if not xc.is_session(now.date()):
+            return None
+        close = xc.close_time(now.date())
+        close_min = close.hour * 60 + close.minute
+    except Exception:
+        if now.weekday() >= 5:
+            return None
+        close_min = 16 * 60
+    # The first scan gets until ~9:45 ET to publish, so a pre-open run never
+    # false-alarms on yesterday's (legitimate) data; the window ends 30 min
+    # after the close (13:30 on a half day).
+    return 9 * 60 + 45, close_min + 30
+
+
 def main():
     now = et_now()
-    # Weekday + RTH guard. Give the first scan until ~9:45 ET to publish so
-    # a pre-open run never false-alarms on yesterday's (legitimate) data.
-    if now.weekday() >= 5:
-        print("[monitor] weekend — skip.")
+    window = session_window(now)
+    if window is None:
+        print("[monitor] no session today (%s, weekend or holiday) — skip." % now.date())
         return 0
     mins = now.hour * 60 + now.minute
-    if not (9 * 60 + 45 <= mins <= 16 * 60 + 30):
+    if not (window[0] <= mins <= window[1]):
         print("[monitor] outside RTH window (%02d:%02d ET) — skip." % (now.hour, now.minute))
         return 0
 

@@ -28,11 +28,13 @@ quantitative screens — no Claude.
 All weekdays ET. GitHub cron is literal UTC (no DST) and runs hours late
 (scanner.yml's 10:07 AM cron starts ~4:20 PM). The Cloudflare worker is the
 primary scheduler, on the ET clock: flow scans (`uoa.yml`, every 30 min
-9:45 AM-3:45 PM), breakout scans (`scanner.yml` mode=breakout, 10:00, 11:30,
-3:00 PM; holidays and half-day afternoons skipped), the 4:45 PM EOD dispatch
-(`scanner.yml` + `momentum.yml`) and `JOB_SCHEDULE` (`UOA_SLOTS`,
+9:45 AM-3:45 PM, plus `uoa_monitor.yml` at 12:15 and 3:45 PM), breakout
+scans (`scanner.yml` mode=breakout, 10:00, 11:30, 3:00 PM), both skipping
+holidays and half-day afternoons (`uoaDue`, `breakoutDue`), the 4:45 PM EOD
+dispatch (`scanner.yml` + `momentum.yml`) and `JOB_SCHEDULE` (`UOA_SLOTS`,
 `BREAKOUT_SLOTS`, `EOD_SLOT` in `cloudflare-worker/worker.js`). GitHub crons
-stay as backstops.
+stay as backstops. The monitor and `scripts/dq_audit.py` also read
+`exchange_calendar.py`, so a holiday never pages.
 
 | Time ET | Workflow | Runs |
 |---|---|---|
